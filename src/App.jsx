@@ -6,13 +6,14 @@ import {
 import {
   FileTextOutlined, DatabaseOutlined, FilterOutlined,
   DownloadOutlined, InboxOutlined, ClearOutlined,
-  TableOutlined, SyncOutlined
+  TableOutlined, SyncOutlined, LineChartOutlined
 } from '@ant-design/icons';
 import FilePanel from './components/FilePanel';
 import DBCPanel from './components/DBCPanel';
 import MessageTable from './components/MessageTable';
 import ExportPanel from './components/ExportPanel';
 import CSVPanel from './components/CSVPanel';
+import SignalDecodeTab from './components/SignalDecodeTab';
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -403,6 +404,28 @@ function App() {
             onCRCChange={setSelectedCRC}
             convertProgress={convertProgress}
           />
+        </div>
+      )
+    },
+    {
+      key: 'decode',
+      label: (
+        <span>
+          <LineChartOutlined />
+          信号解析
+          {dbcMessages.length > 0 && (
+            <span style={{
+              marginLeft: 6, fontSize: 10, background: '#722ed1',
+              color: '#fff', padding: '0 5px', borderRadius: 10
+            }}>
+              DBC
+            </span>
+          )}
+        </span>
+      ),
+      children: (
+        <div style={{ height: '100%', overflow: 'hidden' }}>
+          <SignalDecodeTab dbcMessages={dbcMessages} loadedMessages={loadedMessages} />
         </div>
       )
     }

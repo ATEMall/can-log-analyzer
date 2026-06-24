@@ -4,6 +4,9 @@ const fs = require('fs');
 const zlib = require('zlib');
 const { spawn } = require('child_process');
 const readline = require('readline');
+const {
+  decodeSignalFrame, decodeSignalRawValue, getEnumLabel, isSignalPresent, decodeSignalsForLog
+} = require('./signalDecode');
 
 let mainWindow;
 
@@ -1184,6 +1187,28 @@ ipcMain.handle('file:exportASC', async (event, filePath, headerLines, messages) 
       });
     });
   });
+});
+
+// ==================== New: Decode selected signals to time-series ====================
+
+ipcMain.handle('file:decodeSignals', async (event, frames, dbcMessages, selectedKeys) => {
+  try {
+    const result = decodeSignalsForLog(frames || [], dbcMessages || [], selectedKeys || []);
+    return { success: true, ...result, totalRows: result.rows.length };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== New: Save plain text (CSV export) ====================
+
+ipcMain.handle('file:saveText', async (event, filePath, content) => {
+  try {
+    await fs.promises.writeFile(filePath, content, 'utf-8');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });
 
 ipcMain.handle('file:getStats', async (event, filePath) => {

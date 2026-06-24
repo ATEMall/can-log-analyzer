@@ -18,6 +18,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('file:convertCSVtoASC', csvData, dbcMessages, crcAlgorithm, options),
   getCRCAlgorithms: () => ipcRenderer.invoke('file:getCRCAlgorithms'),
 
+  // New: signal decoding (DBC -> physical time-series) + CSV save
+  decodeSignals: (frames, dbcMessages, selectedKeys) =>
+    ipcRenderer.invoke('file:decodeSignals', frames, dbcMessages, selectedKeys),
+  saveText: (filePath, content) => ipcRenderer.invoke('file:saveText', filePath, content),
+
   // Export progress listener
   onExportProgress: (callback) => {
     const handler = (event, data) => callback(data);

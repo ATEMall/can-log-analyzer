@@ -5,6 +5,7 @@
     "main":  "electron/main.js",
     "scripts":  {
                     "dev":  "vite",
+                    "test":  "node tests/signalDecode.test.js",
                     "build":  "vite build \u0026\u0026 electron-builder",
                     "preview":  "vite preview",
                     "electron:dev":  "concurrently \"vite\" \"wait-on http://localhost:5173 \u0026\u0026 electron .\"",
