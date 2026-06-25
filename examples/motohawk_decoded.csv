@@ -1,0 +1,6 @@
+t,Temperature,AverageRadius,Enable
+0.001,250.55,3.2,Enabled
+0.011,250.8,4,Enabled
+0.021,251,1.4000000000000001,Enabled
+0.031,251.46,3.2,Disabled
+0.041,250,0,Disabled
