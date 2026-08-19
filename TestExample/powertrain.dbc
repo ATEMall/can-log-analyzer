@@ -1,0 +1,89 @@
+VERSION ""
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: Engine ECU ABS Instrument_Cluster
+
+
+BO_ 256 EngineData: 8 Engine
+ SG_ EngineSpeed : 0|16@1+ (0.25,0) [0|16383.75] "rpm" Instrument_Cluster
+ SG_ ThrottlePosition : 16|8@1+ (0.4,0) [0|100] "%" Instrument_Cluster
+ SG_ EngineLoad : 24|8@1+ (0.4,0) [0|100] "%" Instrument_Cluster
+ SG_ CoolantTemp : 32|8@1+ (1,-40) [-40|215] "degC" Instrument_Cluster
+ SG_ IntakeAirTemp : 40|8@1+ (1,-40) [-40|215] "degC" ABS
+ SG_ EngineRunTime : 48|16@1+ (1,0) [0|65535] "s" Instrument_Cluster
+
+BO_ 512 VehicleSpeed: 8 ABS
+ SG_ VehicleSpeed : 0|16@1+ (0.01,0) [0|655.35] "km/h" Instrument_Cluster,Engine
+ SG_ WheelSpeed_FL : 16|16@1+ (0.01,0) [0|655.35] "km/h" Engine
+ SG_ WheelSpeed_FR : 32|16@1+ (0.01,0) [0|655.35] "km/h" Engine
+ SG_ WheelSpeed_RL : 48|16@1+ (0.01,0) [0|655.35] "km/h" Engine
+
+BO_ 768 FuelBattery: 8 Engine
+ SG_ FuelLevel : 0|8@1+ (0.4,0) [0|100] "%" Instrument_Cluster
+ SG_ BatteryVoltage : 8|16@1+ (0.1,0) [0|25.5] "V" Instrument_Cluster
+ SG_ FuelConsumption : 24|16@1+ (0.1,0) [0|6553.5] "L/100km" Instrument_Cluster
+ SG_ RangeRemaining : 40|16@1+ (1,0) [0|65535] "km" Instrument_Cluster
+ SG_ FuelPressure : 56|8@1+ (3,0) [0|765] "kPa" Engine
+
+
+CM_ BO_ 256 "Engine data message - 100ms cycle";
+CM_ SG_ 256 EngineSpeed "Engine speed in RPM";
+CM_ SG_ 256 ThrottlePosition "Throttle position percentage";
+CM_ SG_ 256 EngineLoad "Calculated engine load";
+CM_ SG_ 256 CoolantTemp "Engine coolant temperature";
+CM_ SG_ 256 IntakeAirTemp "Intake air temperature";
+CM_ SG_ 256 EngineRunTime "Engine run time in seconds";
+
+CM_ BO_ 512 "Vehicle speed message - 20ms cycle";
+CM_ SG_ 512 VehicleSpeed "Vehicle speed from ABS sensors";
+CM_ SG_ 512 WheelSpeed_FL "Front-left wheel speed";
+
+CM_ BO_ 768 "Fuel level and battery message - 500ms cycle";
+CM_ SG_ 768 FuelLevel "Fuel tank level percentage";
+CM_ SG_ 768 BatteryVoltage "Battery terminal voltage";
+CM_ SG_ 768 FuelConsumption "Instant fuel consumption";
+CM_ SG_ 768 RangeRemaining "Estimated range remaining";
+CM_ SG_ 768 FuelPressure "Fuel rail pressure";
+
+BA_DEF_ "BusType" STRING ;
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 65535;
+BA_DEF_ SG_ "GenSigStartValue" FLOAT 0 1000000;
+
+BA_ "BusType" "CAN";
+BA_ "GenMsgCycleTime" BO_ 256 100;
+BA_ "GenMsgCycleTime" BO_ 512 20;
+BA_ "GenMsgCycleTime" BO_ 768 500;
+
+VAL_ 256 ThrottlePosition 0 "Idle" 100 "Full_Throttle" ;

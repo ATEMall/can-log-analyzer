@@ -18,19 +18,57 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Ensure Ant Design components render correctly */
+/* Ensure Ant Design layout containers render correctly */
 .ant-layout,
 .ant-layout-header,
-.ant-layout-content,
-.ant-card,
-.ant-row,
-.ant-col,
-.ant-table,
-.ant-btn,
-.ant-input,
-.ant-statistic,
-.ant-tag,
-.ant-progress,
-.ant-alert {
+.ant-layout-content {
   display: block !important;
+}
+
+/* Highlight rows of selected signals in DBC detail table */
+.sig-row-selected td {
+  background-color: #e6f4ff !important;
+}
+
+/* Prevent antd Tabs content from overflowing in flex layout.
+   The full height chain must carry through: Tabs(flex column)
+   -> content-holder(flex:1) -> content(flex column) -> tabpane(flex:1),
+   otherwise ResponsiveContainer inside the chart measures 0 height. */
+.ant-tabs-content-holder {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ant-tabs-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ant-tabs-tabpane {
+  flex: 1;
+  min-height: 0;
+}
+.ant-tabs-tabpane-active {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Chart card: let .ant-card-body fill the remaining height after the head
+   (tabList tabs), so inner flex children (chart area) get a real height. */
+.chart-card.ant-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.chart-card .ant-card-head {
+  flex-shrink: 0;
+}
+.chart-card .ant-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }

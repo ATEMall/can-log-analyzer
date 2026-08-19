@@ -4,6 +4,16 @@ node_modules/
 # Build outputs
 dist/
 release/
+release_new/
+
+# Temp / backup
+.tmp_handle/
+backup/
+
+# Build logs & release checks
+build_output*.txt
+proc_check.txt
+release_check.txt
 
 # macOS
 .DS_Store

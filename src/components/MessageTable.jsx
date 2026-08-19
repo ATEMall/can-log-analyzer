@@ -4,10 +4,19 @@ import { FileTextOutlined, SearchOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
-function MessageTable({ messages, loading }) {
+function MessageTable({ messages, loading, dbcMessages = [] }) {
   const [searchText, setSearchText] = useState('');
   const containerRef = useRef(null);
   const [tableHeight, setTableHeight] = useState(400);
+
+  // id -> message name map from DBC
+  const msgNameMap = React.useMemo(() => {
+    const m = {};
+    for (const msg of dbcMessages) {
+      m[msg.id] = msg.name;
+    }
+    return m;
+  }, [dbcMessages]);
 
   // Auto-calculate table height based on container
   useEffect(() => {
@@ -30,13 +39,15 @@ function MessageTable({ messages, loading }) {
     };
   }, [messages.length]);
 
-  // Filter messages based on search
+  // Filter messages based on search (ID or message name)
   const filteredMessages = messages.filter(msg => {
     if (!searchText) return true;
     const search = searchText.toLowerCase();
+    const msgName = (msgNameMap[msg.id] || '').toLowerCase();
     return (
       msg.id.toString(16).toLowerCase().includes(search) ||
-      msg.id.toString().includes(search)
+      msg.id.toString().includes(search) ||
+      msgName.includes(search)
     );
   });
 
@@ -80,6 +91,18 @@ function MessageTable({ messages, loading }) {
           {id != null ? `0x${id.toString(16).toUpperCase().padStart(3, '0')}` : '0x000'}
         </Text>
       )
+    },
+    {
+      title: '消息名',
+      key: 'msgName',
+      width: 150,
+      ellipsis: true,
+      render: (_, record) => {
+        const name = msgNameMap[record.id];
+        return name
+          ? <Tag color="cyan" style={{ fontSize: 11, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</Tag>
+          : <Text type="secondary" style={{ fontSize: 11 }}>-</Text>;
+      }
     },
     {
       title: '方向',
@@ -142,9 +165,9 @@ function MessageTable({ messages, loading }) {
       extra={
         <Space>
           <Input
-            placeholder="搜索 ID..."
+            placeholder="搜索 ID / 消息名..."
             prefix={<SearchOutlined />}
-            style={{ width: 140 }}
+            style={{ width: 180 }}
             size="small"
             value={searchText}
             onChange={e => setSearchText(e.target.value)}

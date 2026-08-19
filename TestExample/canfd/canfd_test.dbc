@@ -1,0 +1,59 @@
+VERSION "CAN FD test database - 64 byte payloads"
+
+NS_ :
+    NS_DESC_
+    CM_
+    BA_DEF_
+    BA_
+    VAL_
+    CAT_DEF_
+    CAT_
+    FILTER
+    BA_DEF_DEF_
+    EV_DATA_
+    ENVVAR_DATA_
+    SGTYPE_
+    SGTYPE_VAL_
+    BA_DEF_SGTYPE_
+    BA_SGTYPE_
+    SIG_TYPE_REF_
+    VAL_TABLE_
+    SIG_GROUP_
+    SIG_VALTYPE_
+    SIGTYPE_VALTYPE_
+    BO_TX_BU_
+    BA_DEF_REL_
+    BA_REL_
+    BA_DEF_DEF_REL_
+    BU_SG_REL_
+    BU_EV_REL_
+    BU_BO_REL_
+    SG_MUL_VAL_
+
+BS_:
+
+BU_: Node1 Node2 Node3 Node4
+
+BO_ 1262 MSG64A: 64 SenderA
+ SG_ A_Byte0 : 0|8@1+ (1,0) [0|255] "" Node1
+ SG_ A_Byte1 : 8|8@1+ (1,0) [0|255] "" Node1
+ SG_ A_Byte2_3 : 16|16@1+ (1,0) [0|65535] "" Node1
+ SG_ A_Byte7 : 56|8@1+ (1,0) [0|255] "" Node1
+ SG_ A_Byte62_63 : 496|16@1+ (1,0) [0|65535] "" Node1
+ SG_ A_Byte63 : 504|8@1+ (1,0) [0|255] "" Node1
+ SG_ A_U32_60 : 480|32@1+ (1,0) [0|4294967295] "" Node1
+ SG_ A_U64_0 : 0|64@1+ (1,0) [0|18446744073709551615] "" Node1
+
+BO_ 474841255 MSG64B: 64 SenderB
+ SG_ B_Byte0 : 0|8@1+ (1,0) [0|255] "" Node2
+ SG_ B_Byte63 : 504|8@1+ (1,0) [0|255] "" Node2
+
+BO_ 768 MSG8A: 8 SenderC
+ SG_ C_Byte0 : 0|8@1+ (1,0) [0|255] "" Node3
+ SG_ C_Byte7 : 56|8@1+ (1,0) [0|255] "" Node3
+ SG_ C_U16_2 : 16|16@1+ (1,0) [0|65535] "" Node3
+ SG_ C_All32 : 0|32@1+ (1,0) [0|4294967295] "" Node3
+
+BO_ 778 MSG8B: 8 SenderD
+ SG_ D_Byte0 : 0|8@1+ (1,0) [0|255] "" Node4
+ SG_ D_Byte7 : 56|8@1+ (1,0) [0|255] "" Node4

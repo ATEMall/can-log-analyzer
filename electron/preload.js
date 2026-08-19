@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadASC: (filePath, selectedIds) => ipcRenderer.invoke('file:loadASC', filePath, selectedIds),
   loadBLF: (filePath, selectedIds) => ipcRenderer.invoke('file:loadBLF', filePath, selectedIds),
   exportASC: (filePath, headerLines, messages) => ipcRenderer.invoke('file:exportASC', filePath, headerLines, messages),
+  convertASCtoBLF: (filePath, messages) => ipcRenderer.invoke('file:convertASCtoBLF', filePath, messages),
   getStats: (filePath) => ipcRenderer.invoke('file:getStats', filePath),
 
   // New: Physical CSV operations
@@ -23,5 +24,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (event, data) => callback(data);
     ipcRenderer.on('export:progress', handler);
     return () => ipcRenderer.removeListener('export:progress', handler);
-  }
+  },
+
+  // Signal decode operations
+  decodeSignalFrames: (loadedMessages, selectedSignals, dbcMessages) =>
+    ipcRenderer.invoke('signal:decodeFrames', loadedMessages, selectedSignals, dbcMessages),
+  exportSignalCSV: (filePath, signalData, selectedSignals) =>
+    ipcRenderer.invoke('signal:exportCSV', filePath, signalData, selectedSignals)
 });

@@ -1,46 +1,69 @@
 {
-    "name":  "can-log-analyzer",
-    "version":  "1.0.0",
-    "description":  "CAN Log File Analyzer - Load ASC/BLF files, filter with DBC, export to ASC",
-    "main":  "electron/main.js",
-    "scripts":  {
-                    "dev":  "vite",
-                    "build":  "vite build \u0026\u0026 electron-builder",
-                    "preview":  "vite preview",
-                    "electron:dev":  "concurrently \"vite\" \"wait-on http://localhost:5173 \u0026\u0026 electron .\"",
-                    "electron:build":  "vite build \u0026\u0026 electron-builder"
-                },
-    "dependencies":  {
-                         "react":  "^18.2.0",
-                         "react-dom":  "^18.2.0",
-                         "antd":  "^5.12.0",
-                         "@ant-design/icons":  "^5.2.6"
-                     },
-    "devDependencies":  {
-                            "@vitejs/plugin-react":  "^4.2.1",
-                            "vite":  "^5.0.10",
-                            "electron":  "^28.1.0",
-                            "electron-builder":  "^24.9.1",
-                            "concurrently":  "^8.2.2",
-                            "wait-on":  "^7.2.0"
-                        },
-    "build":  {
-                  "appId":  "com.canlog.analyzer",
-                  "productName":  "CAN Log Analyzer",
-                  "electronVersion":  "28.3.3",
-                  "electronDist":  "C:/Users/jj_10/AppData/Local/electron-builder/cache/electron/electron-v28.3.3-win32-x64",
-                  "directories":  {
-                                      "output":  "release"
-                                  },
-                  "files":  [
-                                "dist/**/*",
-                                "electron/**/*"
-                            ],
-                  "mac":  {
-                              "target":  "dmg"
-                          },
-                  "win":  {
-                              "target":  "nsis"
-                          }
-              }
+    "name": "can-log-analyzer-pro",
+    "version": "2.0.0",
+    "description": "CAN Log File Analyzer Pro - Load ASC/BLF files, decode signals with DBC, view signal bit layouts",
+    "main": "electron/main.js",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build && electron-builder",
+        "preview": "vite preview",
+        "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+        "electron:build": "vite build && electron-builder",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@ant-design/icons": "^5.2.6",
+        "antd": "^5.12.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "recharts": "^3.10.1"
+    },
+    "devDependencies": {
+        "@testing-library/jest-dom": "^7.0.1",
+        "@testing-library/react": "^16.3.2",
+        "@vitejs/plugin-react": "^4.2.1",
+        "@vitest/ui": "^2.1.9",
+        "concurrently": "^8.2.2",
+        "electron": "^28.1.0",
+        "electron-builder": "^24.9.1",
+        "jsdom": "^30.0.1",
+        "vite": "^5.0.10",
+        "vitest": "^2.1.9",
+        "wait-on": "^7.2.0"
+    },
+    "build": {
+        "appId": "com.canlog.analyzer.pro",
+        "productName": "CAN Log Analyzer Pro",
+        "electronDist": "node_modules/electron/dist",
+        "directories": {
+            "output": "release"
+        },
+        "files": [
+            "dist/**/*",
+            "electron/**/*",
+            "public/**/*",
+            "package.json"
+        ],
+        "win": {
+            "target": [
+                "nsis",
+                "portable"
+            ],
+            "icon": null
+        },
+        "nsis": {
+            "oneClick": false,
+            "perMachine": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "CAN Log Analyzer Pro",
+            "installerIcon": null,
+            "uninstallerIcon": null,
+            "uninstallDisplayName": "CAN Log Analyzer Pro"
+        },
+        "portable": {
+            "artifactName": "${productName}-Portable-${version}.${ext}"
+        }
+    }
 }

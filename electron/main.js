@@ -4,14 +4,30 @@ const fs = require('fs');
 const zlib = require('zlib');
 const { spawn } = require('child_process');
 const readline = require('readline');
+const { buildBLFBuffer, parseBLFBuffer } = require('./blf');
+const { isNonDataLine, parseASCDataLine, generateASC } = require('./asc');
+const { parseDBC, decodeSignalFrame, getEnumLabel } = require('./dbc');
 
 let mainWindow;
 
 function createWindow() {
+  // Try multiple paths for logo (dev: public/, production: dist/)
+  const logoPaths = [
+    path.join(__dirname, '../dist/logo.png'),
+    path.join(__dirname, '../public/logo.png'),
+    path.join(app.getAppPath(), 'dist/logo.png'),
+    path.join(app.getAppPath(), 'public/logo.png')
+  ];
+  let icon = undefined;
+  for (const p of logoPaths) {
+    if (fs.existsSync(p)) { icon = p; break; }
+  }
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     backgroundColor: '#f5f5f5',
+    icon: icon,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -19,7 +35,11 @@ function createWindow() {
       sandbox: true
     },
     title: 'CAN Log Analyzer',
-    show: true
+    show: false
+  });
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
   });
 
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
@@ -65,91 +85,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// ==================== DBC Parser (Full - all signals) ====================
-
-function parseDBC(content) {
-  const messages = [];
-  const lines = content.split(/\r?\n/);
-  let currentMessage = null;
-  // Also collect value definitions (VAL_) for enum-type signals
-  const valueDefs = {};
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // BO_ - Message definition
-    const msgMatch = trimmed.match(/^BO_\s+(\d+)\s+([\w\-\.]+)\s*:\s*(\d+)\s+([\w\-\.]+)/);
-    if (msgMatch) {
-      if (currentMessage) messages.push(currentMessage);
-      currentMessage = {
-        id: parseInt(msgMatch[1]),
-        name: msgMatch[2],
-        dlc: parseInt(msgMatch[3]),
-        sender: msgMatch[4],
-        signals: []
-      };
-      continue;
-    }
-
-    // SG_ - Signal definition (standard + multiplex mux indicators)
-    // Format: SG_ <name> [M|m<n>|m<n>M] : <startBit>|<length>@<byteOrder><valueType> (<scale>,<offset>) [<min>|<max>] "<unit>" <receivers>
-    const sigMatch = trimmed.match(
-      /^SG_\s+([\w\-\.]+)\s*(M|m\d+M?|)?\s*:\s*(\d+)\|(\d+)@([01])([+-])\s*\((-?[\d.eE+\-]+),(-?[\d.eE+\-]+)\)\s*\[(-?[\d.eE+\-]+)\|(-?[\d.eE+\-]+)\]\s*"([^"]*)"\s*(.*)/
-    );
-    if (sigMatch && currentMessage) {
-      const receivers = sigMatch[12]
-        ? sigMatch[12].trim().split(/\s*,\s*/).filter(r => r && r !== 'Vector__XXX')
-        : [];
-      currentMessage.signals.push({
-        name: sigMatch[1],
-        muxIndicator: sigMatch[2] ? sigMatch[2].trim() : '',
-        startBit: parseInt(sigMatch[3]),
-        length: parseInt(sigMatch[4]),
-        byteOrder: sigMatch[5] === '1' ? 'little' : 'big',  // 1=Intel(little-endian), 0=Motorola(big-endian)
-        signed: sigMatch[6] === '-',
-        scale: parseFloat(sigMatch[7]),
-        offset: parseFloat(sigMatch[8]),
-        min: parseFloat(sigMatch[9]),
-        max: parseFloat(sigMatch[10]),
-        unit: sigMatch[11],
-        receivers: receivers
-      });
-      continue;
-    }
-
-    // VAL_ - Value definitions (for enum signals)
-    // Format: VAL_ <msgId> <sigName> <value> "<label>" ... ;
-    const valMatch = trimmed.match(/^VAL_\s+(\d+)\s+([\w\-\.]+)\s+(.*)\s*;?/);
-    if (valMatch) {
-      const msgId = parseInt(valMatch[1]);
-      const sigName = valMatch[2];
-      const pairs = valMatch[3];
-      const key = `${msgId}:${sigName}`;
-      const vals = {};
-      const pairMatches = [...pairs.matchAll(/(\d+)\s+"([^"]*)"/g)];
-      for (const pm of pairMatches) {
-        vals[parseInt(pm[1])] = pm[2];
-      }
-      if (!valueDefs[key]) valueDefs[key] = {};
-      Object.assign(valueDefs[key], vals);
-    }
-  }
-
-  if (currentMessage) messages.push(currentMessage);
-
-  // Attach value definitions to signals
-  for (const msg of messages) {
-    for (const sig of msg.signals) {
-      const key = `${msg.id}:${sig.name}`;
-      if (valueDefs[key]) {
-        sig.valueDefs = valueDefs[key];
-      }
-    }
-  }
-
-  return messages;
-}
+// ==================== DBC Parser & Signal Decoding ====================
+// parseDBC / decodeSignalFrame / getEnumLabel are implemented in ./dbc
+// (pure module, unit-testable; supports CAN FD 64-byte payloads).
 
 // ==================== Signal Encoding/Decoding ====================
 
@@ -553,103 +491,9 @@ function convertCSVToCANMessages(csvData, dbcMessages, crcAlgorithm = 'NONE', op
 }
 
 // ==================== ASC Parser (streaming for large files) ====================
-
-// Header line patterns (always non-data)
-const HEADER_PATTERNS = [
-  /^date\s/, /^base\s+/, /^timestamps\s/, /^internal\s/,
-  /^\/\//, /^Start\s+of\s+measurement/, /^Begin\s*:/,
-];
-
-// Check if a line is a pure event/log line (NOT a CAN/LIN data frame)
-function isNonDataLine(line) {
-  const t = line.trim();
-  if (!t || t.length < 15) return true;
-
-  // Standard header patterns
-  for (const p of HEADER_PATTERNS) {
-    if (p.test(t)) return true;
-  }
-
-  // SV: lines are TSMaster signal variable updates, never CAN frames
-  if (/^\d[\d.]*\s+SV:/.test(t)) return true;
-
-  // Li/CAN/CANFD followed by an alphabetic name = event (not data frame)
-  const liEventMatch = t.match(/^\d[\d.]*\s+(?:Li|CAN|CANFD)\s+[A-Za-z_]/);
-  if (liEventMatch) return true;
-
-  // Start of measurement marker
-  if (/Start of measurement/.test(t) && !/Tx|Rx/.test(t)) return true;
-
-  return false;
-}
-
-/**
- * Parse a single ASC data line - supports multiple formats
- */
-function parseASCDataLine(line) {
-  let trimmed = line.trim();
-
-  // Must start with a timestamp
-  const tsMatch = trimmed.match(/^([\d.]+)\s+(.*)$/);
-  if (!tsMatch) return null;
-
-  const timestamp = parseFloat(tsMatch[1]);
-  const rest = tsMatch[2];
-  if (rest.length < 5) return null;
-
-  // --- Strategy 1: Vector standard format ---
-  const vectorMatch = rest.match(/^(\d+)\s+([0-9A-Fa-f]+)\s+(Tx|Rx)\s+[dr]\s+(\d+)\s+([0-9A-Fa-f][0-9A-Fa-f](?:\s+[0-9A-Fa-f][0-9A-Fa-f])*)\s*/);
-  if (vectorMatch) {
-    const dataStr = vectorMatch[5].trim();
-    const data = dataStr.split(/\s+/).map(b => parseInt(b, 16));
-    return {
-      timestamp,
-      channel: parseInt(vectorMatch[1]),
-      id: parseInt(vectorMatch[2], 16),
-      direction: vectorMatch[3],
-      dlc: parseInt(vectorMatch[4]),
-      data
-    };
-  }
-
-  // --- Strategy 2: TSMaster format (CAN / CANFD / LIN) ---
-  const tsMasterMatch = rest.match(/^(CAN|CANFD|Li)\s+([0-9A-Fa-f]+)\s+(Tx|Rx)\s+(\d+)\s+((?:[0-9A-Fa-f]{2}\s+)+)/i);
-  if (tsMasterMatch) {
-    const busType = tsMasterMatch[1].toUpperCase();
-    const dataStr = tsMasterMatch[5].trim();
-    const data = dataStr.split(/\s+/).filter(Boolean).map(b => parseInt(b, 16));
-    const dlc = Math.min(parseInt(tsMasterMatch[4]), data.length);
-    const chMap = { 'CAN': 1, 'CANFD': 1, 'Li': 2 };
-    return {
-      timestamp,
-      channel: chMap[busType] || 1,
-      id: parseInt(tsMasterMatch[2], 16),
-      direction: tsMasterMatch[3],
-      dlc,
-      data: data.slice(0, dlc)
-    };
-  }
-
-  // --- Strategy 3: Flexible fallback ---
-  const flexMatch = rest.match(/^\S+\s+([0-9A-Fa-f]+)\s+(Tx|Rx)\s+(\d{1,2})\s+((?:[0-9A-Fa-f]{2}\s*)+)/i);
-  if (flexMatch && !isNonDataLine(rest)) {
-    const dataStr = flexMatch[4].trim();
-    const rawData = dataStr.split(/\s+/).filter(b => /^[0-9A-Fa-f]{2}$/i.test(b)).map(b => parseInt(b, 16));
-    if (rawData.length >= 1) {
-      const dlc = Math.min(parseInt(flexMatch[3]), rawData.length);
-      return {
-        timestamp,
-        channel: 1,
-        id: parseInt(flexMatch[1], 16),
-        direction: flexMatch[2],
-        dlc,
-        data: rawData.slice(0, dlc)
-      };
-    }
-  }
-
-  return null;
-}
+// isNonDataLine / parseASCDataLine / generateASC are implemented in ./asc
+// (pure module, supports CAN FD up to 64 bytes in Vector/python-can and
+//  TSMaster formats).
 
 async function loadASCFile(filePath, selectedIds) {
   return new Promise((resolve, reject) => {
@@ -688,17 +532,6 @@ async function loadASCFile(filePath, selectedIds) {
 
     rl.on('error', reject);
   });
-}
-
-function generateASC(headerLines, messages) {
-  const output = [...headerLines, ''];
-  
-  for (const msg of messages) {
-    const dataStr = msg.data.map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ');
-    output.push(`${msg.timestamp.toFixed(6)} ${msg.channel} ${msg.id.toString(16).toUpperCase()} ${msg.direction} d ${msg.dlc} ${dataStr}`);
-  }
-  
-  return output.join('\r\n');
 }
 
 // ==================== BLF Handler (using python-can via subprocess) ====================
@@ -763,7 +596,10 @@ try:
             "id": int(msg.arbitration_id),
             "direction": direction,
             "dlc": int(msg.dlc),
-            "data": [int(b) for b in list(msg.data[:64])]
+            "data": [int(b) for b in list(msg.data[:64])],
+            "isFd": bool(getattr(msg, 'is_fd', False)),
+            "brs": bool(getattr(msg, 'bitrate_switch', False)),
+            "esi": bool(getattr(msg, 'error_state_indicator', False))
         })
         
         if len(msgs) >= 1000000:
@@ -834,85 +670,11 @@ except Exception as e:
 
 async function loadBLFFallback(filePath, selectedIds) {
   const buffer = await fs.promises.readFile(filePath);
-  const signature = buffer.toString('ascii', 0, 4);
-  if (signature !== 'LOGG') throw new Error('Invalid BLF file');
-  
-  const headerSize = buffer.readUInt16LE(4);
-  const dataOffset = Math.max(headerSize, 144);
-  
-  if (dataOffset >= buffer.length) throw new Error('Invalid BLF: corrupted header');
-  
-  const messages = [];
-  let searchOff = dataOffset;
-  
-  while (searchOff < buffer.length - 4) {
-    if ((buffer[searchOff] === 0x78) && 
-        [0x01, 0x5e, 0x9c, 0xda].includes(buffer[searchOff + 1])) {
-      try {
-        const decomp = zlib.inflateSync(buffer.slice(searchOff));
-        if (decomp.length < 16) { searchOff++; continue; }
-        
-        let off = 0;
-        while (off + 20 <= decomp.length) {
-          const sig = decomp.toString('ascii', off, off + 4);
-          if (sig !== 'LOBJ') { off++; continue; }
-          
-          const hdrLen = decomp.readUInt16LE(off + 4);
-          const objType = decomp.readUInt16LE(off + 8);
-          const objSize = decomp.readUInt32LE(off + 12);
-          
-          if (objSize < 32 || off + objSize > decomp.length) break;
-          
-          if ([1, 2, 144].includes(objType) && objSize >= hdrLen + 12) {
-            try {
-              const p = off + hdrLen;
-              const ch = decomp.readUInt8(p);
-              const rawId = decomp.readUInt32LE(p + 4);
-              const id = rawId & (rawId > 0x7FF ? 0x1FFFFFFF : 0x7FF);
-              
-              let dlc;
-              if (objType === 144) {
-                dlc = decomp.readUInt8(p + 2);
-                if (dlc > 64) dlc = Math.min(dlc & 0x0F, 8);
-              } else {
-                dlc = decomp.readUInt8(p + 8);
-              }
-              
-              const dataLen = Math.min(dlc, 64);
-              const data = [];
-              for (let i = 0; i < dataLen; i++) {
-                data.push(decomp.readUInt8(p + 12 + i));
-              }
-              
-              let timestamp = 0;
-              const tsPos = off + objSize - 8;
-              if (tsPos >= off + hdrLen && tsPos + 8 <= decomp.length) {
-                const rawTs = decomp.readBigUInt64LE(tsPos);
-                timestamp = Number(rawTs) > 1e9 ? Number(rawTs) / 1e6 : Number(rawTs) / 1e7;
-              }
-              
-              if (selectedIds.size === 0 || selectedIds.has(id)) {
-                messages.push({ timestamp, channel: ch, id, direction: 'Rx', dlc, data });
-              }
-            } catch (e) { /* skip bad object */ }
-          }
-          
-          off += objSize;
-          if (objSize === 0) off++;
-        }
-        
-        searchOff += Math.max(Math.floor(decomp.length / 10), 256);
-        continue;
-      } catch (e) {
-        // Not valid zlib or failed decompression
-      }
-    }
-    searchOff++;
-  }
-  
+  const messages = parseBLFBuffer(buffer, selectedIds);
+
   const now = new Date();
   const dateStr = now.toISOString().replace('T', ' ').substring(0, 19);
-  
+
   return {
     headerLines: [`date ${dateStr}`, 'base hex  timestamps absolute', 'internal events logged'],
     messages
@@ -974,7 +736,7 @@ ipcMain.handle('file:loadDBC', async (event, filePath) => {
   try {
     const content = await fs.promises.readFile(filePath, 'utf-8');
     const messages = parseDBC(content);
-    return { success: true, messages };
+    return { success: true, messages, rawContent: content };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -1125,6 +887,21 @@ function getCRCDescription(name) {
   return descriptions[name] || name;
 }
 
+// ==================== Convert ASC data to BLF ====================
+
+ipcMain.handle('file:convertASCtoBLF', async (event, filePath, messages) => {
+  try {
+    if (!messages || messages.length === 0) {
+      return { success: false, error: '没有可转换的消息数据' };
+    }
+    const buffer = buildBLFBuffer(messages);
+    await fs.promises.writeFile(filePath, buffer);
+    return { success: true, count: messages.length, bytes: buffer.length };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // ==================== Export ASC ====================
 
 ipcMain.handle('file:exportASC', async (event, filePath, headerLines, messages) => {
@@ -1205,3 +982,220 @@ function formatFileSize(bytes) {
   if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
   return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }
+
+// ==================== Signal Decode Engine ====================
+
+/**
+ * Decode a single signal value from CAN data bytes.
+ *
+ * This is a refined version of the existing decodeSignal function,
+ * with extra care for Motorola bit ordering (per cantools/canmatrix standard).
+ *
+ * Intel (little-endian):
+ *   Bits are numbered LSB first within each byte, then across bytes.
+ *   startBit is the LSB position of the signal.
+ *
+ * Motorola (big-endian):
+ *   Bits are numbered MSB first. startBit is the MSB position.
+ *   The "sawtooth" pattern: from startBit (MSB), move to the next byte's LSB,
+ *   progress upward through bits in that byte, then wrap to the first byte's
+ *   remaining lower bits.
+ *
+ * @param {number[]} data - CAN data bytes (0-255 each)
+ * @param {object} signal - Signal definition from DBC
+ * @returns {number|string} Physical value, or enum label string
+ */
+// decodeSignalFrame is implemented in ./dbc (pure module, supports CAN FD
+// 64-byte payloads and >32-bit signals).
+
+/**
+ * Decode signal frames from loaded CAN messages.
+ *
+ * For each frame in the log, match its message ID against DBC definitions,
+ * then decode each selected signal using decodeSignalFrame.
+ * Handles multiplexed signals (mux) and VAL_ enum labels.
+ *
+ * Performance: processes up to 1M frames in main process.
+ * For >100K frames, streaming with progress reporting is used.
+ *
+ * @param {object[]} loadedMessages - Array of parsed CAN frames
+ * @param {object[]} selectedSignals - [{msgId, signalName}, ...]
+ * @param {object[]} dbcMessages - Parsed DBC message definitions
+ * @returns {object} { success, signalData, stats }
+ */
+ipcMain.handle('signal:decodeFrames', async (event, loadedMessages, selectedSignals, dbcMessages) => {
+  try {
+    // Build lookup: msgId -> dbcMsg
+    const dbcMap = {};
+    for (const msg of dbcMessages) {
+      dbcMap[msg.id] = msg;
+    }
+
+    // Build lookup: signalKey -> { dbcSig, dbcMsg }
+    const signalLookup = {};
+    for (const sel of selectedSignals) {
+      const dbcMsg = dbcMap[sel.msgId];
+      if (!dbcMsg) continue;
+      const dbcSig = dbcMsg.signals.find(s => s.name === sel.signalName);
+      if (!dbcSig) continue;
+      const key = `${sel.msgId}::${sel.signalName}`;
+
+      // Determine if this signal is multiplexed
+      let muxSwitch = null;
+      if (dbcSig.muxIndicator) {
+        if (dbcSig.muxIndicator === 'M') {
+          // This is the multiplexor switch signal
+          muxSwitch = { type: 'switch', signal: dbcSig };
+        } else if (dbcSig.muxIndicator.startsWith('m')) {
+          // This is a multiplexed signal: only present when switch == value
+          const muxVal = parseInt(dbcSig.muxIndicator.replace(/^m/, '').replace(/M$/, ''));
+          if (!isNaN(muxVal)) {
+            // Find the switch signal for this message
+            const switchSig = dbcMsg.signals.find(s => s.muxIndicator === 'M');
+            muxSwitch = { type: 'dependent', switchSig, value: muxVal };
+          }
+        }
+      }
+
+      signalLookup[key] = { dbcSig, dbcMsg, muxSwitch };
+    }
+
+    const signalData = [];
+    let decodedFrameCount = 0;
+    let totalFrameCount = loadedMessages.length;
+
+    // Process frames in batches for large datasets
+    for (const frame of loadedMessages) {
+      const dbcMsg = dbcMap[frame.id];
+      if (!dbcMsg) continue;  // No DBC definition for this message ID
+
+      const row = { t: frame.timestamp, signals: {} };
+      let hasSignal = false;
+
+      // Resolve mux switch value first (if any selected signal requires it)
+      let muxSwitchValue = undefined;
+      let muxSwitchResolved = false;
+
+      for (const sel of selectedSignals) {
+        const key = `${sel.msgId}::${sel.signalName}`;
+        const entry = signalLookup[key];
+        if (!entry || entry.dbcMsg.id !== frame.id) continue;
+
+        const { dbcSig, muxSwitch } = entry;
+
+        // Handle multiplexed signals
+        if (muxSwitch) {
+          if (muxSwitch.type === 'switch') {
+            // This is the mux switch itself - just decode it
+            const val = decodeSignalFrame(frame.data, dbcSig);
+            const label = getEnumLabel(dbcSig, val);
+            // Keep the numeric value for chart plotting, label separately for table/CSV
+            row.signals[key] = val;
+            if (label !== undefined) row.signals[key + '::label'] = label;
+            hasSignal = true;
+            muxSwitchValue = val;
+            muxSwitchResolved = true;
+            continue;
+          }
+
+          if (muxSwitch.type === 'dependent') {
+            // Need the switch value first
+            if (!muxSwitchResolved && muxSwitch.switchSig) {
+              muxSwitchValue = decodeSignalFrame(frame.data, muxSwitch.switchSig);
+              muxSwitchResolved = true;
+            }
+            // Only decode this signal if switch value matches
+            if (muxSwitchValue !== muxSwitch.value) {
+              continue;  // Signal not present in this frame
+            }
+          }
+        }
+
+        // Decode the signal
+        const physical = decodeSignalFrame(frame.data, dbcSig);
+        const label = getEnumLabel(dbcSig, physical);
+        // Keep the numeric value for chart plotting, label separately for table/CSV
+        row.signals[key] = physical;
+        if (label !== undefined) row.signals[key + '::label'] = label;
+        hasSignal = true;
+      }
+
+      if (hasSignal) {
+        signalData.push(row);
+        decodedFrameCount++;
+      }
+    }
+
+    // Count enum-mapped signals
+    let encodedCount = 0;
+    for (const sel of selectedSignals) {
+      const key = `${sel.msgId}::${sel.signalName}`;
+      const entry = signalLookup[key];
+      if (entry && entry.dbcSig.valueDefs) {
+        encodedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      signalData,
+      stats: {
+        totalFrames: totalFrameCount,
+        decodedFrames: decodedFrameCount,
+        selectedSignals: selectedSignals.length,
+        encodedSignals: encodedCount,
+        signalKeys: Object.keys(signalLookup).length
+      }
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// getEnumLabel is implemented in ./dbc (pure module).
+
+// ==================== Signal CSV Export ====================
+
+ipcMain.handle('signal:exportCSV', async (event, filePath, signalData, selectedSignals) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const writeStream = fs.createWriteStream(filePath, { encoding: 'utf-8' });
+
+      // Build CSV header: timestamp, signal1, signal2, ...
+      const headers = ['timestamp', ...selectedSignals.map(s => s.signalName)];
+      writeStream.write(headers.map(h => `"${h}"`).join(',') + '\r\n');
+
+      // Write data rows
+      let written = 0;
+      for (const row of signalData) {
+        const values = [row.t.toFixed(6)];
+        for (const sig of selectedSignals) {
+          const key = `${sig.msgId}::${sig.signalName}`;
+          const val = row.signals[key];
+          const lbl = row.signals[key + '::label'];
+          if (val === null || val === undefined) {
+            values.push('');
+          } else if (lbl !== undefined) {
+            values.push(`"${lbl}"`);
+          } else if (typeof val === 'string') {
+            values.push(`"${val}"`);
+          } else {
+            values.push(val.toString());
+          }
+        }
+        writeStream.write(values.join(',') + '\r\n');
+        written++;
+      }
+
+      writeStream.end(() => {
+        resolve({ success: true, rowsWritten: written });
+      });
+
+      writeStream.on('error', (err) => {
+        resolve({ success: false, error: err.message });
+      });
+    } catch (error) {
+      resolve({ success: false, error: error.message });
+    }
+  });
+});
