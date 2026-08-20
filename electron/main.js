@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const zlib = require('zlib');
@@ -7,6 +7,10 @@ const readline = require('readline');
 const { buildBLFBuffer, parseBLFBuffer } = require('./blf');
 const { isNonDataLine, parseASCDataLine, generateASC } = require('./asc');
 const { parseDBC, decodeSignalFrame, getEnumLabel } = require('./dbc');
+
+const APP_VERSION = app.getVersion();
+const OFFICIAL_SITE = 'https://atemall-ai.com';
+const GITHUB_REPO = 'https://github.com/ATEMall/can-log-analyzer';
 
 let mainWindow;
 
@@ -80,10 +84,194 @@ function showErrorPage(p) {
   });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  buildApplicationMenu();
+  createWindow();
+});
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+// ==================== Application Menu ====================
+
+/**
+ * Broadcast a semantic menu action to the renderer. The renderer wires these
+ * to React state (Help > 使用手册 opens the in-window HelpModal; Tool > 清空
+ * wipes the loaded data; View > Reload toggles DevTools).
+ */
+function sendMenuAction(action) {
+  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('menu:action', action);
+  }
+}
+
+function buildApplicationMenu() {
+  const isMac = process.platform === 'darwin';
+
+  // File menu (mostly native defaults so users keep their muscle memory;
+  // we override the Quit label on non-mac to keep it short).
+  const fileMenu = {
+    label: 'File',
+    submenu: [
+      {
+        label: 'Open ASC…',
+        accelerator: 'CmdOrCtrl+O',
+        click: () => sendMenuAction('file:open-asc')
+      },
+      {
+        label: 'Open BLF…',
+        accelerator: 'CmdOrCtrl+Shift+O',
+        click: () => sendMenuAction('file:open-blf')
+      },
+      {
+        label: 'Load DBC…',
+        accelerator: 'CmdOrCtrl+D',
+        click: () => sendMenuAction('file:load-dbc')
+      },
+      { type: 'separator' },
+      {
+        label: 'Export ASC…',
+        accelerator: 'CmdOrCtrl+E',
+        click: () => sendMenuAction('file:export-asc')
+      },
+      { type: 'separator' },
+      isMac ? { role: 'close' } : { role: 'quit' }
+    ]
+  };
+
+  const editMenu = {
+    label: 'Edit',
+    submenu: [
+      { role: 'undo' },
+      { role: 'redo' },
+      { type: 'separator' },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' }
+    ]
+  };
+
+  const viewMenu = {
+    label: 'View',
+    submenu: [
+      { role: 'reload' },
+      { role: 'forceReload' },
+      { role: 'toggleDevTools' },
+      { type: 'separator' },
+      { role: 'resetZoom' },
+      { role: 'zoomIn' },
+      { role: 'zoomOut' },
+      { type: 'separator' },
+      { role: 'togglefullscreen' }
+    ]
+  };
+
+  // Tool menu — app-level actions that used to live as inline buttons in the
+  // header (清空). New "tools" can be added here without further UI churn.
+  const toolMenu = {
+    label: 'Tool',
+    submenu: [
+      {
+        label: '清空所有数据',
+        accelerator: 'CmdOrCtrl+Shift+Delete',
+        click: () => sendMenuAction('tool:clear')
+      },
+      { type: 'separator' },
+      {
+        label: 'Convert ASC → BLF',
+        click: () => sendMenuAction('tool:convert-asc-blf')
+      },
+      {
+        label: 'Convert Physical CSV → ASC',
+        click: () => sendMenuAction('tool:convert-csv-asc')
+      }
+    ]
+  };
+
+  const windowMenu = {
+    label: 'Window',
+    submenu: [
+      { role: 'minimize' },
+      { role: 'zoom' },
+      ...(isMac
+        ? [
+            { type: 'separator' },
+            { role: 'front' },
+            { type: 'separator' },
+            { role: 'window' }
+          ]
+        : [{ role: 'close' }])
+    ]
+  };
+
+  // Help menu — opens the in-window HelpModal (no external page).
+  const helpMenu = {
+    label: 'Help',
+    submenu: [
+      {
+        label: '使用手册',
+        accelerator: 'F1',
+        click: () => sendMenuAction('help:open')
+      },
+      {
+        label: '访问官网',
+        click: () => shell.openExternal(OFFICIAL_SITE)
+      },
+      {
+        label: 'GitHub 仓库',
+        click: () => shell.openExternal(GITHUB_REPO)
+      }
+    ]
+  };
+
+  // About menu — sits next to Help in the menu bar per product request.
+  const aboutMenu = {
+    label: 'About',
+    submenu: [
+      {
+        label: '关于 CAN Log Analyzer Pro',
+        click: () => {
+          dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'About CAN Log Analyzer Pro',
+            message: 'CAN Log Analyzer Pro',
+            detail:
+              `Version: v${APP_VERSION}\n\n` +
+              '基于 Electron + React + Ant Design 构建的 CAN 报文分析工具，\n' +
+              '支持 ASC / BLF 加载、DBC 解码、信号解析、CRC 计算、CSV 导出等功能。\n\n' +
+              `官网: ${OFFICIAL_SITE}\n` +
+              `GitHub: ${GITHUB_REPO}`,
+            buttons: ['关闭', '访问官网', '打开 GitHub'],
+            defaultId: 0,
+            cancelId: 0
+          }).then((res) => {
+            if (res.response === 1) shell.openExternal(OFFICIAL_SITE);
+            if (res.response === 2) shell.openExternal(GITHUB_REPO);
+          });
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'View License',
+        click: () => shell.openExternal(`${GITHUB_REPO}/blob/main/LICENSE`)
+      }
+    ]
+  };
+
+  const template = [
+    fileMenu,
+    editMenu,
+    viewMenu,
+    toolMenu,
+    windowMenu,
+    helpMenu,
+    aboutMenu
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
 
 // ==================== DBC Parser & Signal Decoding ====================
 // parseDBC / decodeSignalFrame / getEnumLabel are implemented in ./dbc
@@ -715,6 +903,19 @@ async function saveCompressed(filePath, data) {
 }
 
 // ==================== IPC Handlers ====================
+
+ipcMain.handle('shell:openExternal', async (event, url) => {
+  // Validate URL shape before forwarding to the system shell — opening
+  // arbitrary file:// paths or javascript: URIs would be a security hole.
+  if (typeof url !== 'string') return { success: false, error: 'invalid url' };
+  if (!/^https?:\/\//i.test(url)) return { success: false, error: 'only http(s) urls allowed' };
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
 
 ipcMain.handle('dialog:openFile', async (event, filters) => {
   const result = await dialog.showOpenDialog(mainWindow, {

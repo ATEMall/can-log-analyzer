@@ -26,6 +26,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('export:progress', handler);
   },
 
+  // Application menu events (Help > 使用手册, Tool > 清空, etc.) dispatched
+  // from the main process. Returns an unsubscribe function.
+  onMenuEvent: (callback) => {
+    const handler = (event, action) => callback(action);
+    ipcRenderer.on('menu:action', handler);
+    return () => ipcRenderer.removeListener('menu:action', handler);
+  },
+
+  // Open an external URL in the user's default browser. Used by the About
+  // dialog for the official site and GitHub repo links.
+  openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+
   // Signal decode operations
   decodeSignalFrames: (loadedMessages, selectedSignals, dbcMessages) =>
     ipcRenderer.invoke('signal:decodeFrames', loadedMessages, selectedSignals, dbcMessages),

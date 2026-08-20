@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   Layout, Typography, message, Progress,
-  Button, Popconfirm, Space, Tabs, Modal, Tag, Input, Dropdown
+  Button, Space, Tabs, Modal, Tag, Input
 } from 'antd';
 import {
   FileTextOutlined, DatabaseOutlined,
-  ClearOutlined, TableOutlined, SyncOutlined, ThunderboltOutlined, SwapOutlined,
-  QuestionCircleOutlined, SearchOutlined, DownOutlined
+  TableOutlined, SyncOutlined, ThunderboltOutlined, SwapOutlined,
+  SearchOutlined
 } from '@ant-design/icons';
 import DBCPanel from './components/DBCPanel';
 import MessageTable from './components/MessageTable';
@@ -407,10 +407,26 @@ function App() {
     message.success('已清空所有数据，可以重新加载文件');
   }, []);
 
+  // Wire application menu events (Help / Tool) sent by the Electron main
+  // process. The Help > 使用手册 menu item toggles the in-window help modal;
+  // Tool > 清空 wipes the loaded data set (no-op when nothing is loaded).
+  useEffect(() => {
+    if (!window.electronAPI?.onMenuEvent) return;
+    const off = window.electronAPI.onMenuEvent((action) => {
+      if (action === 'help:open') {
+        setHelpOpen(true);
+      } else if (action === 'tool:clear') {
+        if (ascFile || blfFile || dbcMessages.length > 0 || loadedMessages.length > 0 || csvData) {
+          handleClearAll();
+        }
+      }
+    });
+    return () => { if (typeof off === 'function') off(); };
+  }, [ascFile, blfFile, dbcMessages.length, loadedMessages.length, csvData, handleClearAll]);
+
   // ======= Computed Stats =======
   const totalMessages = loadedMessages.length;
   const uniqueIds = new Set(loadedMessages.map(m => m.id)).size;
-  const hasAnyData = !!(ascFile || blfFile || dbcMessages.length > 0 || loadedMessages.length > 0 || csvData);
   const sourceFile = ascFile || blfFile;
 
   const tabItems = [
@@ -539,58 +555,9 @@ function App() {
           <span>已选信号 <b style={{ color: '#722ed1' }}>{selectedSignals.length}</b></span>
         </div>
 
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'manual',
-                icon: <QuestionCircleOutlined />,
-                label: '使用手册',
-                onClick: () => setHelpOpen(true)
-              },
-              { type: 'divider' },
-              {
-                key: 'about',
-                icon: <FileTextOutlined />,
-                label: '关于',
-                onClick: () => Modal.info({
-                  title: 'CAN Log Analyzer Pro',
-                  content: (
-                    <div style={{ paddingTop: 8 }}>
-                      <p>版本：v2.0.0</p>
-                      <p>基于 Electron + React + Ant Design 构建的 CAN 报文分析工具。</p>
-                      <p>支持 ASC / BLF 加载、DBC 解码、信号解析、CRC 计算、CSV 导出等功能。</p>
-                    </div>
-                  ),
-                  okText: '关闭'
-                })
-              }
-            ]
-          }}
-        >
-          <Button
-            size="small"
-            type="text"
-            icon={<QuestionCircleOutlined />}
-            style={{ color: 'rgba(0,0,0,0.85)' }}
-            title="帮助"
-          >
-            帮助 <DownOutlined style={{ fontSize: 9, marginLeft: 2 }} />
-          </Button>
-        </Dropdown>
-
-        {hasAnyData && (
-          <Popconfirm
-            title="确认清空"
-            description="将清空所有已加载的文件和数据，确定继续？"
-            onConfirm={handleClearAll}
-            okText="清空"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button danger icon={<ClearOutlined />} size="small">清空</Button>
-          </Popconfirm>
-        )}
+        {/* Inline header buttons removed: "帮助" → moved to the application
+            menu (Help > 使用手册); "清空" → moved to the Tool menu. Keeping
+            the in-window chrome minimal so the brand mark gets the focus. */}
       </Header>
 
       {/* ======= Content ======= */}
