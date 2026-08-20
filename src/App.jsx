@@ -4,8 +4,8 @@ import {
   Button, Space, Tabs, Modal, Tag, Input
 } from 'antd';
 import {
-  FileTextOutlined, DatabaseOutlined,
-  TableOutlined, SyncOutlined, ThunderboltOutlined, SwapOutlined,
+  DatabaseOutlined,
+  TableOutlined, SyncOutlined, ThunderboltOutlined,
   SearchOutlined
 } from '@ant-design/icons';
 import DBCPanel from './components/DBCPanel';
@@ -570,15 +570,14 @@ function App() {
           display: 'flex', alignItems: 'center', gap: 8,
           marginBottom: 10, flexShrink: 0, flexWrap: 'wrap'
         }}>
-          <Button size="small" icon={<FileTextOutlined />} onClick={handleLoadASC} loading={loading}>
+          <Button size="small" onClick={handleLoadASC} loading={loading}>
             加载 ASC
           </Button>
-          <Button size="small" icon={<FileTextOutlined />} onClick={handleLoadBLF} loading={loading}>
+          <Button size="small" onClick={handleLoadBLF} loading={loading}>
             加载 BLF
           </Button>
           <Button
             size="small"
-            icon={<SwapOutlined />}
             onClick={handleConvertASCtoBLF}
             loading={loading}
             disabled={loadedMessages.length === 0}
@@ -586,7 +585,7 @@ function App() {
           >
             ASC→BLF
           </Button>
-          <Button size="small" type="primary" ghost icon={<DatabaseOutlined />} onClick={handleLoadDBC} loading={loading}>
+          <Button size="small" type="primary" ghost onClick={handleLoadDBC} loading={loading}>
             加载 DBC
           </Button>
 
