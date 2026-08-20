@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   Layout, Typography, message, Progress,
-  Button, Popconfirm, Space, Tabs, Modal, Tag
+  Button, Popconfirm, Space, Tabs, Modal, Tag, Input, Dropdown
 } from 'antd';
 import {
   FileTextOutlined, DatabaseOutlined,
   ClearOutlined, TableOutlined, SyncOutlined, ThunderboltOutlined, SwapOutlined,
-  QuestionCircleOutlined
+  QuestionCircleOutlined, SearchOutlined, DownOutlined
 } from '@ant-design/icons';
 import DBCPanel from './components/DBCPanel';
 import MessageTable from './components/MessageTable';
@@ -48,6 +48,10 @@ function App() {
 
   // Help manual dialog
   const [helpOpen, setHelpOpen] = useState(false);
+
+  // Search state for DBC messages/signals (shared so the input sits in the top
+  // toolbar while DBCPanel consumes it for filtering).
+  const [dbcSearch, setDbcSearch] = useState('');
 
   // Load CRC algorithms on mount
   useEffect(() => {
@@ -507,35 +511,73 @@ function App() {
     <Layout style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* ======= Header ======= */}
       <Header style={{
-        background: '#001529', padding: '0 16px',
+        background: '#ffffff', padding: '0 16px',
         display: 'flex', alignItems: 'center', gap: 12,
-        flexShrink: 0, height: 52, lineHeight: '52px'
+        flexShrink: 0, height: 52, lineHeight: '52px',
+        borderBottom: '1px solid #e8e8e8'
       }}>
-        <img src="logo.png" alt="Logo" style={{ height: 26 }} />
-        <Title level={4} style={{ color: '#fff', margin: 0, fontSize: 16, whiteSpace: 'nowrap' }}>
+        {/* Logo: transparent-background brand mark (red ATEMall + gears on white).
+            Slightly inset from the bar edge with objectFit:contain so the artwork
+            keeps its aspect ratio. The original square silver logo.png is left
+            untouched for the Electron app icon / favicon. */}
+        <img
+          src="header-logo.png"
+          alt="CAN Log Analyzer"
+          style={{ height: 44, padding: 4, objectFit: 'contain' }}
+        />
+        <Title level={4} style={{ color: '#1f1f1f', margin: 0, fontSize: 16, whiteSpace: 'nowrap' }}>
           CAN Log Analyzer <Tag color="gold" style={{ fontSize: 10, lineHeight: '16px' }}>Pro</Tag>
         </Title>
 
         <div style={{
           marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14,
-          color: 'rgba(255,255,255,0.85)', fontSize: 12
+          color: 'rgba(0,0,0,0.85)', fontSize: 12
         }}>
-          <span>报文 <b style={{ color: '#69b1ff' }}>{totalMessages}</b></span>
-          <span>唯一ID <b style={{ color: '#69b1ff' }}>{uniqueIds}</b></span>
-          <span>DBC消息 <b style={{ color: '#69b1ff' }}>{dbcMessages.length}</b></span>
-          <span>已选信号 <b style={{ color: '#b37feb' }}>{selectedSignals.length}</b></span>
+          <span>报文 <b style={{ color: '#1677ff' }}>{totalMessages}</b></span>
+          <span>唯一ID <b style={{ color: '#1677ff' }}>{uniqueIds}</b></span>
+          <span>DBC消息 <b style={{ color: '#1677ff' }}>{dbcMessages.length}</b></span>
+          <span>已选信号 <b style={{ color: '#722ed1' }}>{selectedSignals.length}</b></span>
         </div>
 
-        <Button
-          size="small"
-          type="text"
-          icon={<QuestionCircleOutlined />}
-          style={{ color: 'rgba(255,255,255,0.85)' }}
-          onClick={() => setHelpOpen(true)}
-          title="查看使用手册"
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: 'manual',
+                icon: <QuestionCircleOutlined />,
+                label: '使用手册',
+                onClick: () => setHelpOpen(true)
+              },
+              { type: 'divider' },
+              {
+                key: 'about',
+                icon: <FileTextOutlined />,
+                label: '关于',
+                onClick: () => Modal.info({
+                  title: 'CAN Log Analyzer Pro',
+                  content: (
+                    <div style={{ paddingTop: 8 }}>
+                      <p>版本：v2.0.0</p>
+                      <p>基于 Electron + React + Ant Design 构建的 CAN 报文分析工具。</p>
+                      <p>支持 ASC / BLF 加载、DBC 解码、信号解析、CRC 计算、CSV 导出等功能。</p>
+                    </div>
+                  ),
+                  okText: '关闭'
+                })
+              }
+            ]
+          }}
         >
-          使用手册
-        </Button>
+          <Button
+            size="small"
+            type="text"
+            icon={<QuestionCircleOutlined />}
+            style={{ color: 'rgba(0,0,0,0.85)' }}
+            title="帮助"
+          >
+            帮助 <DownOutlined style={{ fontSize: 9, marginLeft: 2 }} />
+          </Button>
+        </Dropdown>
 
         {hasAnyData && (
           <Popconfirm
@@ -597,6 +639,20 @@ function App() {
           </Text>
         </div>
 
+        {/* Search row - lives under the top toolbar (under "加载 DBC") so it
+            doesn't squeeze the file-loader buttons. Filters the DBC message
+            list inside the left panel. */}
+        <div style={{ marginBottom: 10, flexShrink: 0 }}>
+          <Input
+            prefix={<SearchOutlined style={{ color: '#999' }} />}
+            placeholder="检索消息名 / ID / 信号名"
+            value={dbcSearch}
+            onChange={e => setDbcSearch(e.target.value)}
+            allowClear
+            size="small"
+          />
+        </div>
+
         {progress > 0 && progress < 100 && (
           <Progress percent={progress} status="active" size="small" style={{ marginBottom: 10, flexShrink: 0 }} />
         )}
@@ -621,6 +677,8 @@ function App() {
               onLoadDBC={handleLoadDBC}
               onViewRaw={() => setRawModalOpen(true)}
               dbcLoaded={dbcMessages.length > 0}
+              search={dbcSearch}
+              onSearchChange={setDbcSearch}
             />
           </div>
 

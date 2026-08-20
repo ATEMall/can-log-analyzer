@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Input, Checkbox, Button, Table, Tooltip, Badge, Tag, Empty, Divider
+  Checkbox, Button, Table, Tooltip, Badge, Tag, Empty, Divider, Modal, Tabs, Space
 } from 'antd';
 import {
-  DatabaseOutlined, FileTextOutlined, SearchOutlined, ClearOutlined,
-  CheckSquareOutlined, MinusSquareOutlined, DownOutlined, RightOutlined
+  DatabaseOutlined, FileTextOutlined, ClearOutlined,
+  CheckSquareOutlined, DownOutlined, RightOutlined, FullscreenOutlined
 } from '@ant-design/icons';
 import SignalLayoutView from './SignalLayoutView';
 
@@ -23,11 +23,18 @@ function DBCPanel({
   onMsgSignalClearAll,
   onLoadDBC,
   onViewRaw,
-  dbcLoaded = false
+  dbcLoaded = false,
+  // search state lives in the parent (App) now so the search box can sit in
+  // the top toolbar instead of inside this panel
+  search: externalSearch,
+  onSearchChange
 }) {
-  const [search, setSearch] = useState('');
+  const [internalSearch, setInternalSearch] = useState('');
+  const search = externalSearch !== undefined ? externalSearch : internalSearch;
+  const setSearch = onSearchChange || setInternalSearch;
   const [expandedMsgs, setExpandedMsgs] = useState({});
   const [selectedMsgId, setSelectedMsgId] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const selectedSignalKeys = useMemo(() => new Set(selectedSignals.map(s => `${s.msgId}::${s.signalName}`)), [selectedSignals]);
 
@@ -211,10 +218,14 @@ function DBCPanel({
           {messages.length} 条消息 / {totalSignalCount} 个信号
         </span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          <Tooltip title="清空搜索框">
-            <Button size="small" icon={<ClearOutlined />}
-              onClick={() => setSearch('')}
-              disabled={!search}>清空</Button>
+          <Tooltip title={selectedSignals.length === 0 ? '当前没有已选信号' : '清空所有已选信号'}>
+            <Button
+              size="small"
+              danger
+              icon={<ClearOutlined />}
+              onClick={onSignalClearAll}
+              disabled={selectedSignals.length === 0}
+            >清空</Button>
           </Tooltip>
           <Tooltip title="查看 DBC 原文">
             <Button size="small" icon={<FileTextOutlined />} onClick={onViewRaw}
@@ -225,20 +236,6 @@ function DBCPanel({
         </div>
       </div>
 
-      {/* Search - the explicit "清空" button sits in the header next to "DBC 原文",
-          so the Input no longer carries an in-field clear icon that could be hidden. */}
-      <div style={{
-        padding: '10px 12px', flexShrink: 0, marginTop: 4,
-        borderBottom: '1px solid #f0f0f0', background: '#fafafa'
-      }}>
-        <Input
-          prefix={<SearchOutlined style={{ color: '#999' }} />}
-          placeholder="检索消息名 / ID / 信号名，如 0x100 或 Speed"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
-
       {/* Body: left list + right layout */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Message list */}
@@ -247,12 +244,10 @@ function DBCPanel({
           overflow: 'auto', padding: '4px 6px'
         }}>
           <div style={{
-            display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center', padding: '0 2px'
+            display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center', padding: '0 2px'
           }}>
             <Button size="small" icon={<CheckSquareOutlined />} onClick={onSignalSelectAll}
-              disabled={!messages.length}>全选信号</Button>
-            <Button size="small" icon={<MinusSquareOutlined />} onClick={onSignalClearAll}
-              disabled={!messages.length}>取消全选</Button>
+              disabled={!messages.length || selectedSignals.length === totalSignalCount}>全选信号</Button>
             <span style={{ marginLeft: 'auto', fontSize: 11, color: '#999' }}>
               已选 {selectedSignals.length}/{totalSignalCount}
             </span>
@@ -286,20 +281,97 @@ function DBCPanel({
                   compact
                 />
               </div>
-              <Divider style={{ margin: '12px 0 8px' }}>信号详情</Divider>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                margin: '12px 0 8px'
+              }}>
+                <Divider style={{ margin: 0 }}>信号详情</Divider>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<FullscreenOutlined />}
+                  onClick={() => setDetailModalOpen(true)}
+                  data-testid="open-detail-modal"
+                >
+                  弹窗查看全部信号与详情
+                </Button>
+              </div>
               <Table
                 size="small"
                 columns={detailColumns}
                 dataSource={selectedMsg.signals || []}
                 rowKey="name"
                 pagination={false}
-                scroll={{ x: 900 }}
+                scroll={{ x: 900, y: 8 * 29 }}
                 rowClassName={(r) => selectedSignalKeys.has(`${selectedMsg.id}::${r.name}`) ? 'sig-row-selected' : ''}
                 onRow={(r) => ({
                   onClick: () => onSignalToggle(selectedMsg.id, r.name),
                   style: { cursor: 'pointer' }
                 })}
               />
+              {/* Modal: full signal list + details in one popup, so the full
+                  set can be browsed without the inline 8-row scroll cap. */}
+              <Modal
+                open={detailModalOpen}
+                onCancel={() => setDetailModalOpen(false)}
+                footer={null}
+                width="80%"
+                destroyOnHidden
+                title={
+                  <Space>
+                    <span>信号列表与详情</span>
+                    <span style={{ color: '#999', fontWeight: 400 }}>
+                      {selectedMsg.name} · {selectedMsg.signals?.length || 0} 信号
+                    </span>
+                  </Space>
+                }
+              >
+                <Tabs
+                  defaultActiveKey="details"
+                  items={[
+                    {
+                      key: 'details',
+                      label: '信号详情',
+                      children: (
+                        <Table
+                          size="small"
+                          columns={detailColumns}
+                          dataSource={selectedMsg.signals || []}
+                          rowKey="name"
+                          pagination={false}
+                          scroll={{ x: 900, y: 480 }}
+                          rowClassName={(r) => selectedSignalKeys.has(`${selectedMsg.id}::${r.name}`) ? 'sig-row-selected' : ''}
+                          onRow={(r) => ({
+                            onClick: () => onSignalToggle(selectedMsg.id, r.name),
+                            style: { cursor: 'pointer' }
+                          })}
+                        />
+                      )
+                    },
+                    {
+                      key: 'list',
+                      label: '信号列表',
+                      children: (
+                        <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+                          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                            <Button
+                              size="small"
+                              onClick={() => onMsgSignalSelectAll(selectedMsg.id)}
+                            >全选本消息</Button>
+                            <Button
+                              size="small"
+                              onClick={() => onMsgSignalClearAll(selectedMsg.id)}
+                            >清空本消息</Button>
+                          </div>
+                          <div data-testid="detail-modal-signal-list">
+                            {(selectedMsg.signals || []).map(sig => renderSignalRow(selectedMsg, sig))}
+                          </div>
+                        </div>
+                      )
+                    }
+                  ]}
+                />
+              </Modal>
             </>
           ) : (
             <Empty description="在左侧点击一条消息，查看其信号位布局图与详情" />

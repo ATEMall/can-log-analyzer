@@ -72,7 +72,7 @@ npm run electron:build
 | `win-unpacked/` | 免打包目录，可直接运行 `CAN Log Analyzer Pro.exe` |
 | `latest.yml` | electron-updater 自动更新元数据 |
 
-> 发布说明：正式发布使用 `build_release_new.json` 配置（输出到 `release_new/`，校验后再合并进 `release/`），避免与本地调试产物互相污染。`release/`、`release_new/`、`backup/` 等目录已被 `.gitignore` 排除，不进入版本库。
+> 发布说明：正式发布统一使用 `package.json` 的 `build.directories.output`（输出到 `release/`），一条命令 `npm run build` 产出安装版、便携版与 `win-unpacked/`。`release/`、`backup/` 等目录已被 `.gitignore` 排除，不进入版本库。
 
 ---
 
@@ -163,8 +163,7 @@ npm run electron:build
 │       └── __tests__/         # 组件单元测试
 ├── public/                    # 静态资源（logo 等）
 ├── TestExample/               # 示例日志 / DBC / 生成脚本
-├── build_release_new.json     # 正式发布构建配置
-├── package.json
+├── package.json               # 构建配置（build.directories.output 指向 release/）
 ├── vite.config.js
 └── vitest.config.js
 ```

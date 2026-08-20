@@ -45,3 +45,7 @@ yarn-error.log*
 
 # electron-builder
 app-update.yml
+
+# IDE / tool data
+.codebuddy/
+build_tmp/

@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import { Tooltip, Empty } from 'antd';
+import React, { useMemo, useState } from 'react';
+import { Tooltip, Empty, Modal, Button, Space } from 'antd';
+import { FullscreenOutlined } from '@ant-design/icons';
 
 const PALETTE = [
   '#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96',
@@ -34,6 +35,7 @@ function signalBitCells(signal) {
 
 function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, compact = false }) {
   const signals = message?.signals || [];
+  const [modalOpen, setModalOpen] = useState(false);
 
   const colorMap = useMemo(() => {
     const m = {};
@@ -77,11 +79,8 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
     );
   }
 
-  const cellSize = compact ? 22 : 28;
-
-  // Determine how many byte rows to render. Prefer the message's declared
-  // DLC (e.g. 8 for classic CAN, 12/16/20/24/32/48/64 for CAN FD) and fall
-  // back to the highest byte index actually occupied by any signal.
+  // Total number of bytes in the message. The embedded grid only shows the
+  // first MAX_INLINE_BYTES of them; the rest are reachable via the modal.
   const totalBytes = (() => {
     const dlc = Number(message?.dlc) || 0;
     let sigMax = 0;
@@ -94,7 +93,31 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
     return Math.max(dlc, sigMax, 1);
   })();
 
-  const renderGrid = () => {
+  // Pick a cell size based on totalBytes (and modal size for the popup).
+  const MAX_INLINE_BYTES = 8;
+  const pickCellSize = (bytes, isModal) => {
+    if (isModal) {
+      // Modal has plenty of room — keep cells large and readable.
+      return bytes <= 8 ? 32 : bytes <= 16 ? 28 : bytes <= 32 ? 22 : 18;
+    }
+    if (compact) {
+      if (bytes <= 8) return 22;
+      if (bytes <= 16) return 18;
+      return 14;
+    }
+    if (bytes <= 8) return 28;
+    if (bytes <= 16) return 22;
+    return 16;
+  };
+
+  // Render the byte grid for a given visible range. Shared between the
+  // embedded grid (always capped to MAX_INLINE_BYTES) and the modal (full
+  // message), so styling stays consistent across both views.
+  const renderGrid = (visibleEnd, isModal) => {
+    const cellSize = pickCellSize(visibleEnd, isModal);
+    const labelFontSize = cellSize >= 22 ? 11 : cellSize >= 18 ? 10 : 9;
+    const dotFontSize = cellSize >= 22 ? 10 : cellSize >= 18 ? 9 : 8;
+
     const rows = [];
     // Column header row: bit 0 (left) -> bit 7 (right)
     const headerCells = [<div key="corner" style={{ width: 36 }} />];
@@ -104,7 +127,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
           width: cellSize, textAlign: 'center',
           fontSize: 10, color: '#8c8c8c', fontWeight: 600
         }}>
-          {bit}
+            {bit}
         </div>
       );
     }
@@ -114,8 +137,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
       </div>
     );
 
-    // Byte rows: B0 (top) -> B(totalBytes-1) (bottom), each row holds bits 0-7
-    for (let byte = 0; byte < totalBytes; byte++) {
+    for (let byte = 0; byte < visibleEnd; byte++) {
       const rowCells = [
         <div key={`l${byte}`} style={{
           width: 36, fontSize: 10, color: '#8c8c8c',
@@ -136,7 +158,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
         const cellStyle = {
           width: cellSize,
           height: cellSize,
-          fontSize: sigName && isFirst ? (compact ? 8 : 9) : 8,
+          fontSize: sigName && isFirst ? labelFontSize : dotFontSize,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -146,7 +168,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
           background: sigName ? color : 'transparent',
           opacity: sigName ? (selected ? 1 : 0.35) : 1,
           border: sigName ? (selected ? `2px solid ${color}` : '1px solid rgba(0,0,0,0.15)') : '1px solid rgba(0,0,0,0.06)',
-          borderRadius: 3,
+          borderRadius: 2,
           color: '#fff',
           fontWeight: sigName && isFirst ? 700 : 400,
           boxSizing: 'border-box'
@@ -154,7 +176,15 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
 
         let inner = '';
         if (sigName) {
-          inner = isFirst ? (sigName.length > 4 ? sigName.slice(0, 3) + '.' : sigName) : '·';
+          if (!isFirst) {
+            inner = '·';
+          } else if (cellSize >= 16) {
+            inner = sigName.length > (cellSize >= 28 ? 6 : 4)
+              ? sigName.slice(0, (cellSize >= 28 ? 5 : 3)) + '.'
+              : sigName;
+          } else {
+            inner = sigName.charAt(0);
+          }
         }
 
         const tooltip = sigName
@@ -188,43 +218,156 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
     return rows;
   };
 
+  const inlineVisibleEnd = Math.min(totalBytes, MAX_INLINE_BYTES);
+  const hasMoreBytes = totalBytes > MAX_INLINE_BYTES;
+
   return (
     <div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-        {renderGrid()}
+      {/* Grid wrapper: embedded view is capped to the first 8 byte rows to keep
+          the panel compact; the rest are available in the modal opened via the
+          "查看全部" button below. */}
+      <div data-testid="layout-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {renderGrid(inlineVisibleEnd, false)}
+        </div>
+        {hasMoreBytes && (
+          <div style={{ fontSize: 10, color: '#999', marginTop: 4, textAlign: 'right' }}>
+            已显示前 {MAX_INLINE_BYTES} 字节（共 {totalBytes} 字节）
+          </div>
+        )}
       </div>
-      {/* Legend */}
+      {hasMoreBytes && (
+        <div style={{ marginTop: 6, textAlign: 'right' }}>
+          <Button
+            type="link"
+            size="small"
+            icon={<FullscreenOutlined />}
+            onClick={() => setModalOpen(true)}
+            data-testid="open-layout-modal"
+          >
+            弹窗查看全部 {totalBytes} 字节
+          </Button>
+        </div>
+      )}
+      {/* Legend - one row of chips that scrolls horizontally so every signal is
+          always reachable, no matter how many signals the message defines. */}
       <div style={{
-        marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: '4px 12px',
+        marginTop: 10,
         borderTop: '1px solid #f0f0f0', paddingTop: 8
       }}>
-        {signals.map(s => {
-          const color = colorMap[s.name];
-          const selected = selectedSignalNames.includes(s.name);
-          return (
-            <Tooltip key={s.name}
-              title={`${s.name}: startBit ${s.startBit}, ${s.length} bit, ${s.byteOrder === 'little' ? 'Intel' : 'Motorola'}, 缩放 ${s.factor}, 偏移 ${s.offset}`}>
-              <span
-                onClick={onSignalToggle ? () => onSignalToggle(s.name) : undefined}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  fontSize: 11, cursor: onSignalToggle ? 'pointer' : 'default',
-                  opacity: selected ? 1 : 0.4,
-                  border: selected ? `1px solid ${color}` : '1px solid transparent',
-                  borderRadius: 4, padding: '1px 4px'
-                }}
-              >
-                <span style={{
-                  width: 10, height: 10, background: color,
-                  display: 'inline-block', borderRadius: 2, flexShrink: 0
-                }} />
-                {s.name}
-                <span style={{ color: '#999' }}>{s.startBit}|{s.length}@{s.byteOrder === 'little' ? '1' : '0'}</span>
-              </span>
-            </Tooltip>
-          );
-        })}
+        <div
+          data-testid="legend-list"
+          style={{
+            display: 'flex',
+            flexWrap: 'nowrap',
+            gap: '4px 12px',
+            overflowX: 'auto',
+            paddingBottom: 4
+          }}
+        >
+          {signals.map(s => {
+            const color = colorMap[s.name];
+            const selected = selectedSignalNames.includes(s.name);
+            return (
+              <Tooltip key={s.name}
+                title={`${s.name}: startBit ${s.startBit}, ${s.length} bit, ${s.byteOrder === 'little' ? 'Intel' : 'Motorola'}, 缩放 ${s.factor}, 偏移 ${s.offset}`}>
+                <span
+                  onClick={onSignalToggle ? () => onSignalToggle(s.name) : undefined}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 11, cursor: onSignalToggle ? 'pointer' : 'default',
+                    opacity: selected ? 1 : 0.4,
+                    border: selected ? `1px solid ${color}` : '1px solid transparent',
+                    borderRadius: 4, padding: '1px 4px',
+                    flexShrink: 0
+                  }}
+                >
+                  <span style={{
+                    width: 10, height: 10, background: color,
+                    display: 'inline-block', borderRadius: 2, flexShrink: 0
+                  }} />
+                  {s.name}
+                  <span style={{ color: '#999' }}>{s.startBit}|{s.length}@{s.byteOrder === 'little' ? '1' : '0'}</span>
+                </span>
+              </Tooltip>
+            );
+          })}
+        </div>
       </div>
+      {/* Full-frame modal: opened by the link button above. Uses the same grid
+          renderer but with a larger cellSize and the full byte range. */}
+      <Modal
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        footer={null}
+        width="80%"
+        title={
+          <Space>
+            <span>信号位布局图</span>
+            <span style={{ color: '#999', fontWeight: 400 }}>
+              {message?.name} · {totalBytes} 字节 · {signals.length} 信号
+            </span>
+          </Space>
+        }
+        destroyOnHidden
+      >
+        <div
+          data-testid="layout-grid-modal"
+          style={{
+            background: '#fafafa',
+            border: '1px solid #f0f0f0',
+            borderRadius: 8,
+            padding: 16,
+            maxHeight: '70vh',
+            overflow: 'auto'
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {renderGrid(totalBytes, true)}
+          </div>
+          {/* Same legend in the modal so signal colors stay anchored. */}
+          <div style={{
+            marginTop: 14,
+            borderTop: '1px solid #f0f0f0',
+            paddingTop: 10
+          }}>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '6px 14px'
+              }}
+            >
+              {signals.map(s => {
+                const color = colorMap[s.name];
+                const selected = selectedSignalNames.includes(s.name);
+                return (
+                  <Tooltip key={s.name}
+                    title={`${s.name}: startBit ${s.startBit}, ${s.length} bit, ${s.byteOrder === 'little' ? 'Intel' : 'Motorola'}, 缩放 ${s.factor}, 偏移 ${s.offset}`}>
+                    <span
+                      onClick={onSignalToggle ? () => onSignalToggle(s.name) : undefined}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 12, cursor: onSignalToggle ? 'pointer' : 'default',
+                        opacity: selected ? 1 : 0.4,
+                        border: selected ? `1px solid ${color}` : '1px solid transparent',
+                        borderRadius: 4, padding: '2px 6px'
+                      }}
+                    >
+                      <span style={{
+                        width: 12, height: 12, background: color,
+                        display: 'inline-block', borderRadius: 2, flexShrink: 0
+                      }} />
+                      {s.name}
+                      <span style={{ color: '#999' }}>{s.startBit}|{s.length}@{s.byteOrder === 'little' ? '1' : '0'}</span>
+                    </span>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
