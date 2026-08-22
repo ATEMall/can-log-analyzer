@@ -530,7 +530,8 @@ function App() {
         background: '#ffffff', padding: '0 16px',
         display: 'flex', alignItems: 'center', gap: 12,
         flexShrink: 0, height: 52, lineHeight: '52px',
-        borderBottom: '1px solid #e8e8e8'
+        borderBottom: '1px solid #e8e8e8',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)'
       }}>
         {/* Logo: transparent-background brand mark (red ATEMall + gears on white).
             Slightly inset from the bar edge with objectFit:contain so the artwork
@@ -571,10 +572,10 @@ function App() {
           marginBottom: 10, flexShrink: 0, flexWrap: 'wrap'
         }}>
           <Button size="small" onClick={handleLoadASC} loading={loading}>
-            加载 ASC
+            <span>加载 ASC</span>
           </Button>
           <Button size="small" onClick={handleLoadBLF} loading={loading}>
-            加载 BLF
+            <span>加载 BLF</span>
           </Button>
           <Button
             size="small"
@@ -583,10 +584,10 @@ function App() {
             disabled={loadedMessages.length === 0}
             title="将当前已加载的 ASC 报文转换为 BLF 格式"
           >
-            ASC→BLF
+            <span>ASC→BLF</span>
           </Button>
           <Button size="small" type="primary" ghost onClick={handleLoadDBC} loading={loading}>
-            加载 DBC
+            <span>加载 DBC</span>
           </Button>
 
           {sourceFile && (
