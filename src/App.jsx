@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   Layout, Typography, message, Progress,
-  Button, Space, Tabs, Modal, Tag, Input
+  Button, Space, Tabs, Modal, Tag, Input, Drawer, List, Empty
 } from 'antd';
 import {
   DatabaseOutlined,
   TableOutlined, SyncOutlined, ThunderboltOutlined,
-  SearchOutlined
+  SearchOutlined, WarningOutlined, DownloadOutlined
 } from '@ant-design/icons';
 import DBCPanel from './components/DBCPanel';
 import MessageTable from './components/MessageTable';
@@ -52,6 +52,12 @@ function App() {
   // Search state for DBC messages/signals (shared so the input sits in the top
   // toolbar while DBCPanel consumes it for filtering).
   const [dbcSearch, setDbcSearch] = useState('');
+
+  // R4: parse error reporting (ASC data lines / BLF bad blocks that were
+  // skipped without aborting the load).
+  const [parseErrors, setParseErrors] = useState([]);
+  const [parseErrorCount, setParseErrorCount] = useState(0);
+  const [parseErrorDrawerOpen, setParseErrorDrawerOpen] = useState(false);
 
   // Load CRC algorithms on mount
   useEffect(() => {
@@ -138,7 +144,13 @@ function App() {
         setBlfFile(null);
         setLoadedMessages(result.messages);
         setHeaderLines(result.headerLines);
-        message.success(`加载成功，共 ${result.totalCount} 条消息`);
+        setParseErrors(result.parseErrors || []);
+        setParseErrorCount(result.parseErrorCount || 0);
+        if ((result.parseErrorCount || 0) > 0) {
+          message.warning(`加载完成：${result.totalCount} 条消息，${result.parseErrorCount} 行解析错误已跳过`);
+        } else {
+          message.success(`加载成功，共 ${result.totalCount} 条消息`);
+        }
       } else {
         message.error('加载失败: ' + result.error);
       }
@@ -173,7 +185,13 @@ function App() {
         setAscFile(null);
         setLoadedMessages(result.messages);
         setHeaderLines(result.headerLines);
-        message.success(`加载成功，共 ${result.totalCount} 条消息`);
+        setParseErrors(result.parseErrors || []);
+        setParseErrorCount(result.parseErrorCount || 0);
+        if ((result.parseErrorCount || 0) > 0) {
+          message.warning(`加载完成：${result.totalCount} 条消息，${result.parseErrorCount} 个损坏对象块已跳过`);
+        } else {
+          message.success(`加载成功，共 ${result.totalCount} 条消息`);
+        }
       } else {
         message.error('加载失败: ' + result.error);
       }
@@ -390,6 +408,42 @@ function App() {
     }
   }, [csvData, dbcMessages, selectedCRC]);
 
+  // ======= Export parse error report as txt =======
+  const handleExportParseErrors = useCallback(async () => {
+    if (parseErrors.length === 0 && parseErrorCount === 0) return;
+    try {
+      const defaultName = `parse_errors_${Date.now()}.txt`;
+      const filePath = await window.electronAPI.saveFile(defaultName, [
+        { name: 'Text Files', extensions: ['txt'] }
+      ]);
+      if (!filePath) return;
+
+      const lines = [];
+      lines.push(`CAN Log Analyzer 解析错误报告`);
+      lines.push(`生成时间: ${new Date().toLocaleString()}`);
+      lines.push(`错误总数: ${parseErrorCount}`);
+      lines.push(`显示列表: ${parseErrors.length} 条（列表截断至前 100 条）`);
+      lines.push('='.repeat(60));
+      for (const err of parseErrors) {
+        if (err.lineNumber != null) {
+          lines.push(`[行 ${err.lineNumber}] ${err.reason}`);
+          if (err.line) lines.push(`  原文: ${err.line}`);
+        } else {
+          lines.push(`[偏移 0x${(err.offset || 0).toString(16).toUpperCase()}] ${err.reason}`);
+        }
+        lines.push('-' .repeat(60));
+      }
+      const result = await window.electronAPI.exportText(filePath, lines.join('\n'));
+      if (result.success) {
+        message.success('错误报告已导出');
+      } else {
+        message.error('导出失败: ' + result.error);
+      }
+    } catch (error) {
+      message.error('导出失败: ' + error.message);
+    }
+  }, [parseErrors, parseErrorCount]);
+
   // ======= Clear All =======
   const handleClearAll = useCallback(() => {
     setAscFile(null);
@@ -404,6 +458,9 @@ function App() {
     setCsvFile(null);
     setConvertProgress(0);
     setDbcRawContent('');
+    setParseErrors([]);
+    setParseErrorCount(0);
+    setParseErrorDrawerOpen(false);
     message.success('已清空所有数据，可以重新加载文件');
   }, []);
 
@@ -599,6 +656,17 @@ function App() {
             <Tag color="green">DBC: {dbcMessages.length} 条消息</Tag>
           )}
 
+          {parseErrorCount > 0 && (
+            <Tag
+              color="warning"
+              style={{ cursor: 'pointer', fontWeight: 600 }}
+              onClick={() => setParseErrorDrawerOpen(true)}
+              data-testid="parse-error-badge"
+            >
+              <WarningOutlined /> 解析完成：{parseErrorCount} 行错误
+            </Tag>
+          )}
+
           <Text type="secondary" style={{ marginLeft: 'auto', fontSize: 11 }}>
             {loadedMessages.length > 0
               ? `已加载 ${totalMessages} 条报文，勾选 DBC 信号后可解析`
@@ -687,6 +755,70 @@ function App() {
 
       {/* ======= Help Manual Modal ======= */}
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+
+      {/* ======= R4: Parse Error Report Drawer ======= */}
+      <Drawer
+        title={
+          <Space>
+            <WarningOutlined style={{ color: '#faad14' }} />
+            解析错误报告
+            <Tag color="warning">共 {parseErrorCount} 条</Tag>
+          </Space>
+        }
+        open={parseErrorDrawerOpen}
+        onClose={() => setParseErrorDrawerOpen(false)}
+        width="62%"
+      >
+        {parseErrors.length === 0 ? (
+          <Empty description="没有错误明细（错误列表截断至前 100 条）" />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ flex: 1, overflow: 'auto', marginBottom: 16 }}>
+              <List
+                size="small"
+                dataSource={parseErrors}
+                renderItem={(err, idx) => (
+                  <List.Item data-testid={`parse-error-item-${idx}`}>
+                    <List.Item.Meta
+                      title={
+                        <Space size={8}>
+                          <Tag color="red">
+                            {err.lineNumber != null ? `行 ${err.lineNumber}` : `偏移 0x${(err.offset || 0).toString(16).toUpperCase()}`}
+                          </Tag>
+                          <Text strong style={{ fontSize: 12 }}>{err.reason}</Text>
+                        </Space>
+                      }
+                      description={
+                        err.line ? (
+                          <code style={{
+                            display: 'block', fontSize: 11, color: '#595959',
+                            whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                            background: '#fafafa', padding: '4px 8px', borderRadius: 4
+                          }}>
+                            {err.line}
+                          </code>
+                        ) : null
+                      }
+                    />
+                  </List.Item>
+                )}
+              />
+            </div>
+            <div style={{ flexShrink: 0, display: 'flex', gap: 8 }}>
+              <Button
+                type="primary"
+                size="small"
+                icon={<DownloadOutlined />}
+                onClick={handleExportParseErrors}
+                data-testid="export-parse-errors"
+              >
+                导出错误列表 (txt)
+              </Button>
+              <Button size="small" onClick={() => setParseErrorDrawerOpen(false)}>关闭</Button>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </Layout>
   );
 }

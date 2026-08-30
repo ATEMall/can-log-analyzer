@@ -23,11 +23,12 @@ function signalBitCells(signal) {
       p++;
     }
   } else {
-    // Motorola (big-endian): sawtooth pattern
+    // Motorola (big-endian): MSB-first bit numbering, monotonically
+    // increasing bit position (same semantics as the decoder in dbc.js).
     let p = startBit;
     for (let i = 0; i < length; i++) {
       cells.push([Math.floor(p / 8), 7 - (p % 8)]);
-      if ((p % 8) === 0) p += 15; else p--;
+      p++;
     }
   }
   return cells;
@@ -249,6 +250,27 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
           </Button>
         </div>
       )}
+      {/* Endianness legend (R1: signal layout must be read with the same
+          semantics as the decoder). */}
+      <div
+        data-testid="endian-legend"
+        style={{
+          marginBottom: 6,
+          fontSize: 11,
+          color: '#8c8c8c',
+          display: 'flex',
+          gap: '4px 16px',
+          alignItems: 'center',
+          flexWrap: 'wrap'
+        }}
+      >
+        <span>
+          <b>Intel(小端)</b>：位号从 startBit 线性递增，字节内 LSB→MSB，跨字节连续
+        </span>
+        <span>
+          <b>Motorola(大端)</b>：startBit 为信号最高位(MSB)，位号单调递增，字节内 MSB→LSB，跨字节自然衔接
+        </span>
+      </div>
       {/* Legend - one row of chips that scrolls horizontally so every signal is
           always reachable, no matter how many signals the message defines. */}
       <div style={{

@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportASC: (filePath, headerLines, messages) => ipcRenderer.invoke('file:exportASC', filePath, headerLines, messages),
   convertASCtoBLF: (filePath, messages) => ipcRenderer.invoke('file:convertASCtoBLF', filePath, messages),
   getStats: (filePath) => ipcRenderer.invoke('file:getStats', filePath),
+  exportText: (filePath, content) => ipcRenderer.invoke('file:exportText', filePath, content),
 
   // New: Physical CSV operations
   loadPhysicalCSV: (filePath) => ipcRenderer.invoke('file:loadPhysicalCSV', filePath),

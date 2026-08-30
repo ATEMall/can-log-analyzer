@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-08-30
+
+### 修复
+
+- **Motorola（大端）信号解码错误（P0 遗留缺陷）**：DBC 位号按单调递增遍历（原实现 `+15/-1` 锯齿步进跳过整字节，导致大端信号全部解码错误）。同步修复 `electron/dbc.js` 解码引擎、`electron/main.js` 两处副本与位布局视图，与 cantools 语义一致（startBit 为 MSB，位号 `+1` 递增）
+
+### 新增
+
+- **Motorola 解码回归矩阵**：`TestExample/motorola_matrix/`（23 个信号覆盖 1–64 位 / 对齐与非对齐 / 有符号 / factor/offset / VAL_ 枚举），生成器 `generate.js` 自校验全部通过，`compare.js` 支持与 cantools 外部对拍
+- **解析容错（R4）**：ASC 坏行 / BLF 坏块（损坏块、解压失败、非法对象大小）记录错误并跳过，不再中断整个文件加载；错误列表上限 100 条
+  - 新增 `file:exportText` IPC 通道，可将错误报告导出为 txt
+  - UI：加载完成后黄色警示徽章 → 抽屉式错误报告（行号/原因/原文）→ 导出按钮
+- **测试**：`electron/__tests__/motorola.test.js`（31 用例：固定期望 + 种子 PRNG 矩阵交叉验证）、`electron/__tests__/tolerance.test.js`（7 用例）、App 解析错误 UI 测试（2 用例）；全量 **89/89** 通过
+
 ## [2.0.0] - 2026-08-22
 
 ### 新增

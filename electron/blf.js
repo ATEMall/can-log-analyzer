@@ -149,7 +149,9 @@ function systemTimeBuf(d) {
 // selectedIds: Set of ids to keep (empty Set = keep all)
 const SUPPORTED_TYPES = [1, 2, 100, 101, 144];
 
-function parseBLFBuffer(buffer, selectedIds) {
+// Same as parseBLFBuffer but also returns parse errors (bad blocks are skipped,
+// never fatal). Errors are capped at 100 entries plus a total count.
+function parseBLFBufferDetailed(buffer, selectedIds) {
   const signature = buffer.toString('ascii', 0, 4);
   if (signature !== 'LOGG') {
     throw new Error('Invalid BLF file: missing LOGG signature');
@@ -161,6 +163,12 @@ function parseBLFBuffer(buffer, selectedIds) {
   }
 
   const messages = [];
+  const errors = [];
+  let errorCount = 0;
+  const addError = (offset, reason) => {
+    errorCount++;
+    if (errors.length < 100) errors.push({ offset, reason });
+  };
   const keepAll = !selectedIds || selectedIds.size === 0;
 
   let searchOff = dataOffset;
@@ -173,10 +181,12 @@ function parseBLFBuffer(buffer, selectedIds) {
       try {
         decomp = zlib.inflateSync(buffer.slice(searchOff));
       } catch (e) {
+        addError(searchOff, '压缩对象块解压失败: ' + (e.message || e));
         searchOff++;
         continue;
       }
       if (decomp.length < 20) {
+        addError(searchOff, '压缩对象块内容过短（<20 字节）');
         searchOff++;
         continue;
       }
@@ -200,9 +210,11 @@ function parseBLFBuffer(buffer, selectedIds) {
             try {
               if (method === 0) inner = cData;
               else if (method === 2) inner = zlib.inflateSync(cData);
-            } catch (e) { inner = null; }
+            } catch (e) { addError(searchOff, 'LOG_CONTAINER 解压失败: ' + (e.message || e)); }
             if (inner && inner.length > 0) {
               scanObjectStream(inner, messages, keepAll, selectedIds);
+            } else if (method === 0 || method === 2) {
+              addError(searchOff, 'LOG_CONTAINER 内容为空或无效（method=' + method + '）');
             }
             searchOff += objSize;
             continue;
@@ -214,15 +226,22 @@ function parseBLFBuffer(buffer, selectedIds) {
             if (objSize === 0) searchOff++;
             continue;
           }
+        } else {
+          addError(searchOff, '对象块大小非法（objSize=' + objSize + '）');
         }
-      } catch (e) { /* fall through to byte scan */ }
+      } catch (e) { addError(searchOff, '对象块解析异常: ' + (e.message || e)); }
     }
     searchOff++;
   }
 
   // Sort by timestamp (BLF blocks are usually ordered, but be safe)
   messages.sort((a, b) => a.timestamp - b.timestamp);
-  return messages;
+  return { messages, errors, errorCount };
+}
+
+// Backwards-compatible wrapper: returns just the message array.
+function parseBLFBuffer(buffer, selectedIds) {
+  return parseBLFBufferDetailed(buffer, selectedIds).messages;
 }
 
 // Scan a raw object stream (e.g. decompressed container payload) for LOBJ
@@ -356,4 +375,4 @@ function parseObjectAt(buf, off, keepAll, selectedIds) {
   }
 }
 
-module.exports = { buildBLFBuffer, parseBLFBuffer, dlc2len, len2dlc };
+module.exports = { buildBLFBuffer, parseBLFBuffer, parseBLFBufferDetailed, dlc2len, len2dlc };

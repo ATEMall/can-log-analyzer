@@ -117,23 +117,23 @@ function decodeSignalFrame(data, signal) {
       bitPos++;
     }
   } else {
-    // Motorola: MSB-first numbering, sawtooth pattern across bytes
-    // Reference: cantools bit numbering (SAE J1939 style)
+    // Motorola (big-endian): MSB-first bit numbering (cantools / DBC convention).
+    // DBC bit number 8n = MSB of byte n, 8n+7 = LSB of byte n. A Motorola
+    // signal's startBit is the position of its MSB; the signal bits are read in
+    // monotonically increasing bit-number order: startBit, startBit+1, ...,
+    // startBit+length-1. Within a byte that walks MSB->LSB, and at byte
+    // boundaries it continues naturally into the next byte's MSB (increment is
+    // always +1, there is NO sawtooth jump).
     let bitPos = startBit;
     for (let i = 0; i < length; i++) {
       const byteIdx = Math.floor(bitPos / 8);
-      const bitIdx = 7 - (bitPos % 8);  // MSB = bit 7
+      const bitIdx = 7 - (bitPos % 8);  // MSB-first within byte
       if (byteIdx < data.length) {
         const bit = BigInt((data[byteIdx] >> bitIdx) & 1);
-        // MSB of signal goes to highest bit position in rawValue
+        // First read bit is the signal MSB -> highest rawValue bit
         rawValue |= bit << BigInt(length - 1 - i);
       }
-      // Motorola sawtooth: when we hit bit 0 of a byte, jump to next byte's bit 7
-      if ((bitPos % 8) === 0) {
-        bitPos += 15;
-      } else {
-        bitPos--;
-      }
+      bitPos++;
     }
   }
 

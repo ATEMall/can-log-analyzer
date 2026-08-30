@@ -4,7 +4,7 @@ const fs = require('fs');
 const zlib = require('zlib');
 const { spawn } = require('child_process');
 const readline = require('readline');
-const { buildBLFBuffer, parseBLFBuffer } = require('./blf');
+const { buildBLFBuffer, parseBLFBuffer, parseBLFBufferDetailed } = require('./blf');
 const { isNonDataLine, parseASCDataLine, generateASC } = require('./asc');
 const { parseDBC, decodeSignalFrame, getEnumLabel } = require('./dbc');
 
@@ -300,20 +300,15 @@ function decodeSignal(data, signal) {
       bitPos++;
     }
   } else {
-    // Motorola byte order (MSB first)
-    let bitPos = startBit;
+    // Motorola (big-endian): MSB-first bit numbering, monotonically increasing
+    // bit position (see dbc.js decodeSignalFrame for the same semantics).
     for (let i = 0; i < length; i++) {
-      const byteIdx = Math.floor(bitPos / 8);
-      const bitIdx = 7 - (bitPos % 8);
+      const p = startBit + i;
+      const byteIdx = Math.floor(p / 8);
+      const bitIdx = 7 - (p % 8);
       if (byteIdx < data.length) {
         const bit = BigInt((data[byteIdx] >> bitIdx) & 1);
         rawValue |= bit << BigInt(length - 1 - i);
-      }
-      // Calculate next bit position for Motorola
-      if ((bitPos % 8) === 0) {
-        bitPos += 15;
-      } else {
-        bitPos--;
       }
     }
   }
@@ -364,11 +359,12 @@ function writeSignalToBytes(data, signal, rawValue) {
       bitPos++;
     }
   } else {
-    // Motorola byte order
-    let bitPos = startBit;
+    // Motorola (big-endian): MSB-first bit numbering, monotonically increasing
+    // bit position (mirrors decodeSignalFrame / write side of dbc.js).
     for (let i = 0; i < length; i++) {
-      const byteIdx = Math.floor(bitPos / 8);
-      const bitIdx = 7 - (bitPos % 8);
+      const p = startBit + i;
+      const byteIdx = Math.floor(p / 8);
+      const bitIdx = 7 - (p % 8);
       if (byteIdx < data.length) {
         const bit = Number((maskedRaw >> BigInt(length - 1 - i)) & BigInt(1));
         if (bit) {
@@ -376,11 +372,6 @@ function writeSignalToBytes(data, signal, rawValue) {
         } else {
           data[byteIdx] &= ~(1 << bitIdx);
         }
-      }
-      if ((bitPos % 8) === 0) {
-        bitPos += 15;
-      } else {
-        bitPos--;
       }
     }
   }
@@ -687,15 +678,17 @@ async function loadASCFile(filePath, selectedIds) {
   return new Promise((resolve, reject) => {
     const headerLines = [];
     const messages = [];
+    const parseErrors = [];
+    let parseErrorCount = 0;
+    let lineNum = 0;
 
     const rl = readline.createInterface({
       input: fs.createReadStream(filePath, { encoding: 'utf8' }),
       crlfDelay: Infinity
     });
 
-    let skippedLines = 0;
-
     rl.on('line', (line) => {
+      lineNum++;
       if (messages.length >= 1000000) return;
 
       if (isNonDataLine(line)) {
@@ -709,13 +702,22 @@ async function loadASCFile(filePath, selectedIds) {
           messages.push(msg);
         }
       } else {
-        skippedLines++;
+        // R4: a data-like line that failed to parse is a recoverable error.
+        // Record it (cap the list at 100) and keep going.
+        parseErrorCount++;
+        if (parseErrors.length < 100) {
+          parseErrors.push({
+            lineNumber: lineNum,
+            line: line.trim().slice(0, 200),
+            reason: '无法解析的数据行（格式不识别或数据损坏）'
+          });
+        }
       }
     });
 
     rl.on('close', () => {
-      console.log(`ASC parse complete: ${messages.length} frames, ${skippedLines} non-frame lines`);
-      resolve({ headerLines, messages });
+      console.log(`ASC parse complete: ${messages.length} frames, ${parseErrorCount} parse errors`);
+      resolve({ headerLines, messages, parseErrors, parseErrorCount });
     });
 
     rl.on('error', reject);
@@ -858,14 +860,16 @@ except Exception as e:
 
 async function loadBLFFallback(filePath, selectedIds) {
   const buffer = await fs.promises.readFile(filePath);
-  const messages = parseBLFBuffer(buffer, selectedIds);
+  const detailed = parseBLFBufferDetailed(buffer, selectedIds);
 
   const now = new Date();
   const dateStr = now.toISOString().replace('T', ' ').substring(0, 19);
 
   return {
     headerLines: [`date ${dateStr}`, 'base hex  timestamps absolute', 'internal events logged'],
-    messages
+    messages: detailed.messages,
+    parseErrors: detailed.errors,
+    parseErrorCount: detailed.errorCount
   };
 }
 
@@ -955,7 +959,12 @@ ipcMain.handle('file:loadASC', async (event, filePath, selectedIds) => {
       }
     } catch (_) {}
     
-    return { success: true, ...result, totalCount: result.messages.length };
+    return {
+      success: true, ...result,
+      parseErrors: result.parseErrors || [],
+      parseErrorCount: result.parseErrorCount || 0,
+      totalCount: result.messages.length
+    };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -965,7 +974,22 @@ ipcMain.handle('file:loadBLF', async (event, filePath, selectedIds) => {
   try {
     const idSet = new Set(selectedIds || []);
     const result = await loadBLFFile(filePath, idSet);
-    return { success: true, ...result, totalCount: result.messages.length };
+    return {
+      success: true, ...result,
+      parseErrors: result.parseErrors || [],
+      parseErrorCount: result.parseErrorCount || 0,
+      totalCount: result.messages.length
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// R4: export a text report (e.g. parse error list) to a user-chosen file.
+ipcMain.handle('file:exportText', async (event, filePath, content) => {
+  try {
+    await fs.promises.writeFile(filePath, content, 'utf-8');
+    return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }

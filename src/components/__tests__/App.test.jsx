@@ -28,6 +28,7 @@ const mockElectronAPI = {
   convertCSVtoASC: vi.fn().mockResolvedValue({ success: false }),
   decodeSignalFrames: vi.fn().mockResolvedValue({ success: false }),
   exportSignalCSV: vi.fn().mockResolvedValue({ success: false }),
+  exportText: vi.fn().mockResolvedValue({ success: true }),
   onExportProgress: vi.fn(() => () => {}),
   openExternal: vi.fn().mockResolvedValue({ success: true })
 };
@@ -71,5 +72,72 @@ describe('App menu wiring', () => {
     });
     // Header counter is still rendered, app did not crash.
     expect(screen.getByText('CAN Log Analyzer')).toBeTruthy();
+  });
+});
+
+describe('R4 parse-error reporting UI', () => {
+  it('shows the warning badge, opens the drawer and exports the report', async () => {
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/logs/with-errors.asc');
+    mockElectronAPI.loadASC.mockResolvedValueOnce({
+      success: true,
+      messages: [{ timestamp: 0, id: 0x123, direction: 'Rx', dlc: 8, data: [1, 2, 3, 4, 5, 6, 7, 8] }],
+      headerLines: ['base hex  timestamps absolute'],
+      parseErrors: [
+        { lineNumber: 12, line: '0.001000 1 789 Rx d 8 ZZ YY XX', reason: '无法解析的数据行（格式不识别或数据损坏）' },
+        { lineNumber: 13, line: '0.002000 1 790 Rx d 8 ??', reason: '无法解析的数据行（格式不识别或数据损坏）' }
+      ],
+      parseErrorCount: 2,
+      totalCount: 1
+    });
+    mockElectronAPI.getStats.mockResolvedValueOnce({ size: 4096, lines: 20 });
+
+    render(<App />);
+    await act(async () => {
+      fireEvent.click(screen.getByText('加载 ASC'));
+    });
+
+    // Yellow warning badge appears after the load completes.
+    const badge = await screen.findByTestId('parse-error-badge');
+    expect(badge.textContent).toMatch(/2 行错误/);
+
+    // Clicking it opens the error report drawer listing each damaged line.
+    await act(async () => {
+      fireEvent.click(badge);
+    });
+    expect(screen.getByTestId('parse-error-item-0').textContent).toMatch(/行 12/);
+    expect(screen.getByTestId('parse-error-item-1').textContent).toMatch(/行 13/);
+
+    // Export button hands the serialized report to the exportText IPC.
+    mockElectronAPI.saveFile.mockResolvedValueOnce('C:/logs/parse_errors.txt');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('export-parse-errors'));
+    });
+    expect(mockElectronAPI.exportText).toHaveBeenCalledTimes(1);
+    const [, content] = mockElectronAPI.exportText.mock.calls[0];
+    expect(content).toContain('解析错误报告');
+    expect(content).toContain('错误总数: 2');
+    expect(content).toContain('[行 12]');
+    expect(content).toContain('ZZ YY XX');
+  });
+
+  it('hides the badge when the load reports no parse errors', async () => {
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/logs/clean.asc');
+    mockElectronAPI.loadASC.mockResolvedValueOnce({
+      success: true,
+      messages: [{ timestamp: 0, id: 0x123, direction: 'Rx', dlc: 8, data: [0, 0, 0, 0, 0, 0, 0, 0] }],
+      headerLines: [],
+      parseErrors: [],
+      parseErrorCount: 0,
+      totalCount: 1
+    });
+    mockElectronAPI.getStats.mockResolvedValueOnce({ size: 4096, lines: 20 });
+
+    render(<App />);
+    await act(async () => {
+      fireEvent.click(screen.getByText('加载 ASC'));
+    });
+
+    await screen.findByText(/加载成功/);
+    expect(screen.queryByTestId('parse-error-badge')).toBeNull();
   });
 });

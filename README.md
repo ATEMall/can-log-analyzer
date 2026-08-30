@@ -178,8 +178,8 @@ npm test
 
 覆盖范围：
 
-- `electron/__tests__/`：ASC / BLF 解析与生成、DBC 解析、信号解码（含 CAN FD 64 字节丰富场景）
-- `src/components/__tests__/`：DBC 面板（搜索/清空/滚动）、信号表格、曲线图、布局视图、使用手册弹窗
+- `electron/__tests__/`：ASC / BLF 解析与生成、DBC 解析、信号解码（含 CAN FD 64 字节丰富场景）、Motorola 位序回归矩阵（23 固定期望 + 生成 ≥60 布局交叉验证）、解析容错（坏行/坏块跳过并报告）
+- `src/components/__tests__/`：DBC 面板（搜索/清空/滚动）、信号表格、曲线图、布局视图、使用手册弹窗、解析错误报告 UI
 
 ---
 
