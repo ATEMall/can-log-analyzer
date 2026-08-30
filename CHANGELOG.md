@@ -14,7 +14,10 @@
 - **解析容错（R4）**：ASC 坏行 / BLF 坏块（损坏块、解压失败、非法对象大小）记录错误并跳过，不再中断整个文件加载；错误列表上限 100 条
   - 新增 `file:exportText` IPC 通道，可将错误报告导出为 txt
   - UI：加载完成后黄色警示徽章 → 抽屉式错误报告（行号/原因/原文）→ 导出按钮
-- **测试**：`electron/__tests__/motorola.test.js`（31 用例：固定期望 + 种子 PRNG 矩阵交叉验证）、`electron/__tests__/tolerance.test.js`（7 用例）、App 解析错误 UI 测试（2 用例）；全量 **89/89** 通过
+- **分块解码引擎（R2 第一阶段）**：解码引擎提取为纯模块 `electron/signalDecode.js`；日志解析后消息驻留主进程 `messageStore`，解码不再由渲染进程全量回传
+  - 新增 IPC：`signal:decodeChunked`（默认 50 万帧/块）、`signal:decodeCancel`（块边界生效）、`decode:progress`、`decode:chunk-result` 增量回传
+  - 前端解码增量累加渲染 + 进度条 + 取消按钮；分块与一次性解码结果 bit 级一致
+- **测试**：`electron/__tests__/motorola.test.js`（31 用例：固定期望 + 种子 PRNG 矩阵交叉验证）、`electron/__tests__/tolerance.test.js`（7 用例）、`electron/__tests__/signalDecode.test.js`（4 用例：分块==一次性一致性 / mux / 枚举）、App 解析错误 UI 测试（2 用例）；全量 **93/93** 通过
 
 ## [2.0.0] - 2026-08-22
 

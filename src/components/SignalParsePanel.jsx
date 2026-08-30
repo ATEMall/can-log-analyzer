@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
-  Card, Button, Space, Typography, Tag, Tabs, message,
+  Card, Button, Space, Typography, Tag, Tabs, message, Progress,
   Statistic, Row, Col, Tooltip, Input, Empty
 } from 'antd';
 import {
-  ThunderboltOutlined, DownloadOutlined,
+  ThunderboltOutlined, DownloadOutlined, StopOutlined,
   TableOutlined, LineChartOutlined, BarChartOutlined, SearchOutlined
 } from '@ant-design/icons';
 import SignalTable from './SignalTable';
@@ -28,6 +28,27 @@ function SignalParsePanel({
   const [decodeStats, setDecodeStats] = useState(null);
   const [decoding, setDecoding] = useState(false);
   const [searchText, setSearchText] = useState('');
+  // R2: chunked decode progress + incremental chunk accumulation
+  const [decodeProgress, setDecodeProgress] = useState(null);
+  const chunkBufRef = useRef({ rows: null, decoded: 0, received: 0 });
+
+  // R2: subscribe to chunked decode events (progress + incremental results).
+  // The chunk-result handler accumulates rows so the table/chart can append
+  // progressively instead of waiting for the whole corpus.
+  useEffect(() => {
+    const offProgress = window.electronAPI?.onDecodeProgress?.(data => setDecodeProgress(data));
+    const offChunk = window.electronAPI?.onDecodeChunkResult?.(data => {
+      const buf = chunkBufRef.current;
+      if (!buf.rows) buf.rows = [];
+      if (data.rows && data.rows.length) buf.rows.push(...data.rows);
+      buf.decoded += data.decodedCount || 0;
+      buf.received++;
+    });
+    return () => {
+      if (typeof offProgress === 'function') offProgress();
+      if (typeof offChunk === 'function') offChunk();
+    };
+  }, []);
 
   // Filter selected signals by search keyword (signal name / msg name / msg id)
   // NOTE: sig.msgId can be a number (from DBC parse) - never call string methods on it directly
@@ -49,7 +70,9 @@ function SignalParsePanel({
     });
   }, [selectedSignals, dbcMessages, searchText]);
 
-  // Handle decode button click
+  // Handle decode button click. R2: prefers the chunked protocol so 1M-frame
+  // logs stream through the main process without freezing the UI; falls back
+  // to the legacy one-shot call when decodeChunked is unavailable.
   const handleDecode = useCallback(async () => {
     if (selectedSignals.length === 0) {
       message.warning('请先在 DBC 面板中勾选需要解析的信号');
@@ -62,30 +85,66 @@ function SignalParsePanel({
     }
 
     setDecoding(true);
+    setDecodeProgress({ chunk: 0, totalChunks: 1, percent: 0 });
+    chunkBufRef.current = { rows: null, decoded: 0, received: 0 };
     message.info('正在解码信号...');
 
-    try {
-      const result = await window.electronAPI.decodeSignalFrames(
-        loadedMessages,
-        selectedSignals.map(s => ({ msgId: s.msgId, signalName: s.signalName })),
-        dbcMessages
-      );
+    const selList = selectedSignals.map(s => ({ msgId: s.msgId, signalName: s.signalName }));
 
-      if (result.success) {
-        setSignalData(result.signalData);
-        setDecodeStats(result.stats);
-        message.success(
-          `解码完成：${result.stats.totalFrames} 帧 → ${result.stats.decodedFrames} 帧含信号数据`
-        );
+    try {
+      const useChunked = typeof window.electronAPI?.decodeChunked === 'function';
+      let result;
+
+      if (useChunked) {
+        const filePath = (ascFile || blfFile)?.path;
+        const payload = { selectedSignals: selList, dbcMessages, chunkSize: 500000 };
+        if (filePath) payload.filePath = filePath;
+        else payload.messages = loadedMessages;
+        result = await window.electronAPI.decodeChunked(payload);
+
+        if (result.success) {
+          // Prefer the incrementally accumulated rows (chunk-result events);
+          // fall back to the full payload if events were not all delivered.
+          const buf = chunkBufRef.current;
+          const signalData = (buf.rows && buf.received > 0) ? buf.rows : result.signalData;
+          setSignalData(signalData);
+          setDecodeStats(result.stats);
+          message.success(
+            result.cancelled
+              ? `解码已取消：已完成 ${buf.decoded} 帧`
+              : `解码完成：${result.stats.totalFrames} 帧 → ${result.stats.decodedFrames} 帧含信号数据`
+          );
+        } else {
+          message.error('解码失败: ' + result.error);
+        }
       } else {
-        message.error('解码失败: ' + result.error);
+        result = await window.electronAPI.decodeSignalFrames(loadedMessages, selList, dbcMessages);
+        if (result.success) {
+          setSignalData(result.signalData);
+          setDecodeStats(result.stats);
+          message.success(
+            `解码完成：${result.stats.totalFrames} 帧 → ${result.stats.decodedFrames} 帧含信号数据`
+          );
+        } else {
+          message.error('解码失败: ' + result.error);
+        }
       }
     } catch (error) {
       message.error('解码失败: ' + error.message);
     } finally {
       setDecoding(false);
+      setDecodeProgress(null);
     }
-  }, [selectedSignals, loadedMessages, dbcMessages]);
+  }, [selectedSignals, loadedMessages, dbcMessages, ascFile, blfFile]);
+
+  // R2: cancel an in-flight chunked decode (main process checks at block
+  // boundaries, so cancellation lands within one chunk).
+  const handleCancelDecode = useCallback(async () => {
+    try {
+      await window.electronAPI?.decodeCancel?.();
+    } catch (_) {}
+    message.info('正在取消解码...');
+  }, []);
 
   // Handle CSV export
   const handleExportCSV = useCallback(async () => {
@@ -159,6 +218,27 @@ function SignalParsePanel({
               >
                 开始解码
               </Button>
+
+              {/* R2: chunked decode progress + cancel */}
+              {decoding && (
+                <>
+                  <div style={{ width: 140, display: 'inline-block', verticalAlign: 'middle' }}>
+                    <Progress
+                      percent={decodeProgress?.percent ?? 0}
+                      size="small"
+                      status={decodeProgress?.percent >= 100 ? 'success' : 'active'}
+                    />
+                  </div>
+                  <Button
+                    size="small"
+                    danger
+                    icon={<StopOutlined />}
+                    onClick={handleCancelDecode}
+                  >
+                    取消
+                  </Button>
+                </>
+              )}
 
               {signalData && signalData.length > 0 && (
                 <Button

@@ -42,6 +42,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Signal decode operations
   decodeSignalFrames: (loadedMessages, selectedSignals, dbcMessages) =>
     ipcRenderer.invoke('signal:decodeFrames', loadedMessages, selectedSignals, dbcMessages),
+
+  // R2: chunked decode — frames stay resident in the main process, results
+  // stream back as decode:chunk-result events so the UI stays responsive on
+  // 1M-frame logs.
+  decodeChunked: (payload) => ipcRenderer.invoke('signal:decodeChunked', payload),
+  decodeCancel: () => ipcRenderer.invoke('signal:decodeCancel'),
+  onDecodeProgress: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('decode:progress', handler);
+    return () => ipcRenderer.removeListener('decode:progress', handler);
+  },
+  onDecodeChunkResult: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('decode:chunk-result', handler);
+    return () => ipcRenderer.removeListener('decode:chunk-result', handler);
+  },
+
   exportSignalCSV: (filePath, signalData, selectedSignals) =>
     ipcRenderer.invoke('signal:exportCSV', filePath, signalData, selectedSignals)
 });
