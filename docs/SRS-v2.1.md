@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 |---|---|
-| 文档版本 | v1.0 |
-| 编写日期 | 2026-08-29 |
+| 文档版本 | v1.1（勘误：修正 R1 算法规格，见变更记录） |
+| 编写日期 | 2026-08-29（v1.1：2026-08-30） |
 | 编写人 | 产品经理（翟枢） |
 | 上游文档 | `docs/PRD.md` v1.0（需求基准）、`docs/ACCEPTANCE-2026-08-29.md`（v2.0.0 验收） |
 | 适用版本 | **v2.1「正确性与地基」** |
@@ -50,46 +50,40 @@
 
 **背景**：v2.0.0 对拍 10/10 Motorola 信号全部错误（见验收报告 §4）。
 
-**缺陷根因**（`electron/dbc.js` `decodeSignalFrame()` Motorola 分支）：
+**缺陷根因**（`electron/dbc.js` `decodeSignalFrame()` Motorola 分支）：原实现在字节内的位提取方向写反（`7 - (bitPos % 8)` 应为 `bitPos % 8`）。
+
+**正确算法规格**（DBC / Vector 位编号约定，**v1.1 勘误版，以 286/286 对拍验证为准**）：
+
+- DBC 位编号（Vector 约定）：byte k 的 **MSB = 位号 `8k+7`，LSB = 位号 `8k`**。因此字节对齐的 16 位 Motorola 信号 startBit = 7（不是 0）。
+- Motorola 信号从 `startBit`（信号 MSB 所在位）开始，**字节内位号递减**（MSB→LSB），到达字节 LSB（位号 `8k`）后**跳到下一字节的 MSB（位号 `8(k+1)+7`，即 `+15`）**——即"锯齿"遍历。
+- 字节内提取位：`bitIdx = bitPos % 8`（位号 7 是 MSB，右移 7 位取到）。
 
 ```js
-// 当前错误实现：跨字节跳转 +15（跳过了整整一个字节）
-if ((bitPos % 8) === 0) {
-  bitPos += 15;   // 错误
-} else {
-  bitPos--;
-}
-```
-
-**正确算法规格**（DBC / cantools 位编号约定）：
-
-- DBC 位编号：byte k 的 MSB 为 `8k`，LSB 为 `8k+7`（即编号 0=byte0.bit7）。
-- Motorola 信号从 `startBit`（信号 MSB 所在位）开始，**位号单调递增 +1** 遍历：字节内从 MSB（位号小）到 LSB（位号大），到字节末尾后进入下一字节的 MSB。
-- 即：每个信号位按顺序读取 `bitPos = startBit, startBit+1, ..., startBit+length-1`，字节内方向为 MSB→LSB，跨字节自然衔接。**跳转增量恒为 +1，不存在锯齿。**
-
-```js
-// 正确实现（示意）
+// 正确实现（v1.1，已对拍 286/286 一致）
+let bitPos = startBit;
 for (let i = 0; i < length; i++) {
-  const p = startBit + i;            // 单调递增
-  const byteIdx = Math.floor(p / 8);
-  const bitIdx = 7 - (p % 8);        // MSB-first within byte
-  rawValue |= BigInt((data[byteIdx] >> bitIdx) & 1) << BigInt(length - 1 - i);
+  const byteIdx = Math.floor(bitPos / 8);
+  const bitIdx = bitPos % 8;            // ← 原缺陷点：曾被误写为 7 - (bitPos % 8)
+  if (byteIdx < data.length) {
+    rawValue |= BigInt((data[byteIdx] >> bitIdx) & 1) << BigInt(length - 1 - i);
+  }
+  if ((bitPos % 8) === 0) bitPos += 15; else bitPos--;   // 锯齿遍历保持不变
 }
 ```
 
-> 注：若采用 sawtooth 写法，正确跳转量为 `bitPos += 7`（从当前字节 LSB 到下一字节 MSB）而非 15。两种写法等价，以对拍结果为准。
+> **v1.0 勘误说明**：v1.0 曾写"位号单调递增 +1、不存在锯齿"，**该描述是错误的**，已在本版删除。正确实现保留锯齿遍历，仅修正字节内提取方向。规格以 cantools 43.0.2 对拍结果为最终权威。
 
 **验收标准（DoD）**：
 
-1. 使用下列**最小测试向量**（8 字节数据 `12 34 56 78 9A BC DE F0`）全部通过：
+1. 使用下列**最小测试向量**（8 字节数据 `12 34 56 78 9A BC DE F0`，v1.1 已按 Vector 位编号勘误）全部通过：
 
 | 信号 | 布局 | 期望值（cantools 基准） |
 |---|---|---|
-| M_MotA | `0\|16@0+` | 0x1234 = 4660（*以修复后实测对拍为准，验收时重新生成基准*） |
-| M_MotC | `7\|8@0+` | byte1 值 |
-| M_MotI | `0\|1@0+`，数据 `80 00 ...` | 1（MSB of byte0） |
-| 跨 3 字节 Motorola 信号（如 `0\|24@0+`） | — | 高 3 字节拼接 |
-| Motorola 有符号（`0\|16@0-`，负值用例） | — | 与 cantools 一致 |
+| M_MotA | `7\|16@0+`（字节对齐，注意 startBit=7 而非 0） | 0x1234 = 4660 |
+| M_MotC | `15\|8@0+`（byte1 整字节） | 0x34 = 52 |
+| M_MotI | `7\|1@0+`，数据 `80 00 ...` | 1（MSB of byte0） |
+| 跨 3 字节 Motorola 信号（`7\|24@0+`） | — | 0x123456 = 1193046 |
+| Motorola 有符号（`7\|16@0-`，负值用例） | — | 与 cantools 一致 |
 
 2. 对拍矩阵（以 cantools 为权威，逐帧逐信号比对，**0 不一致**）：
    - Intel / Motorola × 有符号 / 无符号 × 1/8/16/32/64 位 × 起始位对齐 / 非对齐 × 单字节内 / 跨字节 / 跨 3+ 字节；
@@ -302,3 +296,12 @@ for (let i = 0; i < length; i++) {
 ---
 
 *本 SRS 与 PRD 冲突时以本文档为准（v2.1 范围内）。变更须 PM 书面确认后更新本文档。*
+
+---
+
+## 变更记录
+
+| 版本 | 日期 | 变更 |
+|---|---|---|
+| v1.0 | 2026-08-29 | 首次发布 |
+| v1.1 | 2026-08-30 | **R1 勘误**：v1.0 的"单调 +1 遍历"算法规格描述错误。正确规格为锯齿遍历（字节内位号递减，字节末 `+15` 跳下一字节 MSB）+ 字节内提取 `bitIdx = bitPos % 8`。已用 286 用例矩阵对拍 cantools 43.0.2 验证 286/286 一致。教训：规格描述必须经对拍实证后再发布。 |
