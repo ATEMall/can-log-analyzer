@@ -173,3 +173,56 @@ describe('DBCPanel', () => {
     expect(onSignalToggle).toHaveBeenCalledWith(256, 'Sig_00');
   });
 });
+
+describe('DBCPanel R3 badges (cycle / extended / mux)', () => {
+  const richMsg = {
+    id: 2048,
+    name: 'ExtMuxMsg',
+    dlc: 8,
+    sender: 'ECU',
+    isExtended: true,
+    cycleTime: 10,
+    signals: [
+      { name: 'MuxSel', muxIndicator: 'M', startBit: 0, length: 8, byteOrder: 'little', receivers: ['ECU'] },
+      { name: 'SigA', muxIndicator: 'm0', startBit: 8, length: 16, byteOrder: 'little', receivers: ['ECU'] },
+      { name: 'SigB', muxIndicator: 'm1', startBit: 8, length: 16, byteOrder: 'little', receivers: ['ECU'] }
+    ]
+  };
+  const plainMsg = {
+    id: 256, name: 'PlainMsg', dlc: 8, sender: 'ECU',
+    signals: [{ name: 'S1', startBit: 0, length: 8, byteOrder: 'little', receivers: ['ECU'] }]
+  };
+
+  it('shows the GenMsgCycleTime badge on the message row (UI-2.1-04)', () => {
+    render(<DBCPanel {...baseProps} messages={[richMsg]} />);
+    expect(screen.getByText('10ms')).toBeTruthy();
+  });
+
+  it('shows the blue Ext badge for extended messages (UI-2.1-05)', () => {
+    render(<DBCPanel {...baseProps} messages={[richMsg]} />);
+    const extTag = screen.getByText('Ext');
+    expect(extTag).toBeTruthy();
+    expect(extTag.className).toMatch(/ant-tag-blue/);
+  });
+
+  it('hides cycle/Ext badges when the message has no attributes', () => {
+    render(<DBCPanel {...baseProps} messages={[plainMsg]} />);
+    expect(screen.queryByText(/ms$/)).toBeNull();
+    expect(screen.queryByText('Ext')).toBeNull();
+  });
+
+  it('shows the purple M badge on the mux selector signal (UI-2.1-06)', () => {
+    render(<DBCPanel {...baseProps} messages={[richMsg]} />);
+    fireEvent.click(screen.getByText('ExtMuxMsg'));
+    const mTag = screen.getByText('M');
+    expect(mTag).toBeTruthy();
+    expect(mTag.className).toMatch(/ant-tag-purple/);
+  });
+
+  it('shows the grey m=n badge on mux branch signals (UI-2.1-06)', () => {
+    render(<DBCPanel {...baseProps} messages={[richMsg]} />);
+    fireEvent.click(screen.getByText('ExtMuxMsg'));
+    expect(screen.getByText('m0')).toBeTruthy();
+    expect(screen.getByText('m1')).toBeTruthy();
+  });
+});

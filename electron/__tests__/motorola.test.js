@@ -17,22 +17,30 @@ const base = path.join(__dirname, '..', '..', 'TestExample', 'motorola_matrix');
 
 // ---------------------------------------------------------------------------
 // Independent reference decoder (different accumulation style, so a same-source
-// bug in the engine cannot silently pass). Semantics:
+// bug in the engine cannot silently pass). Semantics (PM Issue #1 acceptance,
+// verified 286/286 vs cantools 43.0.2):
 //   - little: bit number p -> byte p/8, in-byte bit p%8; signal LSB at startBit
-//   - big   : bit number p -> byte p/8, in-byte bit 7-(p%8); startBit is MSB,
-//             bits read in increasing bit-number order
+//   - big   : DBC (Vector) numbering — byte n's MSB is bit number 8n+7, LSB is
+//             8n. startBit = signal MSB. Sawtooth walk: within a byte count
+//             down (MSB->LSB), at byte boundaries jump +15 to the next byte MSB.
+//             In-byte bit = bitPos % 8.
 // ---------------------------------------------------------------------------
 function refDecode(data, { startBit, length, byteOrder, signed }) {
   let raw = 0n;
-  for (let i = 0; i < length; i++) {
-    const p = startBit + i;
-    const b = p >> 3;
-    const bit = byteOrder === 'little' ? (p & 7) : (7 - (p & 7));
-    const v = b < data.length ? BigInt((data[b] >> bit) & 1) : 0n; // out-of-range -> 0
-    if (byteOrder === 'little') {
+  if (byteOrder === 'little') {
+    for (let i = 0; i < length; i++) {
+      const p = startBit + i;
+      const b = p >> 3;
+      const v = b < data.length ? BigInt((data[b] >> (p & 7)) & 1) : 0n; // out-of-range -> 0
       raw |= v << BigInt(i);
-    } else {
+    }
+  } else {
+    let bitPos = startBit;
+    for (let i = 0; i < length; i++) {
+      const b = bitPos >> 3;
+      const v = b < data.length ? BigInt((data[b] >> (bitPos & 7)) & 1) : 0n;
       raw = (raw << 1n) | v; // MSB-first accumulation
+      if ((bitPos % 8) === 0) bitPos += 15; else bitPos--;
     }
   }
   let n;
@@ -126,23 +134,49 @@ describe('Generated matrix: engine vs independent reference (0 mismatch)', () =>
 describe('Motorola signed negatives (>32-bit and boundary values)', () => {
   it('64-bit signed negative: 0xFFFFFFFFFFFFFFFF -> -1', () => {
     const data = new Array(8).fill(0xFF);
-    const s = { startBit: 0, length: 64, byteOrder: 'big', signed: true, scale: 1, offset: 0 };
+    const s = { startBit: 7, length: 64, byteOrder: 'big', signed: true, scale: 1, offset: 0 };
     expect(decodeSignalFrame(data, s)).toBe(-1);
   });
   it('64-bit signed positive with MSB clear: 0x7FFF... -> 9223372036854775807', () => {
     const data = [0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
-    const s = { startBit: 0, length: 64, byteOrder: 'big', signed: true, scale: 1, offset: 0 };
+    const s = { startBit: 7, length: 64, byteOrder: 'big', signed: true, scale: 1, offset: 0 };
     expect(decodeSignalFrame(data, s)).toBe(Number.MAX_SAFE_INTEGER > 0 ? 9223372036854775807 : 9223372036854775807);
   });
   it('signed boundary: raw == 2^(n-1) is the most negative value', () => {
     const data = [0x80, 0x00, 0x00, 0x00];
-    const s = { startBit: 0, length: 32, byteOrder: 'big', signed: true, scale: 1, offset: 0 };
+    const s = { startBit: 7, length: 32, byteOrder: 'big', signed: true, scale: 1, offset: 0 };
     expect(decodeSignalFrame(data, s)).toBe(-2147483648);
   });
   it('data shorter than signal start: missing bits read as 0 (no crash)', () => {
     const data = [0x12];
-    const s = { startBit: 16, length: 16, byteOrder: 'big', signed: true, scale: 1, offset: 0 };
+    const s = { startBit: 23, length: 16, byteOrder: 'big', signed: true, scale: 1, offset: 0 };
     expect(decodeSignalFrame(data, s)).toBe(0);
+  });
+});
+
+describe('R1 regression: byte-aligned Motorola startBit ≡ 7 (mod 8) (PM Issue #1 blind spot)', () => {
+  // The exact blind spot that broke v2.0.0/6e20821: J1939-style byte-aligned
+  // big-endian signals use startBit 7/15/23/31/... per the DBC (Vector) spec.
+  // cantools decodes these as plain byte sequences; the engine must too.
+  const DATA = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0];
+  it.each([
+    // [startBit, length, expected]
+    [7, 8, 0x12], [15, 8, 0x34], [23, 8, 0x56], [31, 8, 0x78],
+    [39, 8, 0x9A], [47, 8, 0xBC], [55, 8, 0xDE], [63, 8, 0xF0],
+    [7, 16, 0x1234], [23, 16, 0x5678], [39, 16, 0x9ABC], [55, 16, 0xDEF0],
+    [7, 24, 0x123456], [39, 24, 0x9ABCDE],
+    [7, 32, 0x12345678], [39, 32, 0x9ABCDEF0],
+    [7, 1, 0], [7, 4, 1], [23, 12, 0x567], [55, 2, 0b11]
+  ])('startBit %i length %i -> 0x%X', (startBit, length, expected) => {
+    const s = { startBit, length, byteOrder: 'big', signed: false, scale: 1, offset: 0 };
+    expect(decodeSignalFrame(DATA, s)).toBe(expected);
+  });
+
+  it('Motorola and Intel coexist: byte-aligned 32-bit vs little-endian control', () => {
+    const mot = { startBit: 7, length: 32, byteOrder: 'big', signed: false, scale: 1, offset: 0 };
+    const int = { startBit: 0, length: 32, byteOrder: 'little', signed: false, scale: 1, offset: 0 };
+    expect(decodeSignalFrame(DATA, mot)).toBe(0x12345678);
+    expect(decodeSignalFrame(DATA, int)).toBe(0x78563412);
   });
 });
 

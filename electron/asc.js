@@ -66,17 +66,22 @@ function parseASCDataLine(line) {
   if (rest.length < 5) return null;
 
   // --- Strategy 1: Vector standard format (classic CAN) ---
-  const vectorMatch = rest.match(/^(\d+)\s+([0-9A-Fa-f]+)\s+(Tx|Rx)\s+[dr]\s+(\d+)\s+([0-9A-Fa-f][0-9A-Fa-f](?:\s+[0-9A-Fa-f][0-9A-Fa-f])*)\s*/);
+  // R3: id may carry the extended-frame suffix (e.g. "800x"), matching the
+  // Vector/CANoe convention for 29-bit CAN ids.
+  const vectorMatch = rest.match(/^(\d+)\s+([0-9A-Fa-f]+x?)\s+(Tx|Rx)\s+[dr]\s+(\d+)\s+([0-9A-Fa-f][0-9A-Fa-f](?:\s+[0-9A-Fa-f][0-9A-Fa-f])*)\s*/);
   if (vectorMatch) {
     const dataStr = vectorMatch[5].trim();
     const data = dataStr.split(/\s+/).map(b => parseInt(b, 16));
+    const idStr = vectorMatch[2];
+    const isExtended = /x$/i.test(idStr);
     return {
       timestamp,
       channel: parseInt(vectorMatch[1]),
-      id: parseInt(vectorMatch[2], 16),
+      id: parseInt(idStr.replace(/x$/i, ''), 16),
       direction: vectorMatch[3],
       dlc: parseInt(vectorMatch[4]),
-      data
+      data,
+      isExtended
     };
   }
 
@@ -182,7 +187,9 @@ function generateASC(headerLines, messages) {
         `${msg.timestamp.toFixed(6)} CANFD ${msg.channel || 1} ${msg.direction || 'Rx'} ${idHex}${ext} ${msg.brs ? 1 : 0} ${msg.esi ? 1 : 0} ${dlcCode} ${(msg.data || []).length} ${dataStr}`
       );
     } else {
-      output.push(`${msg.timestamp.toFixed(6)} ${msg.channel || 1} ${(Number(msg.id) || 0).toString(16).toUpperCase()} ${msg.direction || 'Rx'} d ${msg.dlc || (msg.data || []).length} ${dataStr}`);
+      // R3: write the extended-frame suffix "x" so 29-bit CAN ids round-trip.
+      const ext = (msg.isExtended || (Number(msg.id) || 0) > 0x7FF) ? 'x' : '';
+      output.push(`${msg.timestamp.toFixed(6)} ${msg.channel || 1} ${(Number(msg.id) || 0).toString(16).toUpperCase()}${ext} ${msg.direction || 'Rx'} d ${msg.dlc || (msg.data || []).length} ${dataStr}`);
     }
   }
   return output.join('\r\n');

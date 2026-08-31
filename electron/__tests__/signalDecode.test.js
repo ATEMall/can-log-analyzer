@@ -12,7 +12,7 @@ BS_:
 BU_: ECU
 BO_ 256 MsgA: 8 ECU
  SG_ SigI : 0|16@1+ (0.1,0) [-3276.8|3276.7] "" ECU
- SG_ SigM : 16|8@0+ (1,0) [0|255] "" ECU
+ SG_ SigM : 23|8@0+ (1,0) [0|255] "" ECU
 BO_ 512 MsgB: 8 ECU
  SG_ MuxSel M : 0|8@1+ (1,0) [0|255] "" ECU
  SG_ SigX m0 : 8|16@1+ (1,0) [0|65535] "" ECU

@@ -35,32 +35,32 @@ BS_:
 BU_: MotGenerator
 
 BO_ 512 MtxMsg1: 8 MotGenerator
- SG_ M_MotA : 0|16@0+ (1,0) [0|65535] "" MotGenerator
- SG_ M_MotB : 16|16@0+ (1,0) [0|65535] "" MotGenerator
- SG_ M_MotC : 32|16@0+ (1,0) [0|65535] "" MotGenerator
- SG_ M_MotD : 48|16@0+ (1,0) [0|65535] "" MotGenerator
+ SG_ M_MotA : 7|16@0+ (1,0) [0|65535] "" MotGenerator
+ SG_ M_MotB : 23|16@0+ (1,0) [0|65535] "" MotGenerator
+ SG_ M_MotC : 39|16@0+ (1,0) [0|65535] "" MotGenerator
+ SG_ M_MotD : 55|16@0+ (1,0) [0|65535] "" MotGenerator
 
 BO_ 513 MtxMsg2: 8 MotGenerator
- SG_ M_MotU8a : 0|8@0+ (1,0) [0|255] "" MotGenerator
- SG_ M_MotU12 : 8|12@0+ (1,0) [0|4095] "" MotGenerator
- SG_ M_MotU4a : 20|4@0+ (1,0) [0|15] "" MotGenerator
- SG_ M_MotU4b : 24|4@0+ (1,0) [0|15] "" MotGenerator
- SG_ M_MotU2 : 28|2@0+ (1,0) [0|3] "" MotGenerator
- SG_ M_MotBit1 : 32|1@0+ (1,0) [0|1] "" MotGenerator
- SG_ M_MotBit0 : 33|1@0+ (1,0) [0|1] "" MotGenerator
- SG_ M_MotS8 : 40|8@0- (1,0) [-128|127] "" MotGenerator
- SG_ M_MotU16u : 48|16@0+ (1,0) [0|65535] "" MotGenerator
+ SG_ M_MotU8a : 7|8@0+ (1,0) [0|255] "" MotGenerator
+ SG_ M_MotU12 : 15|12@0+ (1,0) [0|4095] "" MotGenerator
+ SG_ M_MotU4a : 19|4@0+ (1,0) [0|15] "" MotGenerator
+ SG_ M_MotU4b : 31|4@0+ (1,0) [0|15] "" MotGenerator
+ SG_ M_MotU2 : 27|2@0+ (1,0) [0|3] "" MotGenerator
+ SG_ M_MotBit1 : 39|1@0+ (1,0) [0|1] "" MotGenerator
+ SG_ M_MotBit0 : 38|1@0+ (1,0) [0|1] "" MotGenerator
+ SG_ M_MotS8 : 47|8@0- (1,0) [-128|127] "" MotGenerator
+ SG_ M_MotU16u : 55|16@0+ (1,0) [0|65535] "" MotGenerator
 
 BO_ 514 MtxMsg3: 8 MotGenerator
- SG_ M_MotU32 : 0|32@0+ (1,0) [0|4294967295] "" MotGenerator
- SG_ M_MotS16 : 32|16@0- (1,0) [-32768|32767] "" MotGenerator
- SG_ M_MotS8b : 48|8@0- (1,0) [-128|127] "" MotGenerator
- SG_ M_MotU8c : 56|8@0+ (1,0) [0|255] "" MotGenerator
+ SG_ M_MotU32 : 7|32@0+ (1,0) [0|4294967295] "" MotGenerator
+ SG_ M_MotS16 : 39|16@0- (1,0) [-32768|32767] "" MotGenerator
+ SG_ M_MotS8b : 55|8@0- (1,0) [-128|127] "" MotGenerator
+ SG_ M_MotU8c : 63|8@0+ (1,0) [0|255] "" MotGenerator
 
 BO_ 515 MtxMsg4: 8 MotGenerator
- SG_ M_MotScaled : 0|16@0+ (0.1,-40) [-40|6513.5] "degC" MotGenerator
- SG_ M_MotEnum : 16|8@0+ (1,0) [0|255] "" MotGenerator
- SG_ M_MotU40 : 24|40@0+ (1,0) [0|1099511627775] "" MotGenerator
+ SG_ M_MotScaled : 7|16@0+ (0.1,-40) [-40|6513.5] "degC" MotGenerator
+ SG_ M_MotEnum : 23|8@0+ (1,0) [0|255] "" MotGenerator
+ SG_ M_MotU40 : 31|40@0+ (1,0) [0|1099511627775] "" MotGenerator
 
 BO_ 516 MtxMsg5: 8 MotGenerator
  SG_ M_IntU16 : 0|16@1+ (1,0) [0|65535] "" MotGenerator

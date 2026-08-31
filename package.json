@@ -1,6 +1,6 @@
 {
     "name": "can-log-analyzer-pro",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "CAN Log File Analyzer Pro - Load ASC/BLF files, decode signals with DBC, view signal bit layouts",
     "main": "electron/main.js",
     "scripts": {

@@ -325,16 +325,19 @@ function decodeSignal(data, signal) {
       bitPos++;
     }
   } else {
-    // Motorola (big-endian): MSB-first bit numbering, monotonically increasing
-    // bit position (see dbc.js decodeSignalFrame for the same semantics).
+    // Motorola (big-endian): DBC (Vector) bit numbering — byte n's MSB is bit
+    // number 8n+7, LSB is 8n. startBit = signal MSB (byte-aligned signals start
+    // at 7/15/23/31/...). Sawtooth walk: MSB->LSB within a byte, +15 jump at
+    // byte boundaries. Same semantics as dbc.js decodeSignalFrame.
+    let bitPos = startBit;
     for (let i = 0; i < length; i++) {
-      const p = startBit + i;
-      const byteIdx = Math.floor(p / 8);
-      const bitIdx = 7 - (p % 8);
+      const byteIdx = Math.floor(bitPos / 8);
+      const bitIdx = bitPos % 8;
       if (byteIdx < data.length) {
         const bit = BigInt((data[byteIdx] >> bitIdx) & 1);
         rawValue |= bit << BigInt(length - 1 - i);
       }
+      if ((bitPos % 8) === 0) bitPos += 15; else bitPos--;
     }
   }
   
@@ -351,10 +354,26 @@ function decodeSignal(data, signal) {
 }
 
 /**
- * Encode a physical value back to raw integer
+ * Encode a physical value back to raw integer (or float bit pattern)
  */
 function encodeSignalRaw(physicalValue, signal) {
-  const { scale, offset } = signal;
+  const { scale, offset, valueType } = signal;
+  // R3: float signals keep the IEEE754 bit pattern as the raw value.
+  // Returns BigInt for float64 (64-bit patterns are not Number-safe).
+  if (valueType === 'float32' || valueType === 'float64') {
+    const nbytes = valueType === 'float32' ? 4 : 8;
+    const buf = Buffer.alloc(nbytes);
+    const phys = (physicalValue - offset) / scale;
+    const little = signal.byteOrder === 'little';
+    if (nbytes === 4) {
+      if (little) buf.writeFloatLE(phys, 0);
+      else buf.writeFloatBE(phys, 0);
+      return little ? buf.readUInt32LE(0) : buf.readUInt32BE(0);
+    }
+    if (little) buf.writeDoubleLE(phys, 0);
+    else buf.writeDoubleBE(phys, 0);
+    return little ? buf.readBigUInt64LE(0) : buf.readBigUInt64BE(0);
+  }
   if (scale === 0) return 0;
   return Math.round((physicalValue - offset) / scale);
 }
@@ -364,7 +383,7 @@ function encodeSignalRaw(physicalValue, signal) {
  */
 function writeSignalToBytes(data, signal, rawValue) {
   const { startBit, length, byteOrder } = signal;
-  const rawBig = BigInt(rawValue);
+  const rawBig = typeof rawValue === 'bigint' ? rawValue : BigInt(rawValue);
   const mask = (BigInt(1) << BigInt(length)) - BigInt(1);
   const maskedRaw = rawBig & mask;
   
@@ -384,12 +403,13 @@ function writeSignalToBytes(data, signal, rawValue) {
       bitPos++;
     }
   } else {
-    // Motorola (big-endian): MSB-first bit numbering, monotonically increasing
-    // bit position (mirrors decodeSignalFrame / write side of dbc.js).
+    // Motorola (big-endian): DBC (Vector) bit numbering — byte n's MSB is bit
+    // number 8n+7, LSB is 8n. startBit = signal MSB. Sawtooth walk (mirrors
+    // dbc.js decodeSignalFrame / write side).
+    let bitPos = startBit;
     for (let i = 0; i < length; i++) {
-      const p = startBit + i;
-      const byteIdx = Math.floor(p / 8);
-      const bitIdx = 7 - (p % 8);
+      const byteIdx = Math.floor(bitPos / 8);
+      const bitIdx = bitPos % 8;
       if (byteIdx < data.length) {
         const bit = Number((maskedRaw >> BigInt(length - 1 - i)) & BigInt(1));
         if (bit) {
@@ -398,6 +418,7 @@ function writeSignalToBytes(data, signal, rawValue) {
           data[byteIdx] &= ~(1 << bitIdx);
         }
       }
+      if ((bitPos % 8) === 0) bitPos += 15; else bitPos--;
     }
   }
 }
@@ -623,7 +644,25 @@ function convertCSVToCANMessages(csvData, dbcMessages, crcAlgorithm = 'NONE', op
           }
         }
       }
-      
+
+      // R3: multiplex — resolve the mux selector value first, then only write
+      // branch signals matching that value (the selector itself is written in
+      // the first pass below).
+      const muxSig = dbcMsg.signals.find(s => s.muxIndicator === 'M') || null;
+      let muxVal = null;
+      if (muxSig) {
+        for (const col of csvCols) {
+          if (col.signalName !== muxSig.name) continue;
+          const valIdx = col.colIndex;
+          const strVal = valIdx < row.values.length ? row.values[valIdx] : '0';
+          let v = parseFloat(strVal);
+          if (isNaN(v)) v = 0;
+          writeSignalToBytes(data, muxSig, encodeSignalRaw(v, muxSig));
+          muxVal = Math.round(v);
+          break;
+        }
+      }
+
       // Write each signal value
       for (const col of csvCols) {
         // Find matching DBC signal
@@ -651,6 +690,12 @@ function convertCSVToCANMessages(csvData, dbcMessages, crcAlgorithm = 'NONE', op
         }
         
         if (dbcSig) {
+          // R3: skip branch signals whose mux value does not match the frame's
+          // selector value (mux value column drives which signal set is packed).
+          if (muxSig && muxVal !== null && dbcSig.muxIndicator && dbcSig.muxIndicator !== 'M') {
+            const m = dbcSig.muxIndicator.match(/^m(\d+)/);
+            if (m && parseInt(m[1], 10) !== muxVal) continue;
+          }
           // Skip CRC signal - will be calculated later
           if (crcSignal && dbcSig.name === crcSignal.name) continue;
           

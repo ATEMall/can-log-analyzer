@@ -103,7 +103,9 @@ function buildBLFBuffer(messages) {
     const dlc = Math.min(msg.dlc != null ? msg.dlc : (msg.data ? msg.data.length : 0), 8);
     obj.writeUInt8(dlc, 34);                                       // dlc
     obj.writeUInt8(0, 35);                                         // reserved
-    obj.writeUInt32LE(id, 36);                                     // arbitration id
+    // R3: bit 31 of the arbitration id marks an extended (29-bit) CAN frame
+    const extId = ((msg.isExtended || id > 0x7FF) ? (id | 0x80000000) : id) >>> 0;
+    obj.writeUInt32LE(extId, 36);                                  // arbitration id
     for (let i = 0; i < Math.min(8, data.length); i++) {
       obj.writeUInt8(data[i], 40 + i);                             // data[8]
     }
@@ -351,6 +353,9 @@ function parseObjectAt(buf, off, keepAll, selectedIds) {
     const flags = buf.readUInt8(p + 1);
     let dlc = buf.readUInt8(p + 2);
     const rawId = buf.readUInt32LE(p + 4);
+    // R3: bit 31 of the arbitration id marks an extended (29-bit) CAN frame;
+    // fall back to the id-range heuristic for files written without the flag.
+    const isExtended = (rawId & 0x80000000) !== 0 || rawId > 0x7FF;
     const id = rawId & (rawId > 0x7FF ? 0x1FFFFFFF : 0x7FF);
 
     if (objType === 144 && dlc > 64) dlc = Math.min(dlc & 0x0F, 8);
@@ -368,7 +373,8 @@ function parseObjectAt(buf, off, keepAll, selectedIds) {
       id,
       direction: flags & 0x01 ? 'Tx' : 'Rx',
       dlc,
-      data
+      data,
+      isExtended
     };
   } catch (e) {
     return null;

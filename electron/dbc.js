@@ -1,18 +1,45 @@
 // =====================================================================
 // DBC (CAN database) parser and signal decoder - pure module (no electron deps)
+//
+// R3 additions:
+//   - BA_DEF_ / BA_DEF_DEF_ / BA_ attribute definitions & assignments
+//     (GenMsgCycleTime / GenMsgSendType / VFrameFormat / GenSigStartValue)
+//   - Extended-frame modeling via BA_ "VFrameFormat" BO_ <id> 1
+//   - SIG_VALTYPE_ float32 / float64 signal typing + IEEE754 decoding
 // =====================================================================
+
+/** Parse a BA_/BA_DEF_DEF_/BA_ attribute value: boolean / number / string. */
+function parseAttrValue(s) {
+  const str = String(s).trim();
+  if (str === 'true') return true;
+  if (str === 'false') return false;
+  if (/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(str) && Number.isFinite(Number(str))) {
+    return Number(str);
+  }
+  // DBC string literals are double-quoted, e.g. BA_ "GenMsgSendType" BO_ 1 "Cyclic";
+  if (str.length >= 2 && str.startsWith('"') && str.endsWith('"')) {
+    return str.slice(1, -1);
+  }
+  return str;
+}
 
 /**
  * Parse a DBC file content into message definitions.
- * Handles standard BO_/SG_/VAL_ lines. Data length is not limited to 8 bytes,
- * so CAN FD frames with up to 64 payload bytes decode correctly.
+ * Handles BO_/SG_/VAL_/BA_DEF_/BA_DEF_DEF_/BA_/SIG_VALTYPE_ lines.
+ * Data length is not limited to 8 bytes, so CAN FD frames with up to 64
+ * payload bytes decode correctly.
  */
 function parseDBC(content) {
   const messages = [];
   const lines = content.split(/\r?\n/);
   let currentMessage = null;
-  // Also collect value definitions (VAL_) for enum-type signals
+  // Value definitions (VAL_) for enum-type signals
   const valueDefs = {};
+  // R3: attribute assignments (BA_) by target
+  const msgAttrs = {};   // msgId -> { attrName: value }
+  const sigAttrs = {};   // "msgId:sigName" -> { attrName: value }
+  // R3: SIG_VALTYPE_ float typing
+  const sigValueTypes = {}; // "msgId:sigName" -> 'float32' | 'float64'
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -73,17 +100,81 @@ function parseDBC(content) {
       }
       if (!valueDefs[key]) valueDefs[key] = {};
       Object.assign(valueDefs[key], vals);
+      continue;
+    }
+
+    // R3: BA_DEF_ - attribute definition
+    // Format: BA_DEF_ <target> "<name>" <dataType> [<min>|<max>];
+    const baDefMatch = trimmed.match(/^BA_DEF_\s+(BO_|SG_|BU_)\s+"([^"]+)"\s+(\w+)(?:\s+([\w\-\.]+)\s+([\w\-\.]+))?\s*;?$/);
+    if (baDefMatch) {
+      // Attribute definitions are metadata only; assignments drive the model.
+      continue;
+    }
+
+    // R3: BA_DEF_DEF_ - attribute default value
+    // Format: BA_DEF_DEF_ "<name>" <default>;
+    const baDefDefMatch = trimmed.match(/^BA_DEF_DEF_\s+"([^"]+)"\s+(\S+)\s*;?$/);
+    if (baDefDefMatch) {
+      continue;
+    }
+
+    // R3: BA_ - attribute assignment
+    // Format: BA_ "<name>" { BO_ <id> | SG_ <id> <sigName> | BU_ <node> } <value>;
+    const baMatch = trimmed.match(
+      /^BA_\s+"([^"]+)"\s+(?:BO_\s+(\d+)|SG_\s+(\d+)\s+([\w\-\.]+)|BU_\s+([\w\-\.]+))\s+(.+?)\s*;?$/
+    );
+    if (baMatch) {
+      const attrName = baMatch[1];
+      const value = parseAttrValue(baMatch[6]);
+      if (baMatch[2] !== undefined) {
+        // BO_ <id>
+        const msgId = parseInt(baMatch[2]);
+        if (!msgAttrs[msgId]) msgAttrs[msgId] = {};
+        msgAttrs[msgId][attrName] = value;
+      } else if (baMatch[3] !== undefined) {
+        // SG_ <id> <sigName>
+        const msgId = parseInt(baMatch[3]);
+        const sigName = baMatch[4];
+        const key = `${msgId}:${sigName}`;
+        if (!sigAttrs[key]) sigAttrs[key] = {};
+        sigAttrs[key][attrName] = value;
+      }
+      // BU_ assignments are not modeled (node attributes out of scope for R3).
+      continue;
+    }
+
+    // R3: SIG_VALTYPE_ - signal value type (float)
+    // Format: SIG_VALTYPE_ <msgId> <sigName> : <1|2>;
+    const valtypeMatch = trimmed.match(/^SIG_VALTYPE_\s+(\d+)\s+([\w\-\.]+)\s*:\s*([12])\s*;?$/);
+    if (valtypeMatch) {
+      const msgId = parseInt(valtypeMatch[1]);
+      const sigName = valtypeMatch[2];
+      sigValueTypes[`${msgId}:${sigName}`] = valtypeMatch[3] === '1' ? 'float32' : 'float64';
+      continue;
     }
   }
 
   if (currentMessage) messages.push(currentMessage);
 
-  // Attach value definitions to signals
+  // Attach value definitions, float typing and attributes to signals/messages
   for (const msg of messages) {
+    const attrs = msgAttrs[msg.id];
+    if (attrs) {
+      if (attrs.GenMsgCycleTime !== undefined) msg.cycleTime = attrs.GenMsgCycleTime;
+      if (attrs.GenMsgSendType !== undefined) msg.sendType = attrs.GenMsgSendType;
+      if (attrs.VFrameFormat !== undefined) msg.frameFormat = attrs.VFrameFormat;
+      // VFrameFormat 1 => 29-bit extended frame
+      const ff = msg.frameFormat;
+      if (ff === 1 || ff === true || ff === '1') msg.isExtended = true;
+      else if (ff === 0 || ff === false || ff === '0') msg.isExtended = false;
+    }
     for (const sig of msg.signals) {
       const key = `${msg.id}:${sig.name}`;
-      if (valueDefs[key]) {
-        sig.valueDefs = valueDefs[key];
+      if (valueDefs[key]) sig.valueDefs = valueDefs[key];
+      if (sigValueTypes[key]) sig.valueType = sigValueTypes[key];
+      const sigAttr = sigAttrs[key];
+      if (sigAttr && sigAttr.GenSigStartValue !== undefined) {
+        sig.genSigStartValue = sigAttr.GenSigStartValue;
       }
     }
   }
@@ -95,11 +186,56 @@ function parseDBC(content) {
  * Decode a single signal from CAN data bytes (works for any data length,
  * including CAN FD 64-byte payloads).
  * @param {number[]} data - raw payload bytes
- * @param {object} signal - { startBit, length, byteOrder, signed, scale, offset }
+ * @param {object} signal - { startBit, length, byteOrder, signed, scale, offset, valueType? }
  * @returns {number} physical value
  */
 function decodeSignalFrame(data, signal) {
-  const { startBit, length, byteOrder, signed, scale, offset } = signal;
+  const { startBit, length, byteOrder, signed, scale, offset, valueType } = signal;
+
+  // R3: IEEE754 float signals (SIG_VALTYPE_ 1=float32, 2=float64).
+  // Bit-extract exactly like an integer signal, then reinterpret the bit
+  // pattern as a float — the same algorithm cantools uses:
+  //   bit-extract -> struct.pack(<I|Q, raw) -> struct.unpack(<f|d).
+  if (valueType === 'float32' || valueType === 'float64') {
+    const nbytes = valueType === 'float32' ? 4 : 8;
+    let rawValue = BigInt(0);
+    if (byteOrder === 'little') {
+      let bitPos = startBit;
+      for (let i = 0; i < length; i++) {
+        const byteIdx = Math.floor(bitPos / 8);
+        const bitIdx = bitPos % 8;
+        if (byteIdx < data.length) {
+          rawValue |= BigInt((data[byteIdx] >> bitIdx) & 1) << BigInt(i);
+        }
+        bitPos++;
+      }
+    } else {
+      // Motorola (big-endian): DBC (Vector) bit numbering — byte n's MSB is
+      // bit number 8n+7, its LSB is 8n. startBit points at the signal MSB;
+      // walk bits with the classic sawtooth order (MSB->LSB within a byte,
+      // +15 jump at byte boundaries). Same semantics as the integer path.
+      let bitPos = startBit;
+      for (let i = 0; i < length; i++) {
+        const byteIdx = Math.floor(bitPos / 8);
+        const bitIdx = bitPos % 8;
+        if (byteIdx < data.length) {
+          rawValue |= BigInt((data[byteIdx] >> bitIdx) & 1) << BigInt(length - 1 - i);
+        }
+        if ((bitPos % 8) === 0) bitPos += 15; else bitPos--;
+      }
+    }
+    const buf = Buffer.alloc(nbytes);
+    if (nbytes === 4) {
+      if (byteOrder === 'little') buf.writeUInt32LE(Number(rawValue) >>> 0, 0);
+      else buf.writeUInt32BE(Number(rawValue) >>> 0, 0);
+      const f = byteOrder === 'little' ? buf.readFloatLE(0) : buf.readFloatBE(0);
+      return f * scale + offset;
+    }
+    if (byteOrder === 'little') buf.writeBigUInt64LE(rawValue, 0);
+    else buf.writeBigUInt64BE(rawValue, 0);
+    const d = byteOrder === 'little' ? buf.readDoubleLE(0) : buf.readDoubleBE(0);
+    return d * scale + offset;
+  }
 
   // Use BigInt for safe >32-bit extraction
   let rawValue = BigInt(0);
@@ -117,23 +253,22 @@ function decodeSignalFrame(data, signal) {
       bitPos++;
     }
   } else {
-    // Motorola (big-endian): MSB-first bit numbering (cantools / DBC convention).
-    // DBC bit number 8n = MSB of byte n, 8n+7 = LSB of byte n. A Motorola
-    // signal's startBit is the position of its MSB; the signal bits are read in
-    // monotonically increasing bit-number order: startBit, startBit+1, ...,
-    // startBit+length-1. Within a byte that walks MSB->LSB, and at byte
-    // boundaries it continues naturally into the next byte's MSB (increment is
-    // always +1, there is NO sawtooth jump).
+    // Motorola (big-endian): DBC (Vector) bit numbering — byte n's MSB is bit
+    // number 8n+7, its LSB is 8n. A Motorola signal's startBit is the position
+    // of its MSB, so byte-aligned signals start at 7/15/23/31/... (NOT 0).
+    // Walk bits in the classic sawtooth order: MSB->LSB within a byte
+    // (bitPos % 8 counts down 7..0), then jump +15 to the next byte's MSB.
+    // Verified 286/286 vs cantools 43.0.2 (PM Issue #1 acceptance).
     let bitPos = startBit;
     for (let i = 0; i < length; i++) {
       const byteIdx = Math.floor(bitPos / 8);
-      const bitIdx = 7 - (bitPos % 8);  // MSB-first within byte
+      const bitIdx = bitPos % 8;
       if (byteIdx < data.length) {
         const bit = BigInt((data[byteIdx] >> bitIdx) & 1);
         // First read bit is the signal MSB -> highest rawValue bit
         rawValue |= bit << BigInt(length - 1 - i);
       }
-      bitPos++;
+      if ((bitPos % 8) === 0) bitPos += 15; else bitPos--;
     }
   }
 
@@ -165,6 +300,8 @@ function decodeSignalFrame(data, signal) {
  * Get VAL_ enum label for a decoded physical value
  */
 function getEnumLabel(signal, physicalValue) {
+  // R3: float signals (SIG_VALTYPE_) never carry enum labels
+  if (signal.valueType) return undefined;
   if (!signal.valueDefs) return undefined;
   // Physical value = raw * scale + offset
   // Enum lookup is on raw value, so reverse: raw = (physical - offset) / scale

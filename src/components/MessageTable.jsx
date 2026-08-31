@@ -18,6 +18,25 @@ function MessageTable({ messages, loading, dbcMessages = [] }) {
     return m;
   }, [dbcMessages]);
 
+  // id -> DBC message (for extended-frame / format-mismatch marking)
+  const dbcMsgMap = React.useMemo(() => {
+    const m = {};
+    for (const msg of dbcMessages) {
+      m[msg.id] = msg;
+    }
+    return m;
+  }, [dbcMessages]);
+
+  // R3: whether a log frame is an extended (29-bit) CAN frame. Falls back to
+  // the classic-CAN heuristic (id > 0x7FF) when the parser didn't record the
+  // flag, mirroring the decoder in electron/signalDecode.js.
+  const frameIsExtended = (record) => {
+    if (record.isExtended !== undefined && record.isExtended !== null) {
+      return !!record.isExtended;
+    }
+    return Number(record.id) > 0x7FF;
+  };
+
   // Auto-calculate table height based on container
   useEffect(() => {
     const calcHeight = () => {
@@ -85,12 +104,27 @@ function MessageTable({ messages, loading, dbcMessages = [] }) {
       title: 'ID',
       dataIndex: 'id',
       key: 'id',
-      width: 90,
-      render: (id) => (
-        <Text code style={{ fontSize: 12 }}>
-          {id != null ? `0x${id.toString(16).toUpperCase().padStart(3, '0')}` : '0x000'}
-        </Text>
-      )
+      width: 130,
+      render: (id, record) => {
+        const dbcMsg = dbcMsgMap[id];
+        const frameExt = frameIsExtended(record);
+        const dbcExt = !!dbcMsg?.isExtended;
+        // R3: format mismatch (extended flag in log vs DBC model) -> grey "未匹配"
+        const mismatch = !!dbcMsg && frameExt !== dbcExt;
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <Text code style={{ fontSize: 12, color: mismatch ? '#bfbfbf' : undefined }}>
+              {id != null ? `0x${id.toString(16).toUpperCase().padStart(3, '0')}` : '0x000'}
+            </Text>
+            {(frameExt || dbcExt) && (
+              <Tag color="blue" style={{ fontSize: 9, lineHeight: '14px', marginInlineEnd: 0 }}>Ext</Tag>
+            )}
+            {mismatch && (
+              <Tag style={{ fontSize: 9, lineHeight: '14px', marginInlineEnd: 0, color: '#bfbfbf' }}>未匹配</Tag>
+            )}
+          </span>
+        );
+      }
     },
     {
       title: '消息名',

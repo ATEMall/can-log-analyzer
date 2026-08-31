@@ -38,9 +38,10 @@ function buildMessages() {
 }
 
 // Expected physical values for the fixed payload 12 34 56 78 9A BC DE F0.
-// Reference semantics (cantools / DBC big-endian):
-//   - Motorola: startBit is the signal MSB; bits read in increasing bit order,
-//     byte n MSB has bit number 8n.
+// Reference semantics (cantools / DBC Vector big-endian):
+//   - Motorola: startBit is the signal MSB; byte n's MSB is bit number 8n+7
+//     (aligned signals start at 7/15/23/31/...). Bits walk in sawtooth order:
+//     MSB->LSB within a byte, +15 jump at byte boundaries.
 const EXPECTED = {
   512: { M_MotA: 0x1234, M_MotB: 0x5678, M_MotC: 0x9ABC, M_MotD: 0xDEF0 },
   513: {

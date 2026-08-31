@@ -23,12 +23,14 @@ function signalBitCells(signal) {
       p++;
     }
   } else {
-    // Motorola (big-endian): MSB-first bit numbering, monotonically
-    // increasing bit position (same semantics as the decoder in dbc.js).
+    // Motorola (big-endian): DBC (Vector) bit numbering — byte n's MSB is bit
+    // number 8n+7, LSB is 8n. startBit = signal MSB (aligned signals start at
+    // 7/15/23/31/...). Sawtooth walk: MSB->LSB within a byte, +15 jump at byte
+    // boundaries (same semantics as the decoder in dbc.js).
     let p = startBit;
     for (let i = 0; i < length; i++) {
-      cells.push([Math.floor(p / 8), 7 - (p % 8)]);
-      p++;
+      cells.push([Math.floor(p / 8), p % 8]);
+      if ((p % 8) === 0) p += 15; else p--;
     }
   }
   return cells;
@@ -268,7 +270,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
           <b>Intel(小端)</b>：位号从 startBit 线性递增，字节内 LSB→MSB，跨字节连续
         </span>
         <span>
-          <b>Motorola(大端)</b>：startBit 为信号最高位(MSB)，位号单调递增，字节内 MSB→LSB，跨字节自然衔接
+          <b>Motorola(大端)</b>：startBit 为信号最高位(MSB)，位号锯齿遍历——字节内 MSB→LSB，到字节边界跳至下一字节 MSB（对齐信号 startBit=7/15/23/…）
         </span>
       </div>
       {/* Legend - one row of chips that scrolls horizontally so every signal is

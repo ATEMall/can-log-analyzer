@@ -37,12 +37,16 @@ function SignalTable({ signalData, selectedSignals, dbcMessages }) {
     if (!signalKeys.has(sig.key)) continue;
     signalKeys.delete(sig.key);
 
-    // Find unit from DBC
+    // Find unit + float type from DBC
     let unit = '';
+    let valueType = '';
     for (const msg of dbcMessages) {
       if (msg.id === sig.msgId) {
         const dbcSig = msg.signals.find(s => s.name === sig.signalName);
-        if (dbcSig && dbcSig.unit) unit = dbcSig.unit;
+        if (dbcSig) {
+          if (dbcSig.unit) unit = dbcSig.unit;
+          if (dbcSig.valueType) valueType = dbcSig.valueType;
+        }
         break;
       }
     }
@@ -68,6 +72,10 @@ function SignalTable({ signalData, selectedSignals, dbcMessages }) {
         }
         if (typeof val === 'string') {
           return <Tag color="purple" style={{ fontSize: 10 }}>{val}</Tag>;
+        }
+        // R3: float signals (SIG_VALTYPE_) display with 6 significant digits
+        if (valueType === 'float32' || valueType === 'float64') {
+          return <Text style={{ fontSize: 11 }}>{val.toPrecision(6)}</Text>;
         }
         // Determine decimal places based on magnitude
         const absVal = Math.abs(val);

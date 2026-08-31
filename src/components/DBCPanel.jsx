@@ -98,6 +98,14 @@ function DBCPanel({
       >
         <Checkbox checked={checked} />
         <span style={{ fontWeight: 600 }}>{sig.name}</span>
+        {sig.muxIndicator === 'M' && (
+          <Tag color="purple" style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0 }}>M</Tag>
+        )}
+        {sig.muxIndicator && sig.muxIndicator !== 'M' && (
+          <Tag style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0, color: '#595959' }}>
+            {sig.muxIndicator}
+          </Tag>
+        )}
         <Tag style={{ marginLeft: 'auto', fontSize: 10, lineHeight: '16px' }}>
           {sig.startBit}|{sig.length}@{sig.byteOrder === 'little' ? '1' : '0'}
         </Tag>
@@ -147,7 +155,15 @@ function DBCPanel({
             />
           </span>
           <code style={{ fontWeight: 700, color: '#0958d9', fontSize: 12 }}>{msgIdString(msg)}</code>
+          {msg.isExtended && (
+            <Tag color="blue" style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0 }}>Ext</Tag>
+          )}
           <span style={{ fontSize: 12, fontWeight: 600 }}>{msg.name}</span>
+          {typeof msg.cycleTime === 'number' && msg.cycleTime > 0 && (
+            <Tag style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0, color: '#8c8c8c' }}>
+              {msg.cycleTime}ms
+            </Tag>
+          )}
           <Badge
             count={sigs.length}
             style={{ marginLeft: 'auto', backgroundColor: '#1677ff' }}

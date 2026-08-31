@@ -13,7 +13,7 @@
 - **多格式解析**
   - `ASC`：Vector CANalyzer 文本日志（支持普通 CAN 与 CAN FD）
   - `BLF`：Vector 二进制日志（CAN / CAN FD 对象块）
-  - `DBC`：CANdb++ 数据库（`BO_` / `SG_` / `VAL_` / `CM_`，支持 factor/offset、Intel/Motorola 字节序、枚举）
+  - `DBC`：CANdb++ 数据库（`BO_` / `SG_` / `VAL_` / `CM_` / `BA_` 属性 / `SIG_VALTYPE_`，支持 factor/offset、Intel/Motorola 字节序、枚举、多路复用、浮点信号）
   - 物理量 `CSV`：首行为表头，`t` 列为时间戳，其余列与 DBC 信号名对应
 - **CAN FD 64 字节**：DBC 可定义 DLC=64 的消息，信号位可延伸至 B63（bit 511），布局视图按 DLC 动态渲染 B0–B63
 - **信号级解码**：物理值 = 原始值 × factor + offset；表格展示物理值、原始字节与解码位
@@ -178,8 +178,8 @@ npm test
 
 覆盖范围：
 
-- `electron/__tests__/`：ASC / BLF 解析与生成、DBC 解析、信号解码（含 CAN FD 64 字节丰富场景）、Motorola 位序回归矩阵（23 固定期望 + 生成 ≥60 布局交叉验证）、解析容错（坏行/坏块跳过并报告）
-- `src/components/__tests__/`：DBC 面板（搜索/清空/滚动）、信号表格、曲线图、布局视图、使用手册弹窗、解析错误报告 UI
+- `electron/__tests__/`：ASC / BLF 解析与生成、DBC 解析（BA_ 属性 / 扩展帧 / mux / SIG_VALTYPE_ 浮点）、信号解码（含 CAN FD 64 字节丰富场景）、Motorola 位序回归矩阵（start≡7 专项 + 生成 ≥60 布局交叉验证，锯齿语义）、解析容错（坏行/坏块跳过并报告）
+- `src/components/__tests__/`：DBC 面板（搜索/清空/滚动、周期/Ext/mux 徽标）、信号表格（浮点 6 位有效数字）、曲线图、布局视图、报文表（扩展帧匹配）、使用手册弹窗、解析错误报告 UI
 
 ---
 

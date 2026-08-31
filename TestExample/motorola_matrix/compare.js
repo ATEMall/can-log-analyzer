@@ -1,12 +1,14 @@
-// Optional cross-check against cantools — the authoritative reference decoder.
+// Cross-check against cantools — the authoritative reference decoder.
 //
-// Runs only when `python` + `cantools` are available on PATH; otherwise it
-// exits 0 (skipped) so `npm test` and CI stay green in sandboxes without
-// Python. Usage:
+// Skip policy (PM Issue #1 acceptance): exits 0 ONLY when `import cantools`
+// fails (Python/cantools absent). When cantools IS importable but the DBC
+// fails to load, or any signal mismatches, the script exits non-zero —
+// a silent fake-green is never produced. Usage:
 //
 //   node TestExample/motorola_matrix/compare.js
 //
-// Exits non-zero when any signal mismatches cantools.
+// Expected output on a machine with cantools:
+//   cantools cross-check: N/N signals match (cantools X.Y.Z)
 
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -30,10 +32,20 @@ if (!py) {
   process.exit(0);
 }
 
-// 2. One-shot python: decode every message with the fixed payload
+// 2. One-shot python: decode every message with the fixed payload.
+//    DBC load failure is FATAL (exit code 3) — never silently skipped.
 const pyScript = `
-import json, sys, cantools
-db = cantools.database.load_file(sys.argv[1])
+import json, sys
+try:
+    import cantools
+except Exception as e:
+    print('CANTOOLS_IMPORT_FAILED', repr(e))
+    sys.exit(2)
+try:
+    db = cantools.database.load_file(sys.argv[1])
+except Exception as e:
+    print('CANTOOLS_DBC_LOAD_FAILED', repr(e))
+    sys.exit(3)
 data = bytes([0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0])
 out = {}
 for msg in db.messages:
@@ -42,10 +54,29 @@ for msg in db.messages:
         out[str(msg.frame_id)] = {k: (round(v, 6) if isinstance(v, float) else v) for k, v in dec.items()}
     except Exception as e:
         out[str(msg.frame_id)] = {'__error__': str(e)}
+print('CANTOOLS_OK')
 print(json.dumps(out))
 `;
-const stdout = execFileSync(py, ['-c', pyScript, dbcFile], { encoding: 'utf8' });
-const cantoolsResult = JSON.parse(stdout.trim());
+let stdout;
+try {
+  stdout = execFileSync(py, ['-c', pyScript, dbcFile], { encoding: 'utf8' });
+} catch (err) {
+  const msg = String(err.stderr || err.message);
+  if (msg.includes('CANTOOLS_DBC_LOAD_FAILED')) {
+    console.error('FATAL: cantools could not load ' + dbcFile + '\n  ' + msg.trim());
+    process.exit(1);
+  }
+  throw err;
+}
+if (stdout.includes('CANTOOLS_IMPORT_FAILED')) {
+  console.log('cantools import failed inside python - treating as unavailable (skipped)');
+  process.exit(0);
+}
+if (!stdout.includes('CANTOOLS_OK')) {
+  console.error('FATAL: unexpected cantools output');
+  process.exit(1);
+}
+const cantoolsResult = JSON.parse(stdout.split('CANTOOLS_OK\n')[1].trim());
 
 // 3. Compare with our engine
 const parsed = parseDBC(fs.readFileSync(dbcFile, 'utf8'));

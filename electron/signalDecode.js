@@ -53,6 +53,18 @@ function buildDecodeContext(dbcMessages, selectedSignals) {
 }
 
 /**
+ * Whether a log frame is an extended (29-bit) CAN frame. Falls back to the
+ * classic-CAN heuristic (id > 0x7FF) when the parser did not record the flag
+ * (e.g. TSMaster-format ASC lines).
+ */
+function frameIsExtended(frame) {
+  if (frame.isExtended !== undefined && frame.isExtended !== null) {
+    return !!frame.isExtended;
+  }
+  return Number(frame.id) > 0x7FF;
+}
+
+/**
  * Decode one block of frames.
  * @param {object[]} frames - subset of the loaded log (filtered by caller)
  * @param {object} ctx - result of buildDecodeContext
@@ -70,6 +82,12 @@ function decodeFramesChunk(frames, ctx) {
   for (const frame of frames) {
     const dbcMsg = dbcMap[frame.id];
     if (!dbcMsg) continue; // no DBC definition for this message ID
+
+    // R3: extended-frame matching — a frame is only decoded when its extended
+    // flag matches the DBC model (BA_ "VFrameFormat" BO_ <id> 1). Mismatched
+    // frames are skipped so the UI can mark them "未匹配".
+    const dbcExt = !!dbcMsg.isExtended;
+    if (frameIsExtended(frame) !== dbcExt) continue;
 
     const row = { t: frame.timestamp, signals: {} };
     let hasSignal = false;
@@ -138,4 +156,4 @@ function decodeAll(loadedMessages, selectedSignals, dbcMessages) {
   };
 }
 
-module.exports = { buildDecodeContext, decodeFramesChunk, decodeAll };
+module.exports = { buildDecodeContext, decodeFramesChunk, decodeAll, frameIsExtended };
