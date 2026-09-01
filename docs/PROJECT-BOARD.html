@@ -74,7 +74,7 @@
   </div>
   <div class="meta">
     <div>版本：v2.1（开发中）</div>
-    <div>更新时间：2026-09-01 21:30</div>
+    <div>更新时间：2026-09-01 21:55</div>
     <div>仓库：<a href="https://github.com/ATEMall/can-log-analyzer" style="color:#fff;text-decoration:underline;">github.com/ATEMall/can-log-analyzer</a></div>
   </div>
 </header>
@@ -83,7 +83,7 @@
 <section>
   <div class="sec-title">📊 一、现在进展 <span class="badge">v2.1 完成度 ≈ 55%</span></div>
 
-  <div class="banner">⚠️ <b>09-01 关键状态：</b>开发已评论声明 4 项交付完成（#7 返工 / R5-R6 / R7-R8 / R2 Phase 2，自称 162/162），但 <b>代码均未推送到远程</b>（远程 main 最新仍为 ae3aec6，本地=远程 0/0）。PM 已在 #2/#5/#6/#7 发评论催推送，收到 commit SHA 后即复核。</div>
+  <div class="banner">📦 <b>09-01 21:55：</b>4 项交付已推送 commit <code>013c7cd</code>（ae3aec6 → 013c7cd）。PM 请按 <a href="https://github.com/ATEMall/can-log-analyzer/commit/013c7cd87d56af8bf90f9e2032f9aed0aa088663">commit</a> 复核 #7/#3/#2/#5/#6，自称 162/162 以推送代码跑通为准。</div>
 
   <div class="progress-grid">
     <div class="ring"><div class="pct">55<small>%</small></div></div>
@@ -94,7 +94,7 @@
         <div class="stat"><div class="num fail">1</div><div class="lbl">🔴 阻塞项（#7）</div></div>
         <div class="stat"><div class="num todo">1</div><div class="lbl">⬜ 待办（PM 验收+发版）</div></div>
       </div>
-      <div class="note" style="margin-top:10px;"><b>关键路径</b>：开发推送 4 项代码（今日）→ PM 复核（#7 cantools 对拍 / #5 #6 #2 代码+回归）→ 关闭 #7、#3、#2 → #5/#6 验收 → 09-19 v2.1 最终验收</div>
+      <div class="note" style="margin-top:10px;"><b>关键路径</b>：4 项代码已推送（commit 013c7cd）→ PM 复核 #7 cantools 对拍 / #2 流式+BENCHMARK / #5 #6 代码+回归 → 关闭 #7 #3 #2 → 验收 #5 #6 → 09-19 v2.1 最终验收</div>
     </div>
   </div>
 
@@ -102,17 +102,18 @@
   <table>
     <tr><th>需求</th><th>内容</th><th>Issue</th><th>优先级</th><th>状态</th><th>PM 结论</th></tr>
     <tr><td><b>R1</b></td><td>Motorola 大端信号解码修复</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/1">#1</a></td><td><span class="pill p0">P0</span></td><td><span class="pill done">✅ 完成</span></td><td class="verdict">验收通过（23/23 + 286/286 对拍 cantools，写读闭环 10/10）</td></tr>
-    <tr><td><b>R2</b></td><td>分块解码引擎重构（1M 帧）</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/2">#2</a></td><td><span class="pill p0">P0</span></td><td><span class="pill wait">⏳ Phase 2 待推送</span></td><td class="verdict">Phase 1 有条件通过；09-01 开发称 Phase 2 补齐（流式+BENCHMARK-R2.md+双路径收敛），<b>代码未推送</b>，待复核后关闭</td></tr>
-    <tr><td><b>R3</b></td><td>DBC 解析补全（属性/扩展帧/mux/浮点）</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/3">#3</a></td><td><span class="pill p1">P1</span></td><td><span class="pill wait">⏳ 返工待推送</span></td><td class="verdict">引擎 10/10 对拍通过；#7 返工 09-01 已声明完成（样例直载+标志位支持），<b>代码未推送</b>，cantools 复核后关 #7、#3</td></tr>
+    <tr><td><b>R2</b></td><td>分块解码引擎重构（1M 帧）</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/2">#2</a></td><td><span class="pill p0">P0</span></td><td><span class="pill wait">⏳ 已推送·待复核</span></td><td class="verdict">Phase 1 有条件通过；09-01 Phase 2 已推送（commit <code>013c7cd</code>，流式+BENCHMARK-R2.md+双路径收敛），<b>待 PM 复核后关闭</b></td></tr>
+    <tr><td><b>R3</b></td><td>DBC 解析补全（属性/扩展帧/mux/浮点）</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/3">#3</a></td><td><span class="pill p1">P1</span></td><td><span class="pill wait">⏳ 已推送·待复核</span></td><td class="verdict">引擎 10/10 对拍通过；#7 返工 09-01 已推送（commit <code>013c7cd</code>，样例直载+标志位支持），<b>待 cantools 复核后关 #7、#3</b></td></tr>
     <tr><td><b>R4</b></td><td>解析容错与错误报告</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/4">#4</a></td><td><span class="pill p1">P1</span></td><td><span class="pill done">✅ 完成</span></td><td class="verdict">验收通过（119/119 回归 + tolerance 专项覆盖），已关闭</td></tr>
-    <tr><td><b>R5</b></td><td>工程保存/恢复（.claproj）+ 最近文件</td><td rowspan="2"><a href="https://github.com/ATEMall/can-log-analyzer/issues/5">#5</a></td><td rowspan="2"><span class="pill p0">P0</span></td><td rowspan="2"><span class="pill wait">⏳ 待推送</span></td><td rowspan="2" class="verdict">09-01 开发称完成（.claproj 校验/最近文件/settings 落盘+恢复），<b>代码未推送</b>，待复核</td></tr>
+    <tr><td><b>R5</b></td><td>工程保存/恢复（.claproj）+ 最近文件</td><td rowspan="2"><a href="https://github.com/ATEMall/can-log-analyzer/issues/5">#5</a></td><td rowspan="2"><span class="pill p0">P0</span></td><td rowspan="2"><span class="pill wait">⏳ 已推送·待复核</span></td><td rowspan="2" class="verdict">09-01 已推送（commit <code>013c7cd</code>，.claproj 校验/最近文件/settings 落盘+恢复），<b>待 PM 复核</b></td></tr>
     <tr><td><b>R6</b></td><td>偏好持久化</td></tr>
-    <tr><td><b>R7</b></td><td>导出补全（CSV/BLF）</td><td rowspan="2"><a href="https://github.com/ATEMall/can-log-analyzer/issues/6">#6</a></td><td rowspan="2"><span class="pill p1">P1</span></td><td rowspan="2"><span class="pill wait">⏳ 待推送</span></td><td rowspan="2" class="verdict">09-01 开发称完成（日志 CSV/信号 CSV/BLF 导出 + UI 增量），<b>代码未推送</b>，待复核</td></tr>
+    <tr><td><b>R7</b></td><td>导出补全（CSV/BLF）</td><td rowspan="2"><a href="https://github.com/ATEMall/can-log-analyzer/issues/6">#6</a></td><td rowspan="2"><span class="pill p1">P1</span></td><td rowspan="2"><span class="pill wait">⏳ 已推送·待复核</span></td><td rowspan="2" class="verdict">09-01 已推送（commit <code>013c7cd</code>，日志 CSV/信号 CSV/BLF 导出 + UI 增量），<b>待 PM 复核</b></td></tr>
     <tr><td><b>R8</b></td><td>UI 增量优化</td></tr>
   </table>
 
-  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">最近提交（远程 main，最新仍为 ae3aec6）</h4>
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">最近提交（远程 main，最新 013c7cd）</h4>
   <div>
+    <div class="commit"><span class="sha">013c7cd</span><span class="msg">feat(v2.1): 4 项交付推送给 PM 复核 — #7 返工 + R5/R6 + R7/R8 + R2 Phase 2（自称 162/162）</span><span class="date">09-01</span></div>
     <div class="commit"><span class="sha">ae3aec6</span><span class="msg">feat(v2.1): R1 Motorola sawtooth 返工 + R3 DBC 补全（BA_ 属性/扩展帧/mux/浮点）· 153/153</span><span class="date">08-31</span></div>
     <div class="commit"><span class="sha">aaa76ee</span><span class="msg">docs: SRS v2.1 v1.1 勘误 R1 Motorola 算法规格 · 286/286 对拍验证</span><span class="date">08-30</span></div>
     <div class="commit"><span class="sha">83ec519</span><span class="msg">feat(v2.1): 分块解码引擎 Phase 1（signalDecode.js + IPC 契约）· 93/93</span><span class="date">08-30</span></div>
@@ -138,7 +139,7 @@
       <td>[v2.1][R2] 分块/流式解码引擎（1M 帧支持）</td>
       <td><span class="pill p0">P0</span></td>
       <td><span class="pill open">🔴 Open</span></td>
-      <td class="verdict">⚠️ Phase 1 有条件通过；09-01 开发称 Phase 2 补齐（流式/BENCHMARK/双路径收敛），<b>代码未推送</b>，PM 已催（comment 5494565507）</td>
+      <td class="verdict">📦 09-01 已推送 commit <code>013c7cd</code>（流式/BENCHMARK/双路径收敛），<b>待 PM 复核后关闭</b></td>
       <td>09-01</td>
     </tr>
     <tr>
@@ -146,7 +147,7 @@
       <td>[v2.1][R3] DBC 解析补全：BA_ 属性/扩展帧/mux/SIG_VALTYPE_</td>
       <td><span class="pill p1">P1</span></td>
       <td><span class="pill open">🔴 Open</span></td>
-      <td class="verdict">⚠️ 引擎 10/10 对拍通过；阻塞于 #7（返工 09-01 已声明完成，<b>未推送</b>）</td>
+      <td class="verdict">📦 #7 返工已推送 <code>013c7cd</code>，<b>待 cantools 复核后关 #7、#3</b></td>
       <td>09-01</td>
     </tr>
     <tr>
@@ -162,7 +163,7 @@
       <td>[v2.1][R5/R6] 工程保存/恢复 + 最近文件 + 偏好持久化</td>
       <td><span class="pill p0">P0</span></td>
       <td><span class="pill open">🔴 Open</span></td>
-      <td class="verdict">⏳ 09-01 开发称完成（.claproj 校验/最近文件/settings 落盘+恢复），<b>代码未推送</b>，PM 已催（comment 5494565515）</td>
+      <td class="verdict">📦 09-01 已推送 commit <code>013c7cd</code>（.claproj 校验/最近文件/settings 落盘+恢复），<b>待 PM 复核</b></td>
       <td>09-01</td>
     </tr>
     <tr>
@@ -170,7 +171,7 @@
       <td>[v2.1][R7/R8] 导出补全（CSV/BLF）+ UI 增量</td>
       <td><span class="pill p1">P1</span></td>
       <td><span class="pill open">🔴 Open</span></td>
-      <td class="verdict">⏳ 09-01 开发称完成（日志 CSV/信号 CSV/BLF + UI 增量），<b>代码未推送</b>，PM 已催（comment 5494565505）</td>
+      <td class="verdict">📦 09-01 已推送 commit <code>013c7cd</code>（日志 CSV/信号 CSV/BLF + UI 增量），<b>待 PM 复核</b></td>
       <td>09-01</td>
     </tr>
     <tr>
@@ -178,7 +179,7 @@
       <td>R3 交付缺陷：样例 DBC 无法被 cantools 加载 + 引擎不识别扩展帧标志位</td>
       <td><span class="pill p1">P1 high</span></td>
       <td><span class="pill open">🔴 Open</span></td>
-      <td class="verdict">⏳ 09-01 开发称返工完成（样例直载修复/标志位支持/id 归一化/单测/compare.js 收紧），<b>代码未推送</b>，PM 已催（comment 5494565512）</td>
+      <td class="verdict">📦 09-01 返工已推送 commit <code>013c7cd</code>（样例直载修复/标志位支持/id 归一化/单测/compare.js 收紧），<b>待 PM cantools 复核后关闭</b></td>
       <td>09-01</td>
     </tr>
   </table>
@@ -188,10 +189,10 @@
 <section>
   <div class="sec-title">📌 三、To Do（行动清单） <span class="badge">按优先级排序</span></div>
 
-  <div class="todo"><div class="mark p0">1</div>
+  <div class="todo"><div class="mark p0">✓</div>
     <div class="body">
-      <div class="t">开发推送 4 项交付代码<span class="tag">开发 · 期望今日 09-01 内</span></div>
-      <div class="d">#7 返工 + #5(R5/R6) + #6(R7/R8) + #2(R2 Phase 2) 已声明完成但未推送。PM 已发 4 条催推送评论；开发推送后回复 commit SHA。评论中自称的 162/162 需以实际推送代码跑通为准（当前 main 基线 153/153）。</div>
+      <div class="t">✅ 4 项交付代码已推送<span class="tag">开发 · 09-01 完成 · commit <code>013c7cd</code></span></div>
+      <div class="d">#7 返工 + #5(R5/R6) + #6(R7/R8) + #2(R2 Phase 2) 已推送至 origin/main（ae3aec6 → 013c7cd）。因 main.js / App.jsx / SignalParsePanel.jsx 在 4 项间深度交织，合并为 1 commit，提交信息 body 按 Issue 分块列出。自称 162/162 需以 PM 实际推送代码跑通为准。</div>
     </div></div>
 
   <div class="todo"><div class="mark pm">2</div>
@@ -225,7 +226,7 @@
     </div></div>
 
   <div class="confirm">
-    ⚠️ <b>待用户确认：</b>① 若开发今日仍未推送代码，是否由您直接联系开发催办？（PM 已发评论，可再加一次提醒）② 4 项交付推送后，PM 将按上表 2–4 逐项复核，是否按此计划执行？
+    ✅ <b>代码已推送（commit 013c7cd），待 PM 复核：</b>① #7 cantools 43.0.2 直载 dbc_full.dbc + 标志位/属性扩展帧对拍 ≥10 信号 0 不一致 → 关 #7、#3；② #2 流式 + BENCHMARK-R2.md 数据可复现 + 双路径收敛 → 关 #2；③ #5/#6 代码复核 + 回归 + UI 行为抽查。周五 09-04 周报自动核对 4 项复核状态。
   </div>
 
   <div class="legend">
