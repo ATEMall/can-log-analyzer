@@ -34,26 +34,31 @@ BS_:
 
 BU_: MotGenerator
 
-BO_ 2048 ExtMuxMsg: 8 MotGenerator
+BO_ 2147485696 ExtMuxMsg: 8 MotGenerator
  SG_ MuxSel M : 0|8@1+ (1,0) [0|255] "" MotGenerator
  SG_ SigSpeed m0 : 8|16@1+ (1,0) [0|65535] "km/h" MotGenerator
  SG_ SigRpm m0 : 24|16@1+ (1,0) [0|12000] "rpm" MotGenerator
  SG_ SigTemp m1 : 8|16@1+ (1,0) [-40|215] "degC" MotGenerator
 
-BO_ 512 FloatMsg: 12 MotGenerator
+BO_ 512 FloatMsg: 16 MotGenerator
  SG_ F32a : 0|32@1+ (1,0) [0|0] "" MotGenerator
  SG_ F64a : 39|64@0+ (1,0) [0|0] "" MotGenerator
+ SG_ I32s : 104|24@1- (1,0) [-8388608|8388607] "" MotGenerator
 
 BO_ 1024 AttrMsg: 8 MotGenerator
  SG_ StartVal : 0|8@1+ (1,0) [0|255] "" MotGenerator
  SG_ EnumSig : 8|8@1+ (1,0) [0|255] "" MotGenerator
  SG_ CycleSig : 16|16@1+ (1,0) [0|65535] "" MotGenerator
+ SG_ SignedSig : 39|16@0- (1,0) [-32768|32767] "" MotGenerator
 
 BA_DEF_ BO_ "GenMsgCycleTime" INT 0 65535;
 BA_DEF_ BO_ "GenMsgSendType" STRING ;
 BA_DEF_ BO_ "VFrameFormat" INT 0 1;
 BA_DEF_ SG_ "GenSigStartValue" FLOAT 0 100;
 BA_DEF_DEF_ "GenMsgCycleTime" 10;
+BA_DEF_DEF_ "GenMsgSendType" "Cyclic";
+BA_DEF_DEF_ "VFrameFormat" 0;
+BA_DEF_DEF_ "GenSigStartValue" 0;
 BA_ "GenMsgCycleTime" BO_ 1024 10;
 BA_ "GenMsgSendType" BO_ 1024 "Cyclic";
 BA_ "VFrameFormat" BO_ 2048 1;

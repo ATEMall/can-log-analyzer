@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadBLF: (filePath, selectedIds) => ipcRenderer.invoke('file:loadBLF', filePath, selectedIds),
   exportASC: (filePath, headerLines, messages) => ipcRenderer.invoke('file:exportASC', filePath, headerLines, messages),
   convertASCtoBLF: (filePath, messages) => ipcRenderer.invoke('file:convertASCtoBLF', filePath, messages),
+  exportLogCSV: (filePath, messages, nameMap) => ipcRenderer.invoke('file:exportLogCSV', filePath, messages, nameMap),
   getStats: (filePath) => ipcRenderer.invoke('file:getStats', filePath),
   exportText: (filePath, content) => ipcRenderer.invoke('file:exportText', filePath, content),
 
@@ -60,5 +61,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   exportSignalCSV: (filePath, signalData, selectedSignals) =>
-    ipcRenderer.invoke('signal:exportCSV', filePath, signalData, selectedSignals)
+    ipcRenderer.invoke('signal:exportCSV', filePath, signalData, selectedSignals),
+
+  // R5: project save / restore (.claproj)
+  saveProject: (filePath, projectData) => ipcRenderer.invoke('project:save', filePath, projectData),
+  openProject: (filePath) => ipcRenderer.invoke('project:open', filePath),
+
+  // R6: preferences (settings.json in userData)
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
+
+  // R5: .claproj open requested by the OS — double-click on a project file or
+  // a second instance launch while this one is already running. Returns an
+  // unsubscribe function.
+  onProjectOpenRequest: (callback) => {
+    const handler = (event, filePath) => callback(filePath);
+    ipcRenderer.on('project:open-request', handler);
+    return () => ipcRenderer.removeListener('project:open-request', handler);
+  }
 });

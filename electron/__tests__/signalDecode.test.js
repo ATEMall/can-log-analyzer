@@ -125,4 +125,65 @@ describe('R2 signal decode engine', () => {
     expect(rows).toEqual([]);
     expect(decodedCount).toBe(0);
   });
+
+  // R2 Phase 2: path convergence under scale — the chunked decoder must be
+  // bit-identical to the one-shot path on a large randomised corpus covering
+  // mux branches, enums and unknown IDs, at several chunk sizes.
+  it('chunked decode converges with one-shot on a large randomised corpus', () => {
+    const rng = mulberry32(0xC0FFEE);
+    const frames = [];
+    const ids = [256, 512, 999]; // 999 has no DBC definition
+    for (let i = 0; i < 20000; i++) {
+      const id = ids[Math.floor(rng() * ids.length)];
+      frames.push({
+        timestamp: i * 0.001,
+        channel: 1,
+        id,
+        direction: 'Rx',
+        dlc: 8,
+        data: Array.from({ length: 8 }, () => Math.floor(rng() * 256))
+      });
+    }
+    const selection = [
+      { msgId: 256, signalName: 'SigI' },
+      { msgId: 256, signalName: 'SigM' },
+      { msgId: 512, signalName: 'MuxSel' },
+      { msgId: 512, signalName: 'SigX' },
+      { msgId: 512, signalName: 'SigY' }
+    ];
+    const ctx = buildDecodeContext(dbcMessages, selection);
+
+    const oneShot = decodeAll(frames, selection, dbcMessages);
+    const stats = oneShot.stats;
+
+    // Every frame carries at least one selected signal (all ids are known
+    // except 999), so sanity-check the scale of the corpus.
+    expect(stats.totalFrames).toBe(20000);
+    expect(stats.decodedFrames).toBeGreaterThan(13000);
+
+    for (const chunkSize of [1, 7, 512, 4096]) {
+      const chunkRows = [];
+      let decoded = 0;
+      for (let i = 0; i < frames.length; i += chunkSize) {
+        const block = frames.slice(i, i + chunkSize);
+        const { rows, decodedCount } = decodeFramesChunk(block, ctx);
+        chunkRows.push(...rows);
+        decoded += decodedCount;
+      }
+      expect(decoded).toBe(stats.decodedFrames);
+      expect(chunkRows).toEqual(oneShot.signalData);
+    }
+  });
 });
+
+// Deterministic PRNG so the randomised corpus is reproducible across runs.
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0;
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}

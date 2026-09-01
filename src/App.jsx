@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Layout, Typography, message, Progress,
   Button, Space, Tabs, Modal, Tag, Input, Drawer, List, Empty
@@ -35,6 +35,13 @@ function App() {
   // Raw DBC content for viewer
   const [dbcRawContent, setDbcRawContent] = useState('');
   const [rawModalOpen, setRawModalOpen] = useState(false);
+
+  // R5: DBC source file path — tracked so projects can re-load and restore it.
+  const [dbcFile, setDbcFile] = useState(null);
+
+  // R8: left DBC panel width (%) — draggable splitter, persisted in settings.
+  const [panelWidth, setPanelWidth] = useState(46);
+  const panelWidthRef = useRef(46);
 
   // Physical CSV state
   const [csvData, setCsvData] = useState(null);
@@ -123,113 +130,101 @@ function App() {
     setSelectedSignals(prev => prev.filter(s => s.msgId !== msgId));
   }, []);
 
-  // ======= ASC Load =======
-  const handleLoadASC = useCallback(async () => {
+  // ======= Log / DBC load helpers =======
+  // Shared by the open dialogs, the recent-files menu and project restore.
+  // R6: every successful load also lands in the main-process recent list.
+  const loadLogByPath = useCallback(async (filePath, type) => {
+    setLoading(true);
+    setProgress(10);
     try {
-      const filePath = await window.electronAPI.openFile([
-        { name: 'ASC Files', extensions: ['asc'] }
-      ]);
-      if (!filePath) return;
-
-      setLoading(true);
-      setProgress(10);
-      message.info('正在加载 ASC 文件...');
-
-      const result = await window.electronAPI.loadASC(filePath, []);
-      setProgress(50);
+      message.info(type === 'blf' ? '正在加载 BLF 文件...' : '正在加载 ASC 文件...');
+      const result = type === 'blf'
+        ? await window.electronAPI.loadBLF(filePath, [])
+        : await window.electronAPI.loadASC(filePath, []);
+      setProgress(type === 'blf' ? 60 : 50);
 
       if (result.success) {
         const stats = await window.electronAPI.getStats(filePath);
-        setAscFile({ path: filePath, stats });
-        setBlfFile(null);
+        if (type === 'blf') {
+          setBlfFile({ path: filePath, stats });
+          setAscFile(null);
+        } else {
+          setAscFile({ path: filePath, stats });
+          setBlfFile(null);
+        }
         setLoadedMessages(result.messages);
         setHeaderLines(result.headerLines);
         setParseErrors(result.parseErrors || []);
         setParseErrorCount(result.parseErrorCount || 0);
         if ((result.parseErrorCount || 0) > 0) {
-          message.warning(`加载完成：${result.totalCount} 条消息，${result.parseErrorCount} 行解析错误已跳过`);
+          message.warning(type === 'blf'
+            ? `加载完成：${result.totalCount} 条消息，${result.parseErrorCount} 个损坏对象块已跳过`
+            : `加载完成：${result.totalCount} 条消息，${result.parseErrorCount} 行解析错误已跳过`);
         } else {
           message.success(`加载成功，共 ${result.totalCount} 条消息`);
         }
-      } else {
-        message.error('加载失败: ' + result.error);
+        return true;
       }
-
-      setProgress(100);
+      message.error('加载失败: ' + result.error);
+      return false;
     } catch (error) {
       message.error('加载失败: ' + error.message);
+      return false;
     } finally {
       setLoading(false);
+      setProgress(100);
       setTimeout(() => setProgress(0), 500);
     }
   }, []);
 
-  // ======= BLF Load =======
-  const handleLoadBLF = useCallback(async () => {
+  const loadDBCByPath = useCallback(async (filePath) => {
     try {
-      const filePath = await window.electronAPI.openFile([
-        { name: 'BLF Files', extensions: ['blf'] }
-      ]);
-      if (!filePath) return;
-
-      setLoading(true);
-      setProgress(10);
-      message.info('正在加载 BLF 文件...');
-
-      const result = await window.electronAPI.loadBLF(filePath, []);
-      setProgress(60);
-
-      if (result.success) {
-        const stats = await window.electronAPI.getStats(filePath);
-        setBlfFile({ path: filePath, stats });
-        setAscFile(null);
-        setLoadedMessages(result.messages);
-        setHeaderLines(result.headerLines);
-        setParseErrors(result.parseErrors || []);
-        setParseErrorCount(result.parseErrorCount || 0);
-        if ((result.parseErrorCount || 0) > 0) {
-          message.warning(`加载完成：${result.totalCount} 条消息，${result.parseErrorCount} 个损坏对象块已跳过`);
-        } else {
-          message.success(`加载成功，共 ${result.totalCount} 条消息`);
-        }
-      } else {
-        message.error('加载失败: ' + result.error);
-      }
-
-      setProgress(100);
-    } catch (error) {
-      message.error('加载失败: ' + error.message);
-    } finally {
-      setLoading(false);
-      setTimeout(() => setProgress(0), 500);
-    }
-  }, []);
-
-  // ======= DBC Load =======
-  const handleLoadDBC = useCallback(async () => {
-    try {
-      const filePath = await window.electronAPI.openFile([
-        { name: 'DBC Files', extensions: ['dbc'] }
-      ]);
-      if (!filePath) return;
-
       message.info('正在解析 DBC 文件...');
       const result = await window.electronAPI.loadDBC(filePath);
-
       if (result.success) {
+        setDbcFile({ path: filePath });
         setDbcMessages(result.messages);
         setSelectedIds(new Set(result.messages.map(m => m.id)));
         setSelectedSignals([]);
         setDbcRawContent(result.rawContent || '');
         const totalSignals = result.messages.reduce((sum, m) => sum + m.signals.length, 0);
         message.success(`加载成功，共 ${result.messages.length} 条消息，${totalSignals} 个信号`);
-      } else {
-        message.error('加载失败: ' + result.error);
+        return true;
       }
+      message.error('加载失败: ' + result.error);
+      return false;
     } catch (error) {
       message.error('加载失败: ' + error.message);
+      return false;
     }
   }, []);
+
+  // ======= ASC Load =======
+  const handleLoadASC = useCallback(async () => {
+    const filePath = await window.electronAPI.openFile([
+      { name: 'ASC Files', extensions: ['asc'] }
+    ]);
+    if (!filePath) return;
+    await loadLogByPath(filePath, 'asc');
+  }, [loadLogByPath]);
+
+  // ======= BLF Load =======
+  const handleLoadBLF = useCallback(async () => {
+    const filePath = await window.electronAPI.openFile([
+      { name: 'BLF Files', extensions: ['blf'] }
+    ]);
+    if (!filePath) return;
+    await loadLogByPath(filePath, 'blf');
+  }, [loadLogByPath]);
+
+  // ======= DBC Load =======
+  const handleLoadDBC = useCallback(async () => {
+    const filePath = await window.electronAPI.openFile([
+      { name: 'DBC Files', extensions: ['dbc'] }
+    ]);
+    if (!filePath) return;
+    await loadDBCByPath(filePath);
+  }, [loadDBCByPath]);
 
   // ======= Toggle / Select All (message level) =======
   const handleToggleMessage = useCallback((id) => {
@@ -259,7 +254,9 @@ function App() {
       return;
     }
     try {
-      const defaultName = `converted_${Date.now()}.blf`;
+      const src = ascFile || blfFile;
+      const base = (src?.path || 'log').split(/[\\/]/).pop().replace(/\.[^.]+$/, '') || 'log';
+      const defaultName = `${base}_filtered_${Date.now()}.blf`;
       const filePath = await window.electronAPI.saveFile(defaultName, [
         { name: 'BLF Files', extensions: ['blf'] }
       ]);
@@ -290,7 +287,9 @@ function App() {
     }
 
     try {
-      const defaultName = `filtered_${Date.now()}.asc`;
+      const src = ascFile || blfFile;
+      const base = (src?.path || 'log').split(/[\\/]/).pop().replace(/\.[^.]+$/, '') || 'log';
+      const defaultName = `${base}_filtered_${Date.now()}.asc`;
       const filePath = await window.electronAPI.saveFile(defaultName);
       if (!filePath) return;
 
@@ -310,6 +309,71 @@ function App() {
       setLoading(false);
     }
   }, [loadedMessages, headerLines]);
+
+  // ======= R7: Export the loaded message log as CSV / BLF =======
+  // CSV columns: time,id,name,dir,dlc,data (name = DBC message name when the
+  // ID matches a loaded database, otherwise empty). Default filename follows
+  // <源>_filtered_<时间戳> so exports never collide with the source log.
+  const handleExportLogCSV = useCallback(async () => {
+    if (loadedMessages.length === 0) {
+      message.warning('没有可导出的消息');
+      return;
+    }
+    const src = ascFile || blfFile;
+    const base = (src?.path || 'log').split(/[\\/]/).pop().replace(/\.[^.]+$/, '') || 'log';
+    const defaultName = `${base}_filtered_${Date.now()}.csv`;
+    const filePath = await window.electronAPI.saveFile(defaultName, [
+      { name: 'CSV Files', extensions: ['csv'] }
+    ]);
+    if (!filePath) return;
+
+    const nameMap = {};
+    for (const m of dbcMessages) nameMap[m.id] = m.name;
+    setLoading(true);
+    message.info('正在导出 CSV...');
+    try {
+      const result = await window.electronAPI.exportLogCSV(filePath, loadedMessages, nameMap);
+      if (result.success) {
+        message.success(`导出成功！${result.rowsWritten} 条报文已保存`);
+      } else {
+        message.error('导出失败: ' + result.error);
+      }
+    } catch (error) {
+      message.error('导出失败: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadedMessages, dbcMessages, ascFile, blfFile]);
+
+  const handleExportBLF = useCallback(async () => {
+    if (loadedMessages.length === 0) {
+      message.warning('没有可导出的消息');
+      return;
+    }
+    const src = ascFile || blfFile;
+    const base = (src?.path || 'log').split(/[\\/]/).pop().replace(/\.[^.]+$/, '') || 'log';
+    const defaultName = `${base}_filtered_${Date.now()}.blf`;
+    const filePath = await window.electronAPI.saveFile(defaultName, [
+      { name: 'BLF Files', extensions: ['blf'] }
+    ]);
+    if (!filePath) return;
+
+    setLoading(true);
+    message.info('正在导出 BLF...');
+    try {
+      const result = await window.electronAPI.convertASCtoBLF(filePath, loadedMessages);
+      if (result.success) {
+        const sizeMB = (result.bytes / 1024 / 1024).toFixed(2);
+        message.success(`导出成功！已生成 ${result.count} 条报文的 BLF 文件 (${sizeMB} MB)`);
+      } else {
+        message.error('导出失败: ' + result.error);
+      }
+    } catch (error) {
+      message.error('导出失败: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadedMessages, ascFile, blfFile]);
 
   // ======= Load Physical CSV =======
   const handleLoadCSV = useCallback(async () => {
@@ -458,28 +522,184 @@ function App() {
     setCsvFile(null);
     setConvertProgress(0);
     setDbcRawContent('');
+    setDbcFile(null);
     setParseErrors([]);
     setParseErrorCount(0);
     setParseErrorDrawerOpen(false);
     message.success('已清空所有数据，可以重新加载文件');
   }, []);
 
-  // Wire application menu events (Help / Tool) sent by the Electron main
-  // process. The Help > 使用手册 menu item toggles the in-window help modal;
-  // Tool > 清空 wipes the loaded data set (no-op when nothing is loaded).
+  // ======= R8: resizable splitter between the DBC panel and the results =======
+  // Drag updates the width live; on release the value is persisted so the next
+  // launch restores the same layout.
+  const startPanelDrag = useCallback((e) => {
+    e.preventDefault();
+    const container = e.currentTarget.parentElement;
+    const startX = e.clientX;
+    const startW = panelWidthRef.current;
+    const onMove = (ev) => {
+      const delta = ev.clientX - startX;
+      const total = container?.offsetWidth || 1200;
+      const next = Math.min(80, Math.max(20, startW + (delta / total) * 100));
+      panelWidthRef.current = next;
+      setPanelWidth(next);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.electronAPI?.setSettings?.({ panelWidth: panelWidthRef.current });
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  // ======= R5: Project save / restore (.claproj) =======
+  // A project bundles the loaded log + DBC paths, the signal selection, the
+  // active tab and (future) filters. Saving writes a JSON file via the main
+  // process; opening re-loads the sources then re-applies the selection.
+  const applyProject = useCallback(async (project) => {
+    if (!project) return;
+    const dbc = (project.databases || [])[0];
+    if (dbc && dbc.path) await loadDBCByPath(dbc.path);
+    const log = (project.logs || [])[0];
+    if (log && log.path) await loadLogByPath(log.path, log.type === 'blf' ? 'blf' : 'asc');
+    // DBC load resets the selection — re-apply the saved state afterwards.
+    if (project.selection) {
+      if (Array.isArray(project.selection.msgIds) && project.selection.msgIds.length) {
+        setSelectedIds(new Set(project.selection.msgIds));
+      }
+      if (Array.isArray(project.selection.signals) && project.selection.signals.length) {
+        setSelectedSignals(project.selection.signals);
+      }
+    }
+    if (project.activeTab) setActiveTab(project.activeTab);
+    message.success('工程已恢复');
+  }, [loadDBCByPath, loadLogByPath]);
+
+  const openProjectFile = useCallback(async (filePath) => {
+    const result = await window.electronAPI.openProject(filePath);
+    if (result.success) {
+      await applyProject(result.project);
+    } else {
+      message.error('打开工程失败: ' + result.error);
+    }
+  }, [applyProject]);
+
+  const handleOpenProject = useCallback(async () => {
+    const filePath = await window.electronAPI.openFile([
+      { name: 'CAN Log Analyzer 工程', extensions: ['claproj'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]);
+    if (!filePath) return;
+    await openProjectFile(filePath);
+  }, [openProjectFile]);
+
+  const handleSaveProject = useCallback(async () => {
+    if (!(ascFile || blfFile || dbcFile)) {
+      message.warning('当前没有可保存的内容，请先加载日志或 DBC');
+      return;
+    }
+    const defaultName = `project_${Date.now()}.claproj`;
+    const filePath = await window.electronAPI.saveFile(defaultName, [
+      { name: 'CAN Log Analyzer 工程', extensions: ['claproj'] }
+    ]);
+    if (!filePath) return;
+
+    const projectData = {
+      format: 'claproj',
+      version: 1,
+      logs: [],
+      databases: [],
+      selection: {
+        msgIds: Array.from(selectedIds),
+        signals: selectedSignals
+      },
+      filters: {},
+      activeTab,
+      sampleStep: 1
+    };
+    if (ascFile) projectData.logs.push({ type: 'asc', path: ascFile.path });
+    if (blfFile) projectData.logs.push({ type: 'blf', path: blfFile.path });
+    if (dbcFile) projectData.databases.push({ path: dbcFile.path });
+
+    const result = await window.electronAPI.saveProject(filePath, projectData);
+    if (result.success) message.success('工程已保存');
+    else message.error('保存失败: ' + result.error);
+  }, [ascFile, blfFile, dbcFile, selectedIds, selectedSignals, activeTab]);
+
+  // Wire application menu events (File / Help / Tool) sent by the Electron
+  // main process. The main process sends { action, payload } and the renderer
+  // maps each semantic action to the matching handler.
   useEffect(() => {
     if (!window.electronAPI?.onMenuEvent) return;
-    const off = window.electronAPI.onMenuEvent((action) => {
-      if (action === 'help:open') {
-        setHelpOpen(true);
-      } else if (action === 'tool:clear') {
-        if (ascFile || blfFile || dbcMessages.length > 0 || loadedMessages.length > 0 || csvData) {
-          handleClearAll();
-        }
+    const off = window.electronAPI.onMenuEvent(({ action, payload }) => {
+      switch (action) {
+        case 'help:open': setHelpOpen(true); break;
+        case 'tool:clear':
+          if (ascFile || blfFile || dbcMessages.length > 0 || loadedMessages.length > 0 || csvData) {
+            handleClearAll();
+          }
+          break;
+        case 'tool:convert-asc-blf': handleConvertASCtoBLF(); break;
+        case 'tool:convert-csv-asc':
+          if (csvData) setActiveTab('csv');
+          else handleLoadCSV();
+          break;
+        case 'file:open-asc': handleLoadASC(); break;
+        case 'file:open-blf': handleLoadBLF(); break;
+        case 'file:load-dbc': handleLoadDBC(); break;
+        case 'file:export-asc': handleExportASC(); break;
+        case 'file:open-project': handleOpenProject(); break;
+        case 'file:save-project': handleSaveProject(); break;
+        case 'file:open-recent-log':
+          if (payload) loadLogByPath(payload, String(payload).toLowerCase().endsWith('.blf') ? 'blf' : 'asc');
+          break;
+        case 'file:open-recent-dbc':
+          if (payload) loadDBCByPath(payload);
+          break;
+        case 'file:open-recent-project':
+          if (payload) openProjectFile(payload);
+          break;
+        default: break;
       }
     });
     return () => { if (typeof off === 'function') off(); };
-  }, [ascFile, blfFile, dbcMessages.length, loadedMessages.length, csvData, handleClearAll]);
+  }, [ascFile, blfFile, dbcMessages.length, loadedMessages.length, csvData,
+      handleClearAll, handleConvertASCtoBLF, handleLoadCSV, handleLoadASC,
+      handleLoadBLF, handleLoadDBC, handleExportASC, handleOpenProject,
+      handleSaveProject, loadLogByPath, loadDBCByPath, openProjectFile]);
+
+  // R5: .claproj open requested by the OS — double-click on a project file,
+  // or a second app instance launched while this one is already running.
+  useEffect(() => {
+    if (!window.electronAPI?.onProjectOpenRequest) return;
+    const off = window.electronAPI.onProjectOpenRequest((filePath) => {
+      if (filePath) openProjectFile(filePath);
+    });
+    return () => { if (typeof off === 'function') off(); };
+  }, [openProjectFile]);
+
+  // R6: restore persisted preferences (last active tab).
+  useEffect(() => {
+    const getSettings = window.electronAPI?.getSettings;
+    if (typeof getSettings === 'function') {
+      getSettings().then(s => {
+        if (s) {
+          if (s.lastTab && ['signal', 'log', 'csv'].includes(s.lastTab)) {
+            setActiveTab(s.lastTab);
+          }
+          if (typeof s.panelWidth === 'number' && s.panelWidth >= 20 && s.panelWidth <= 80) {
+            panelWidthRef.current = s.panelWidth;
+            setPanelWidth(s.panelWidth);
+          }
+        }
+      }).catch(() => {});
+    }
+  }, []);
 
   // ======= Computed Stats =======
   const totalMessages = loadedMessages.length;
@@ -538,6 +758,8 @@ function App() {
           <div style={{ marginTop: 8, flexShrink: 0 }}>
             <ExportPanel
               onExport={handleExportASC}
+              onExportCSV={handleExportLogCSV}
+              onExportBLF={handleExportBLF}
               disabled={loadedMessages.length === 0}
               loading={loading}
               onExportProgress={window.electronAPI?.onExportProgress}
@@ -643,7 +865,7 @@ function App() {
           >
             <span>ASC→BLF</span>
           </Button>
-          <Button size="small" type="primary" ghost onClick={handleLoadDBC} loading={loading}>
+          <Button size="small" type="primary" ghost onClick={handleLoadDBC} loading={loading} data-testid="toolbar-load-dbc">
             <span>加载 DBC</span>
           </Button>
 
@@ -694,9 +916,9 @@ function App() {
 
         {/* Main area: left DBC full window + right results */}
         <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
-          {/* Left: DBC structure full window */}
+          {/* Left: DBC structure full window (R8: width resizable + persisted) */}
           <div style={{
-            width: '46%', minWidth: 540, flexShrink: 0,
+            width: `${panelWidth}%`, minWidth: 540, flexShrink: 0,
             border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden',
             background: '#fff', display: 'flex', flexDirection: 'column'
           }}>
@@ -717,6 +939,17 @@ function App() {
             />
           </div>
 
+          {/* R8: splitter — drag to resize the DBC panel */}
+          <div
+            onMouseDown={startPanelDrag}
+            title="拖动调整面板宽度"
+            data-testid="panel-splitter"
+            style={{
+              width: 8, flexShrink: 0, cursor: 'col-resize',
+              alignSelf: 'stretch'
+            }}
+          />
+
           {/* Right: tabbed results */}
           <div style={{
             flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
@@ -725,7 +958,11 @@ function App() {
           }}>
             <Tabs
               activeKey={activeTab}
-              onChange={setActiveTab}
+              onChange={(key) => {
+                setActiveTab(key);
+                // R6: remember the active tab for the next launch.
+                window.electronAPI?.setSettings?.({ lastTab: key });
+              }}
               items={tabItems}
               style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '0 8px' }}
               tabBarStyle={{ flexShrink: 0, marginBottom: 4 }}

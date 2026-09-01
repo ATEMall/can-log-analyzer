@@ -39,8 +39,10 @@ BO_ 512 MsgB: 8 ECU
     expect(msgA.signals[0].genSigStartValue).toBe(3.5);
   });
 
-  it('leaves attributes undefined when not assigned (boundary: attribute default)', () => {
-    expect(msgB.cycleTime).toBeUndefined();
+  it('applies BA_DEF_DEF_ defaults when no explicit BA_ assignment exists (#7)', () => {
+    // BA_DEF_DEF_ "GenMsgCycleTime" 10 exists -> default applies
+    expect(msgB.cycleTime).toBe(10);
+    // no BA_DEF_DEF_ "GenMsgSendType" / "GenSigStartValue" -> stay undefined
     expect(msgB.sendType).toBeUndefined();
     expect(msgB.signals[0].genSigStartValue).toBeUndefined();
   });
@@ -144,6 +146,75 @@ BO_ 128 StdMsg: 8 ECU
     const { rows } = decodeFramesChunk([{ timestamp: 0, id: 128, data: [0x11, 0, 0, 0, 0, 0, 0, 0] }], ctx);
     expect(rows).toHaveLength(1);
     expect(rows[0].signals['128::S1']).toBe(0x11);
+  });
+
+  // #7: canonical extended-frame encoding — BO_ raw id carries 0x80000000.
+  it('recognizes the canonical 0x80000000 BO_ id flag (#7)', () => {
+    // 2147485696 = 0x80000000 | 0x800 (2048)
+    const dbc = `
+BO_ 2147485696 ExtMsg: 8 ECU
+ SG_ S1 : 0|8@1+ (1,0) [0|255] "" ECU
+`;
+    const [msg] = parseDBC(dbc);
+    expect(msg.id).toBe(2048); // normalized & 0x1FFFFFFF
+    expect(msg.isExtended).toBe(true);
+  });
+
+  it('the 0x80000000 flag takes precedence over the VFrameFormat attribute (#7)', () => {
+    const dbc = `
+BA_ "VFrameFormat" BO_ 2048 0;
+BO_ 2147485696 ExtMsg: 8 ECU
+ SG_ S1 : 0|8@1+ (1,0) [0|255] "" ECU
+`;
+    const [msg] = parseDBC(dbc);
+    expect(msg.id).toBe(2048);
+    expect(msg.frameFormat).toBe(0); // attribute still recorded
+    expect(msg.isExtended).toBe(true); // flag wins
+  });
+
+  it('applies BA_DEF_DEF_ "VFrameFormat" 0 as the standard-frame default (#7)', () => {
+    const dbc = `
+BA_DEF_ BO_ "VFrameFormat" INT 0 1;
+BA_DEF_DEF_ "VFrameFormat" 0;
+BO_ 128 StdMsg: 8 ECU
+ SG_ S1 : 0|8@1+ (1,0) [0|255] "" ECU
+`;
+    const [msg] = parseDBC(dbc);
+    expect(msg.isExtended).toBe(false);
+    expect(msg.frameFormat).toBe(0);
+  });
+
+  it('normalizes the flag bit on BA_/VAL_/SIG_VALTYPE_ message ids (#7)', () => {
+    const dbc = `
+BA_ "VFrameFormat" BO_ 2147485696 1;
+VAL_ 2147485696 S1 0 "Zero" 1 "One" ;
+SIG_VALTYPE_ 2147485696 F2 : 1;
+BO_ 2147485696 ExtMsg: 8 ECU
+ SG_ S1 : 0|8@1+ (1,0) [0|255] "" ECU
+ SG_ F2 : 8|32@1+ (1,0) [0|0] "" ECU
+`;
+    const [msg] = parseDBC(dbc);
+    expect(msg.id).toBe(2048);
+    expect(msg.isExtended).toBe(true); // BA_ with flagged id resolved
+    expect(msg.signals[0].valueDefs).toMatchObject({ 0: 'Zero', 1: 'One' });
+    expect(msg.signals[1].valueType).toBe('float32');
+  });
+
+  it('decodes a canonical-flag extended message against flagged log frames (#7)', () => {
+    const dbc = `
+BO_ 2147485696 ExtMsg: 8 ECU
+ SG_ S1 : 0|8@1+ (1,0) [0|255] "" ECU
+`;
+    const ctx = buildDecodeContext(parseDBC(dbc), [{ msgId: 2048, signalName: 'S1' }]);
+    const ext = decodeFramesChunk([
+      { timestamp: 0, id: 2048, isExtended: true, data: [0x2A, 0, 0, 0, 0, 0, 0, 0] }
+    ], ctx);
+    expect(ext.rows).toHaveLength(1);
+    expect(ext.rows[0].signals['2048::S1']).toBe(0x2A);
+    const std = decodeFramesChunk([
+      { timestamp: 1, id: 2048, isExtended: false, data: [0x2A, 0, 0, 0, 0, 0, 0, 0] }
+    ], ctx);
+    expect(std.rows).toHaveLength(0); // format mismatch skipped
   });
 });
 

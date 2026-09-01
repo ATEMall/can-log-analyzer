@@ -39,6 +39,52 @@ function sendToRenderer(channel, payload) {
   }
 }
 
+// ==================== R5/R6: settings + recent files ====================
+// Preferences live in %APPDATA%/can-log-analyzer/settings.json (userData).
+// Holds: windowBounds, lastTab, defaultSampleStep, defaultExportDir and the
+// recent-file lists (recent_log / recent_dbc / recent_project, 10 each).
+let settings = null;
+
+function settingsFile() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+function loadSettings() {
+  try {
+    settings = JSON.parse(fs.readFileSync(settingsFile(), 'utf8'));
+  } catch {
+    settings = {};
+  }
+  return settings;
+}
+
+function saveSettings() {
+  try {
+    fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
+    fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2));
+  } catch (err) {
+    console.error('saveSettings failed:', err.message);
+  }
+}
+
+function getSetting(key, def) {
+  return settings && settings[key] !== undefined ? settings[key] : def;
+}
+
+function setSetting(patch) {
+  settings = { ...(settings || loadSettings()), ...patch };
+  saveSettings();
+  return settings;
+}
+
+function addRecent(type, filePath) {
+  const key = `recent_${type}`;
+  const list = (settings && settings[key] ? settings[key] : []).filter(p => p !== filePath);
+  list.unshift(filePath);
+  setSetting({ [key]: list.slice(0, 10) });
+  return list.slice(0, 10);
+}
+
 function createWindow() {
   // Try multiple paths for logo (dev: public/, production: dist/)
   const logoPaths = [
@@ -52,9 +98,13 @@ function createWindow() {
     if (fs.existsSync(p)) { icon = p; break; }
   }
 
+  // R6: restore the persisted window size/position.
+  const savedBounds = getSetting('windowBounds', null);
   mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
+    width: savedBounds?.width || 1400,
+    height: savedBounds?.height || 900,
+    x: savedBounds?.x,
+    y: savedBounds?.y,
     backgroundColor: '#f5f5f5',
     icon: icon,
     webPreferences: {
@@ -70,6 +120,17 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
+
+  // R6: persist window bounds on move/resize (debounced).
+  let boundsTimer = null;
+  const saveBounds = () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const b = mainWindow.getBounds();
+      setSetting({ windowBounds: { x: b.x, y: b.y, width: b.width, height: b.height } });
+    }
+  };
+  mainWindow.on('resize', () => { clearTimeout(boundsTimer); boundsTimer = setTimeout(saveBounds, 500); });
+  mainWindow.on('move', () => { clearTimeout(boundsTimer); boundsTimer = setTimeout(saveBounds, 500); });
 
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
     mainWindow.loadURL('http://localhost:5173').catch(err => {
@@ -109,10 +170,36 @@ function showErrorPage(p) {
   });
 }
 
-app.whenReady().then(() => {
-  buildApplicationMenu();
-  createWindow();
-});
+// R5: single instance + .claproj file-association open (double-click on a
+// project file, or a second launch while the app is running).
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    const proj = argv.find(a => typeof a === 'string' && a.endsWith('.claproj'));
+    if (proj && mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      mainWindow.webContents.send('project:open-request', proj);
+    }
+  });
+
+  app.whenReady().then(() => {
+    loadSettings();
+    buildApplicationMenu();
+    createWindow();
+    // Open a .claproj passed on the command line (file association).
+    const proj = process.argv.find(a => typeof a === 'string' && a.endsWith('.claproj'));
+    if (proj) {
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('project:open-request', proj);
+        }
+      }, 800);
+    }
+  });
+}
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
@@ -124,11 +211,40 @@ app.on('window-all-closed', () => {
  * to React state (Help > 使用手册 opens the in-window HelpModal; Tool > 清空
  * wipes the loaded data; View > Reload toggles DevTools).
  */
-function sendMenuAction(action) {
+function sendMenuAction(action, payload) {
   const win = BrowserWindow.getFocusedWindow() || mainWindow;
   if (win && !win.isDestroyed()) {
-    win.webContents.send('menu:action', action);
+    win.webContents.send('menu:action', { action, payload });
   }
+}
+
+// R6: dynamic "Recent Files" submenu — logs, DBC files and projects (10 each,
+// most recent first). Rebuilt on every menu open via buildApplicationMenu().
+function buildRecentSubmenu() {
+  const rec = loadSettings();
+  const items = [];
+  const addGroup = (label, list, action) => {
+    if (list && list.length) {
+      items.push({ label, enabled: false });
+      for (const p of list) {
+        items.push({ label: p, click: () => sendMenuAction(action, p) });
+      }
+      items.push({ type: 'separator' });
+    }
+  };
+  addGroup('最近日志', rec.recent_log, 'file:open-recent-log');
+  addGroup('最近 DBC', rec.recent_dbc, 'file:open-recent-dbc');
+  addGroup('最近工程', rec.recent_project, 'file:open-recent-project');
+  if (items.length === 0) items.push({ label: '（无最近文件）', enabled: false });
+  items.push({ type: 'separator' });
+  items.push({
+    label: '清除最近列表',
+    click: () => {
+      setSetting({ recent_log: [], recent_dbc: [], recent_project: [] });
+      buildApplicationMenu();
+    }
+  });
+  return items;
 }
 
 function buildApplicationMenu() {
@@ -153,6 +269,24 @@ function buildApplicationMenu() {
         label: 'Load DBC…',
         accelerator: 'CmdOrCtrl+D',
         click: () => sendMenuAction('file:load-dbc')
+      },
+      { type: 'separator' },
+      // R5: project save / restore
+      {
+        label: 'Open Project…',
+        accelerator: 'CmdOrCtrl+Shift+P',
+        click: () => sendMenuAction('file:open-project')
+      },
+      {
+        label: 'Save Project',
+        accelerator: 'CmdOrCtrl+S',
+        click: () => sendMenuAction('file:save-project')
+      },
+      { type: 'separator' },
+      // R6: recent files (logs / DBC / projects), rebuilt on every open.
+      {
+        label: 'Recent Files',
+        submenu: buildRecentSubmenu()
       },
       { type: 'separator' },
       {
@@ -1011,10 +1145,47 @@ ipcMain.handle('file:loadDBC', async (event, filePath) => {
   try {
     const content = await fs.promises.readFile(filePath, 'utf-8');
     const messages = parseDBC(content);
+    addRecent('dbc', filePath); // R6
     return { success: true, messages, rawContent: content };
   } catch (error) {
     return { success: false, error: error.message };
   }
+});
+
+// ==================== R5: project save / restore ====================
+ipcMain.handle('project:save', async (event, filePath, projectData) => {
+  try {
+    if (!projectData || projectData.format !== 'claproj') {
+      return { success: false, error: '不是有效的工程数据（缺少 claproj 格式标记）' };
+    }
+    await fs.promises.writeFile(filePath, JSON.stringify(projectData, null, 2), 'utf8');
+    addRecent('project', filePath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('project:open', async (event, filePath) => {
+  try {
+    const content = await fs.promises.readFile(filePath, 'utf8');
+    const project = JSON.parse(content);
+    if (!project || project.format !== 'claproj') {
+      return { success: false, error: '不是有效的 .claproj 工程文件（缺少 claproj 格式标记）' };
+    }
+    addRecent('project', filePath);
+    return { success: true, project };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== R6: preferences ====================
+ipcMain.handle('settings:get', async () => loadSettings());
+
+ipcMain.handle('settings:set', async (event, patch) => {
+  if (!patch || typeof patch !== 'object') return { success: false, error: '无效的设置数据' };
+  return { success: true, settings: setSetting(patch) };
 });
 
 ipcMain.handle('file:loadASC', async (event, filePath, selectedIds) => {
@@ -1024,6 +1195,7 @@ ipcMain.handle('file:loadASC', async (event, filePath, selectedIds) => {
     // R2: keep the parsed frames resident in the main process so chunked
     // decoding can stream over them without the renderer holding the corpus.
     storeMessages(filePath, result.messages);
+    addRecent('log', filePath); // R6
     
     try {
       const stats = await fs.promises.stat(filePath);
@@ -1049,6 +1221,7 @@ ipcMain.handle('file:loadBLF', async (event, filePath, selectedIds) => {
     const result = await loadBLFFile(filePath, idSet);
     // R2: keep parsed frames resident in the main process.
     storeMessages(filePath, result.messages);
+    addRecent('log', filePath); // R6
     return {
       success: true, ...result,
       parseErrors: result.parseErrors || [],
@@ -1263,6 +1436,40 @@ ipcMain.handle('file:exportASC', async (event, filePath, headerLines, messages) 
   });
 });
 
+// R7: export the loaded message log as CSV — columns time,id,name,dir,dlc,data.
+// Streamed in blocks so 1M-frame logs do not block the main process.
+ipcMain.handle('file:exportLogCSV', async (event, filePath, messages, nameMap) => {
+  return new Promise((resolve, reject) => {
+    const stream = fs.createWriteStream(filePath, { encoding: 'utf-8' });
+    const list = messages || [];
+    const names = nameMap || {};
+    const CHUNK = 5000;
+    let written = 0;
+
+    stream.on('error', (err) => resolve({ success: false, error: err.message }));
+    stream.write(['time', 'id', 'name', 'dir', 'dlc', 'data'].join(',') + '\r\n');
+
+    const writeRows = (start) => {
+      const end = Math.min(start + CHUNK, list.length);
+      for (let i = start; i < end; i++) {
+        const m = list[i];
+        const idStr = '0x' + m.id.toString(16).toUpperCase();
+        const name = names[m.id] != null ? `"${names[m.id]}"` : '';
+        const dataStr = `"${(m.data || []).map(b => b.toString(16).toUpperCase().padStart(2, '0')).join(' ')}"`;
+        stream.write(`${m.timestamp.toFixed(6)},${idStr},${name},${m.direction},${m.dlc},${dataStr}\r\n`);
+        written++;
+      }
+      if (end < list.length) {
+        if (stream.writableNeedDrain) stream.once('drain', () => writeRows(end));
+        else setImmediate(() => writeRows(end));
+      } else {
+        stream.end(() => resolve({ success: true, rowsWritten: written }));
+      }
+    };
+    writeRows(0);
+  });
+});
+
 ipcMain.handle('file:getStats', async (event, filePath) => {
   try {
     const stats = await fs.promises.stat(filePath);
@@ -1360,6 +1567,11 @@ ipcMain.handle('signal:decodeChunked', async (event, payload) => {
     const total = frames.length;
     const size = Math.max(1, Math.min(Number(chunkSize) || DEFAULT_CHUNK_SIZE, total));
     const totalChunks = Math.ceil(total / size);
+    // R2 Phase 2: on multi-chunk corpora the decode runs pure-streaming — the
+    // rows are delivered exclusively via the decode:chunk-result events, and
+    // the return payload carries only stats. Returning the full array as well
+    // would double the peak memory on 1M-frame logs.
+    const streaming = totalChunks > 1;
     const signalData = [];
     let decodedFrameCount = 0;
     let cancelled = false;
@@ -1385,15 +1597,16 @@ ipcMain.handle('signal:decodeChunked', async (event, payload) => {
         last: chunk === totalChunks - 1
       });
 
-      // Avoid holding the full result twice on huge corpora: keep rows only
-      // in the returned payload below, the events already streamed them.
-      for (const r of rows) signalData.push(r);
+      // Single-chunk runs keep the rows inline (small corpus, no event-loss
+      // risk); multi-chunk runs stay pure-streaming.
+      if (!streaming) for (const r of rows) signalData.push(r);
     }
 
     return {
       success: true,
       cancelled,
-      signalData,
+      signalData: streaming ? undefined : signalData,
+      streaming,
       stats: {
         totalFrames: total,
         decodedFrames: decodedFrameCount,

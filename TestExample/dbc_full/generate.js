@@ -21,9 +21,11 @@ const { decodeAll } = require('../../electron/signalDecode');
 const OUT = __dirname;
 
 // Frames with the exact expected physical values per signal.
-//  - id 2048 (ExtMuxMsg, extended): mux selector 0 -> SigSpeed+SigRpm, 1 -> SigTemp
-//  - id 512  (FloatMsg, CAN FD 12B): F32a=pi (little), F64a=-2.5 (Motorola big)
-//  - id 1024 (AttrMsg): StartVal=7, EnumSig=1 ("On"), CycleSig=0x0102
+//  - id 2048 (ExtMuxMsg, extended, canonical 0x80000000 DBC flag):
+//      mux selector 0 -> SigSpeed+SigRpm, 1 -> SigTemp
+//  - id 512  (FloatMsg, CAN FD 16B):
+//      F32a=pi (little), F64a=-2.5 (Motorola big), I32s=-258 (little signed 24b)
+//  - id 1024 (AttrMsg): StartVal=7, EnumSig=1 ("On"), CycleSig=0x0102, SignedSig=-257
 const FRAMES = [
   {
     id: 2048, isExtended: true, dlc: 8,
@@ -36,14 +38,14 @@ const FRAMES = [
     expected: { MuxSel: 1, SigTemp: 30 }
   },
   {
-    id: 512, isFd: true, dlc: 12,
-    data: [0xDB, 0x0F, 0x49, 0x40, 0xC0, 0x04, 0, 0, 0, 0, 0, 0], t: 0.02,
-    expected: { F32a: 3.1415927, F64a: -2.5 }
+    id: 512, isFd: true, dlc: 16,
+    data: [0xDB, 0x0F, 0x49, 0x40, 0xC0, 0x04, 0, 0, 0, 0, 0, 0, 0, 0xFE, 0xFE, 0xFF], t: 0.02,
+    expected: { F32a: 3.1415927, F64a: -2.5, I32s: -258 }
   },
   {
     id: 1024, dlc: 8,
-    data: [0x07, 0x01, 0x02, 0x01, 0, 0, 0, 0], t: 0.03,
-    expected: { StartVal: 7, EnumSig: 1, CycleSig: 0x0102 }
+    data: [0x07, 0x01, 0x02, 0x01, 0xFE, 0xFF, 0, 0], t: 0.03,
+    expected: { StartVal: 7, EnumSig: 1, CycleSig: 0x0102, SignedSig: -257 }
   }
 ];
 
@@ -91,9 +93,11 @@ const selection = [
   { msgId: 2048, signalName: 'SigTemp' },
   { msgId: 512, signalName: 'F32a' },
   { msgId: 512, signalName: 'F64a' },
+  { msgId: 512, signalName: 'I32s' },
   { msgId: 1024, signalName: 'StartVal' },
   { msgId: 1024, signalName: 'EnumSig' },
-  { msgId: 1024, signalName: 'CycleSig' }
+  { msgId: 1024, signalName: 'CycleSig' },
+  { msgId: 1024, signalName: 'SignedSig' }
 ];
 const logFrames = FRAMES.map(f => ({
   timestamp: f.t, id: f.id, isExtended: f.isExtended, dlc: f.dlc, data: f.data, direction: 'Rx'

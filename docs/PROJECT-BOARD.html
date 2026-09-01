@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>can-log-analyzer · v2.1 项目看板</title>
+<style>
+  :root{
+    --red:#C62828; --red-dark:#8E1C1C; --red-light:#FDECEA;
+    --ink:#1F2328; --ink-2:#57606A; --line:#D8DEE4; --bg:#F6F8FA;
+    --ok:#1A7F37; --ok-bg:#E6F4EA; --warn:#9A6700; --warn-bg:#FFF8E5;
+    --fail:#CF222E; --fail-bg:#FFEBE9; --todo:#0969DA; --todo-bg:#E8F1FC;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif; background:var(--bg); color:var(--ink); line-height:1.6; padding:24px;}
+  .wrap{max-width:1080px; margin:0 auto;}
+  header{background:linear-gradient(135deg,var(--red) 0%,var(--red-dark) 100%); color:#fff; border-radius:12px; padding:22px 28px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;}
+  header h1{font-size:22px; font-weight:700; letter-spacing:.5px;}
+  header .sub{font-size:13px; opacity:.9; margin-top:4px;}
+  header .meta{text-align:right; font-size:12px; opacity:.92;}
+  header .meta div{margin-top:2px;}
+  a{color:var(--red); text-decoration:none;} a:hover{text-decoration:underline;}
+  section{background:#fff; border:1px solid var(--line); border-radius:12px; padding:20px 24px; margin-bottom:20px;}
+  .sec-title{font-size:16px; font-weight:700; color:var(--red-dark); border-bottom:2px solid var(--red-light); padding-bottom:8px; margin-bottom:16px; display:flex; align-items:center; gap:8px;}
+  .sec-title .badge{background:var(--red); color:#fff; font-size:11px; border-radius:10px; padding:1px 9px; font-weight:600;}
+  .banner{background:var(--warn-bg); border:1px solid #F0D98A; border-radius:10px; padding:12px 16px; font-size:13px; margin-bottom:14px;}
+  .banner b{color:var(--warn);}
+  .progress-grid{display:grid; grid-template-columns:280px 1fr; gap:24px; align-items:center;}
+  .ring{width:180px; height:180px; border-radius:50%; background:conic-gradient(var(--red) 0% 55%, #E1E4E8 55% 100%); display:flex; align-items:center; justify-content:center; margin:0 auto; position:relative;}
+  .ring::before{content:""; position:absolute; inset:18px; background:#fff; border-radius:50%;}
+  .ring .pct{position:relative; font-size:34px; font-weight:800; color:var(--red);}
+  .ring .pct small{font-size:13px; color:var(--ink-2); font-weight:600;}
+  .stats{display:flex; gap:12px; flex-wrap:wrap;}
+  .stat{flex:1; min-width:110px; background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px 14px; text-align:center;}
+  .stat .num{font-size:26px; font-weight:800;}
+  .stat .lbl{font-size:12px; color:var(--ink-2); margin-top:2px;}
+  .num.ok{color:var(--ok);} .num.fail{color:var(--fail);} .num.warn{color:var(--warn);} .num.todo{color:var(--todo);}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{background:var(--bg); text-align:left; font-size:12px; color:var(--ink-2); padding:8px 10px; border-bottom:2px solid var(--line); white-space:nowrap;}
+  td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top;}
+  tr:hover td{background:#FAFBFC;}
+  .pill{display:inline-block; font-size:11px; font-weight:600; border-radius:10px; padding:1px 9px; white-space:nowrap;}
+  .pill.p0{background:var(--fail-bg); color:var(--fail);} .pill.p1{background:var(--todo-bg); color:var(--todo);}
+  .pill.done{background:var(--ok-bg); color:var(--ok);} .pill.open{background:var(--warn-bg); color:var(--warn);}
+  .pill.closed{background:var(--ok-bg); color:var(--ok);} .pill.block{background:var(--fail-bg); color:var(--fail);}
+  .pill.wait{background:var(--warn-bg); color:var(--warn);} .pill.pm{background:var(--red-light); color:var(--red);}
+  .verdict{font-size:12px; color:var(--ink-2);}
+  .todo{display:flex; align-items:flex-start; gap:12px; padding:11px 6px; border-bottom:1px dashed var(--line);}
+  .todo:last-child{border-bottom:none;}
+  .todo .mark{width:22px; height:22px; min-width:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; margin-top:2px;}
+  .mark.p0{background:var(--fail);} .mark.p1{background:var(--todo);} .mark.pm{background:var(--red);}
+  .todo .body{flex:1;} .todo .t{font-weight:600; font-size:13.5px;}
+  .todo .d{font-size:12.5px; color:var(--ink-2); margin-top:2px;}
+  .todo .tag{font-size:11px; border:1px solid var(--line); color:var(--ink-2); border-radius:8px; padding:0 7px; margin-left:6px; font-weight:500;}
+  .confirm{background:var(--warn-bg); border:1px solid #F0D98A; border-radius:10px; padding:12px 16px; margin-top:14px; font-size:13px;}
+  .confirm b{color:var(--warn);}
+  .note{font-size:12px; color:var(--ink-2); margin-top:6px;}
+  .commit{display:flex; justify-content:space-between; gap:10px; padding:7px 4px; border-bottom:1px dashed var(--line); font-size:12.5px;}
+  .commit:last-child{border-bottom:none;}
+  .commit .msg{flex:1;} .commit .sha{font-family:Consolas,monospace; color:var(--ink-2); white-space:nowrap;}
+  .commit .date{color:var(--ink-2); white-space:nowrap; font-size:12px;}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--ink-2); margin-top:10px;}
+  footer{text-align:center; font-size:12px; color:var(--ink-2); margin:18px 0 8px;}
+  @media(max-width:760px){ .progress-grid{grid-template-columns:1fr;} .ring{width:150px;height:150px;} .ring::before{inset:15px;} header .meta{text-align:left;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>can-log-analyzer · 项目看板</h1>
+    <div class="sub">离线智能通信分析工具（CAN / LIN / 车载以太网 / UDS / XCP）</div>
+  </div>
+  <div class="meta">
+    <div>版本：v2.1（开发中）</div>
+    <div>更新时间：2026-09-01 21:30</div>
+    <div>仓库：<a href="https://github.com/ATEMall/can-log-analyzer" style="color:#fff;text-decoration:underline;">github.com/ATEMall/can-log-analyzer</a></div>
+  </div>
+</header>
+
+<!-- ============ 一、现在进展 ============ -->
+<section>
+  <div class="sec-title">📊 一、现在进展 <span class="badge">v2.1 完成度 ≈ 55%</span></div>
+
+  <div class="banner">⚠️ <b>09-01 关键状态：</b>开发已评论声明 4 项交付完成（#7 返工 / R5-R6 / R7-R8 / R2 Phase 2，自称 162/162），但 <b>代码均未推送到远程</b>（远程 main 最新仍为 ae3aec6，本地=远程 0/0）。PM 已在 #2/#5/#6/#7 发评论催推送，收到 commit SHA 后即复核。</div>
+
+  <div class="progress-grid">
+    <div class="ring"><div class="pct">55<small>%</small></div></div>
+    <div>
+      <div class="stats">
+        <div class="stat"><div class="num ok">2</div><div class="lbl">✅ 已验收闭环</div></div>
+        <div class="stat"><div class="num warn">4</div><div class="lbl">⏳ 已声明完成·待推送复核</div></div>
+        <div class="stat"><div class="num fail">1</div><div class="lbl">🔴 阻塞项（#7）</div></div>
+        <div class="stat"><div class="num todo">1</div><div class="lbl">⬜ 待办（PM 验收+发版）</div></div>
+      </div>
+      <div class="note" style="margin-top:10px;"><b>关键路径</b>：开发推送 4 项代码（今日）→ PM 复核（#7 cantools 对拍 / #5 #6 #2 代码+回归）→ 关闭 #7、#3、#2 → #5/#6 验收 → 09-19 v2.1 最终验收</div>
+    </div>
+  </div>
+
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">需求状态总览（SRS-v2.1，R1–R8）</h4>
+  <table>
+    <tr><th>需求</th><th>内容</th><th>Issue</th><th>优先级</th><th>状态</th><th>PM 结论</th></tr>
+    <tr><td><b>R1</b></td><td>Motorola 大端信号解码修复</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/1">#1</a></td><td><span class="pill p0">P0</span></td><td><span class="pill done">✅ 完成</span></td><td class="verdict">验收通过（23/23 + 286/286 对拍 cantools，写读闭环 10/10）</td></tr>
+    <tr><td><b>R2</b></td><td>分块解码引擎重构（1M 帧）</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/2">#2</a></td><td><span class="pill p0">P0</span></td><td><span class="pill wait">⏳ Phase 2 待推送</span></td><td class="verdict">Phase 1 有条件通过；09-01 开发称 Phase 2 补齐（流式+BENCHMARK-R2.md+双路径收敛），<b>代码未推送</b>，待复核后关闭</td></tr>
+    <tr><td><b>R3</b></td><td>DBC 解析补全（属性/扩展帧/mux/浮点）</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/3">#3</a></td><td><span class="pill p1">P1</span></td><td><span class="pill wait">⏳ 返工待推送</span></td><td class="verdict">引擎 10/10 对拍通过；#7 返工 09-01 已声明完成（样例直载+标志位支持），<b>代码未推送</b>，cantools 复核后关 #7、#3</td></tr>
+    <tr><td><b>R4</b></td><td>解析容错与错误报告</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/4">#4</a></td><td><span class="pill p1">P1</span></td><td><span class="pill done">✅ 完成</span></td><td class="verdict">验收通过（119/119 回归 + tolerance 专项覆盖），已关闭</td></tr>
+    <tr><td><b>R5</b></td><td>工程保存/恢复（.claproj）+ 最近文件</td><td rowspan="2"><a href="https://github.com/ATEMall/can-log-analyzer/issues/5">#5</a></td><td rowspan="2"><span class="pill p0">P0</span></td><td rowspan="2"><span class="pill wait">⏳ 待推送</span></td><td rowspan="2" class="verdict">09-01 开发称完成（.claproj 校验/最近文件/settings 落盘+恢复），<b>代码未推送</b>，待复核</td></tr>
+    <tr><td><b>R6</b></td><td>偏好持久化</td></tr>
+    <tr><td><b>R7</b></td><td>导出补全（CSV/BLF）</td><td rowspan="2"><a href="https://github.com/ATEMall/can-log-analyzer/issues/6">#6</a></td><td rowspan="2"><span class="pill p1">P1</span></td><td rowspan="2"><span class="pill wait">⏳ 待推送</span></td><td rowspan="2" class="verdict">09-01 开发称完成（日志 CSV/信号 CSV/BLF 导出 + UI 增量），<b>代码未推送</b>，待复核</td></tr>
+    <tr><td><b>R8</b></td><td>UI 增量优化</td></tr>
+  </table>
+
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">最近提交（远程 main，最新仍为 ae3aec6）</h4>
+  <div>
+    <div class="commit"><span class="sha">ae3aec6</span><span class="msg">feat(v2.1): R1 Motorola sawtooth 返工 + R3 DBC 补全（BA_ 属性/扩展帧/mux/浮点）· 153/153</span><span class="date">08-31</span></div>
+    <div class="commit"><span class="sha">aaa76ee</span><span class="msg">docs: SRS v2.1 v1.1 勘误 R1 Motorola 算法规格 · 286/286 对拍验证</span><span class="date">08-30</span></div>
+    <div class="commit"><span class="sha">83ec519</span><span class="msg">feat(v2.1): 分块解码引擎 Phase 1（signalDecode.js + IPC 契约）· 93/93</span><span class="date">08-30</span></div>
+    <div class="commit"><span class="sha">6e20821</span><span class="msg">feat(v2.1): R1 Motorola 修复（首轮）+ R4 解析容错 · 89/89</span><span class="date">08-30</span></div>
+  </div>
+</section>
+
+<!-- ============ 二、Issue 清单 ============ -->
+<section>
+  <div class="sec-title">🐞 二、Issue 清单 <span class="badge">共 7 项 · 5 开 2 关</span></div>
+  <table>
+    <tr><th>#</th><th>标题</th><th>优先级</th><th>GitHub 状态</th><th>PM 结论 / 备注</th><th>更新时间</th></tr>
+    <tr>
+      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/1">#1</a></b></td>
+      <td>[P0][Bug] Motorola 大端信号解码完全错误（10/10 不一致）</td>
+      <td><span class="pill p0">P0 urgent</span></td>
+      <td><span class="pill closed">✅ Closed</span></td>
+      <td class="verdict">✅ 验收通过（08-31）：23/23 + 286/286 对拍一致；8 条返工要求全部落实</td>
+      <td>08-31</td>
+    </tr>
+    <tr>
+      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/2">#2</a></b></td>
+      <td>[v2.1][R2] 分块/流式解码引擎（1M 帧支持）</td>
+      <td><span class="pill p0">P0</span></td>
+      <td><span class="pill open">🔴 Open</span></td>
+      <td class="verdict">⚠️ Phase 1 有条件通过；09-01 开发称 Phase 2 补齐（流式/BENCHMARK/双路径收敛），<b>代码未推送</b>，PM 已催（comment 5494565507）</td>
+      <td>09-01</td>
+    </tr>
+    <tr>
+      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/3">#3</a></b></td>
+      <td>[v2.1][R3] DBC 解析补全：BA_ 属性/扩展帧/mux/SIG_VALTYPE_</td>
+      <td><span class="pill p1">P1</span></td>
+      <td><span class="pill open">🔴 Open</span></td>
+      <td class="verdict">⚠️ 引擎 10/10 对拍通过；阻塞于 #7（返工 09-01 已声明完成，<b>未推送</b>）</td>
+      <td>09-01</td>
+    </tr>
+    <tr>
+      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/4">#4</a></b></td>
+      <td>[v2.1][R4] 解析容错与错误报告</td>
+      <td><span class="pill p1">P1</span></td>
+      <td><span class="pill closed">✅ Closed</span></td>
+      <td class="verdict">✅ 验收通过（08-30）：代码复核 + 119/119 测试</td>
+      <td>08-30</td>
+    </tr>
+    <tr>
+      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/5">#5</a></b></td>
+      <td>[v2.1][R5/R6] 工程保存/恢复 + 最近文件 + 偏好持久化</td>
+      <td><span class="pill p0">P0</span></td>
+      <td><span class="pill open">🔴 Open</span></td>
+      <td class="verdict">⏳ 09-01 开发称完成（.claproj 校验/最近文件/settings 落盘+恢复），<b>代码未推送</b>，PM 已催（comment 5494565515）</td>
+      <td>09-01</td>
+    </tr>
+    <tr>
+      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/6">#6</a></b></td>
+      <td>[v2.1][R7/R8] 导出补全（CSV/BLF）+ UI 增量</td>
+      <td><span class="pill p1">P1</span></td>
+      <td><span class="pill open">🔴 Open</span></td>
+      <td class="verdict">⏳ 09-01 开发称完成（日志 CSV/信号 CSV/BLF + UI 增量），<b>代码未推送</b>，PM 已催（comment 5494565505）</td>
+      <td>09-01</td>
+    </tr>
+    <tr>
+      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/7">#7</a></b></td>
+      <td>R3 交付缺陷：样例 DBC 无法被 cantools 加载 + 引擎不识别扩展帧标志位</td>
+      <td><span class="pill p1">P1 high</span></td>
+      <td><span class="pill open">🔴 Open</span></td>
+      <td class="verdict">⏳ 09-01 开发称返工完成（样例直载修复/标志位支持/id 归一化/单测/compare.js 收紧），<b>代码未推送</b>，PM 已催（comment 5494565512）</td>
+      <td>09-01</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ============ 三、To Do ============ -->
+<section>
+  <div class="sec-title">📌 三、To Do（行动清单） <span class="badge">按优先级排序</span></div>
+
+  <div class="todo"><div class="mark p0">1</div>
+    <div class="body">
+      <div class="t">开发推送 4 项交付代码<span class="tag">开发 · 期望今日 09-01 内</span></div>
+      <div class="d">#7 返工 + #5(R5/R6) + #6(R7/R8) + #2(R2 Phase 2) 已声明完成但未推送。PM 已发 4 条催推送评论；开发推送后回复 commit SHA。评论中自称的 162/162 需以实际推送代码跑通为准（当前 main 基线 153/153）。</div>
+    </div></div>
+
+  <div class="todo"><div class="mark pm">2</div>
+    <div class="body">
+      <div class="t">复验 #7 并关闭 #3<span class="tag">PM · 收到 SHA 后</span></div>
+      <div class="d">cantools 43.0.2 直载 dbc_full.dbc + 标志位/属性两种扩展帧格式对拍 ≥10 信号 0 不一致 + 全量回归，通过后关闭 #7、#3。</div>
+    </div></div>
+
+  <div class="todo"><div class="mark pm">3</div>
+    <div class="body">
+      <div class="t">复核 #2 Phase 2 并关闭 #2<span class="tag">PM · 收到 SHA 后</span></div>
+      <div class="d">流式返回无全量回传 + docs/BENCHMARK-R2.md 数据可复现（0.39–0.50M 帧/s × 3 DBC）+ 双路径收敛测试（20000 帧 × 4 chunk 尺寸）+ 回归。</div>
+    </div></div>
+
+  <div class="todo"><div class="mark pm">4</div>
+    <div class="body">
+      <div class="t">验收 #5（R5/R6）与 #6（R7/R8）<span class="tag">PM · 收到 SHA 后</span></div>
+      <div class="d">.claproj 格式校验/最近文件/settings 持久化、三类导出 + UI 增量（进度/空态/徽章/快捷键），代码复核 + 回归 + UI 行为抽查。</div>
+    </div></div>
+
+  <div class="todo"><div class="mark pm">5</div>
+    <div class="body">
+      <div class="t">每周进度周报<span class="tag">PM · 每周五 17:00 自动化</span></div>
+      <div class="d">周报自动化已配置（读项目记忆 → 查 GitHub issues/提交 → 结构化周报）。首期 09-04：核对 #7/#2/#5/#6 复核状态。</div>
+    </div></div>
+
+  <div class="todo"><div class="mark pm">6</div>
+    <div class="body">
+      <div class="t">v2.1 最终验收 + 发版<span class="tag">PM · 目标 09-19</span></div>
+      <div class="d">全部需求闭环后按 SRS §4 DoD 验收，产出 docs/ACCEPTANCE-v2.1.md。</div>
+    </div></div>
+
+  <div class="confirm">
+    ⚠️ <b>待用户确认：</b>① 若开发今日仍未推送代码，是否由您直接联系开发催办？（PM 已发评论，可再加一次提醒）② 4 项交付推送后，PM 将按上表 2–4 逐项复核，是否按此计划执行？
+  </div>
+
+  <div class="legend">
+    <span>🟢 <span class="pill done">完成</span></span>
+    <span>🟡 <span class="pill wait">已声明完成·待推送/复核</span></span>
+    <span>🔴 <span class="pill block">阻塞/返工</span></span>
+    <span>⚪ <span class="pill open">未开始</span></span>
+    <span>验收基线：cantools 43.0.2 对拍 0 不一致 + 全量 npm test 通过</span>
+  </div>
+</section>
+
+<footer>can-log-analyzer · PM 看板 · 由项目记忆 + GitHub 实时数据生成 · 每周五 17:00 自动更新周报</footer>
+</div>
+</body>
+</html>

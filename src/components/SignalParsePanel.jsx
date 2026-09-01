@@ -103,9 +103,20 @@ function SignalParsePanel({
         result = await window.electronAPI.decodeChunked(payload);
 
         if (result.success) {
-          // Prefer the incrementally accumulated rows (chunk-result events);
-          // fall back to the full payload if events were not all delivered.
+          // R2 Phase 2: multi-chunk runs are pure-streaming — the return
+          // payload has no rows, only stats. Wait until every chunk-result
+          // event has been accumulated (bounded by a safety timeout) and use
+          // the incrementally built array.
           const buf = chunkBufRef.current;
+          if (result.streaming) {
+            const total = result.stats?.chunks ?? 1;
+            const deadline = Date.now() + 2000;
+            while (buf.received < total && Date.now() < deadline) {
+              await new Promise(r => setTimeout(r, 10));
+            }
+          }
+          // Prefer the incrementally accumulated rows (chunk-result events);
+          // fall back to the inline payload for single-chunk runs.
           const signalData = (buf.rows && buf.received > 0) ? buf.rows : result.signalData;
           setSignalData(signalData);
           setDecodeStats(result.stats);

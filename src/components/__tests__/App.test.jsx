@@ -1,6 +1,11 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent, screen, act } from '@testing-library/react';
+import { render, fireEvent, screen, act, waitFor } from '@testing-library/react';
+// The static antd `message` API mounts a singleton holder into the document;
+// across tests in jsdom that holder leaks DOM and breaks text queries. We spy
+// on the message methods instead, so toasts never render and we assert on the
+// call args (which is what the wiring tests actually care about).
+import { message } from 'antd';
 import App from '../../App';
 
 // Mock the electronAPI surface that App.jsx actually subscribes to at mount.
@@ -30,12 +35,25 @@ const mockElectronAPI = {
   exportSignalCSV: vi.fn().mockResolvedValue({ success: false }),
   exportText: vi.fn().mockResolvedValue({ success: true }),
   onExportProgress: vi.fn(() => () => {}),
-  openExternal: vi.fn().mockResolvedValue({ success: true })
+  openExternal: vi.fn().mockResolvedValue({ success: true }),
+  // R5/R6: project + preferences surface
+  saveProject: vi.fn().mockResolvedValue({ success: false }),
+  openProject: vi.fn().mockResolvedValue({ success: false }),
+  exportLogCSV: vi.fn().mockResolvedValue({ success: false }),
+  getSettings: vi.fn().mockResolvedValue({}),
+  setSettings: vi.fn().mockResolvedValue({ success: true }),
+  onProjectOpenRequest: vi.fn(() => () => {})
 };
 
 beforeEach(() => {
   menuHandlers = [];
   window.electronAPI = mockElectronAPI;
+  // Replace the toast methods with no-op spies — no DOM is produced, so tests
+  // can assert on the exact toast payload without jsdom holder leakage. Each
+  // spyOn wraps the previous test's spy, so call history is per-test.
+  vi.spyOn(message, 'success').mockImplementation(() => {});
+  vi.spyOn(message, 'error').mockImplementation(() => {});
+  vi.spyOn(message, 'warning').mockImplementation(() => {});
   // antd message calls in jsdom warn loudly; silence by stubbing the API.
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -52,7 +70,7 @@ describe('App menu wiring', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
 
     await act(async () => {
-      menuHandlers.forEach(h => h('help:open'));
+      menuHandlers.forEach(h => h({ action: 'help:open' }));
     });
 
     // After dispatching the help:open menu action, a dialog (antd Modal)
@@ -68,7 +86,7 @@ describe('App menu wiring', () => {
     // we tried to clear phantom state). We just check the render is stable.
     render(<App />);
     await act(async () => {
-      menuHandlers.forEach(h => h('tool:clear'));
+      menuHandlers.forEach(h => h({ action: 'tool:clear' }));
     });
     // Header counter is still rendered, app did not crash.
     expect(screen.getByText('CAN Log Analyzer')).toBeTruthy();
@@ -120,6 +138,128 @@ describe('R4 parse-error reporting UI', () => {
     expect(content).toContain('ZZ YY XX');
   });
 
+  it('R5: "file:save-project" writes a claproj payload with sources + selection', async () => {
+    // Load a DBC so there is something to save.
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/dbc/test.dbc');
+    mockElectronAPI.loadDBC.mockResolvedValueOnce({
+      success: true,
+      messages: [
+        { id: 0x100, name: 'MsgA', signals: [{ name: 'SigA' }] },
+        { id: 0x200, name: 'MsgB', signals: [{ name: 'SigB' }] }
+      ],
+      rawContent: 'BO_ ...'
+    });
+    render(<App />);
+    await act(async () => { fireEvent.click(screen.getByTestId('toolbar-load-dbc')); });
+    // The DBC toast confirms the load completed before we save the project.
+    await waitFor(() => {
+      expect(message.success).toHaveBeenCalledWith('加载成功，共 2 条消息，2 个信号');
+    });
+
+    mockElectronAPI.saveFile.mockResolvedValueOnce('C:/proj/test.claproj');
+    await act(async () => { menuHandlers.forEach(h => h({ action: 'file:save-project' })); });
+
+    expect(mockElectronAPI.saveProject).toHaveBeenCalledTimes(1);
+    const [path, data] = mockElectronAPI.saveProject.mock.calls[0];
+    expect(path).toBe('C:/proj/test.claproj');
+    expect(data.format).toBe('claproj');
+    expect(data.databases[0].path).toBe('C:/dbc/test.dbc');
+    expect(data.selection.msgIds).toEqual([0x100, 0x200]);
+  });
+
+  it('R5: "file:open-project" re-loads log/DBC and restores the selection', async () => {
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/proj/test.claproj');
+    mockElectronAPI.openProject.mockResolvedValueOnce({
+      success: true,
+      project: {
+        format: 'claproj',
+        version: 1,
+        logs: [{ type: 'asc', path: 'C:/logs/a.asc' }],
+        databases: [{ path: 'C:/dbc/test.dbc' }],
+        selection: {
+          msgIds: [0x100, 0x200],
+          signals: [{ key: '256::SigA', msgId: 0x100, signalName: 'SigA' }]
+        },
+        filters: {},
+        activeTab: 'signal',
+        sampleStep: 1
+      }
+    });
+    mockElectronAPI.loadDBC.mockResolvedValueOnce({
+      success: true,
+      messages: [
+        { id: 0x100, name: 'MsgA', signals: [{ name: 'SigA' }] },
+        { id: 0x200, name: 'MsgB', signals: [{ name: 'SigB' }] }
+      ],
+      rawContent: 'BO_ ...'
+    });
+    mockElectronAPI.loadASC.mockResolvedValueOnce({
+      success: true,
+      messages: [{ timestamp: 0, id: 0x100, direction: 'Rx', dlc: 8, data: [0, 0, 0, 0, 0, 0, 0, 0] }],
+      headerLines: [],
+      parseErrors: [],
+      parseErrorCount: 0,
+      totalCount: 1
+    });
+    mockElectronAPI.getStats.mockResolvedValueOnce({ size: 4096 });
+
+    render(<App />);
+    await act(async () => { menuHandlers.forEach(h => h({ action: 'file:open-project' })); });
+
+    // The log is re-loaded and the persisted signal selection is re-applied.
+    await waitFor(() => {
+      expect(message.success).toHaveBeenCalledWith('加载成功，共 1 条消息');
+    });
+    // The count lives in a nested <b>, so match the label then check textContent.
+    expect(screen.getByText('已选信号').textContent).toContain('1');
+  });
+
+  it('R7: the log-tab CSV export hands the messages + name map to the main process', async () => {
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/logs/a.asc');
+    mockElectronAPI.loadASC.mockResolvedValueOnce({
+      success: true,
+      messages: [{ timestamp: 0, id: 0x100, direction: 'Rx', dlc: 8, data: [1, 2, 3, 4, 5, 6, 7, 8] }],
+      headerLines: [],
+      parseErrors: [],
+      parseErrorCount: 0,
+      totalCount: 1
+    });
+    mockElectronAPI.getStats.mockResolvedValueOnce({ size: 4096 });
+    mockElectronAPI.loadDBC.mockResolvedValueOnce({
+      success: true,
+      messages: [{ id: 0x100, name: 'MsgA', signals: [] }],
+      rawContent: 'BO_ ...'
+    });
+
+    render(<App />);
+    await act(async () => { fireEvent.click(screen.getByText('加载 ASC')); });
+    await waitFor(() => {
+      expect(message.success).toHaveBeenCalledWith('加载成功，共 1 条消息');
+    });
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/dbc/test.dbc');
+    await act(async () => { fireEvent.click(screen.getByTestId('toolbar-load-dbc')); });
+    // Wait for the DBC load so the name map (MsgA) is populated before export.
+    await waitFor(() => {
+      expect(message.success).toHaveBeenCalledWith('加载成功，共 1 条消息，0 个信号');
+    });
+    // The export buttons live in the CAN 报文日志 tab.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: /CAN 报文日志/ }));
+    });
+
+    mockElectronAPI.saveFile.mockResolvedValueOnce('C:/logs/a_filtered.csv');
+    await act(async () => { fireEvent.click(screen.getByText('导出为 CSV')); });
+
+    expect(mockElectronAPI.exportLogCSV).toHaveBeenCalledTimes(1);
+    // The renderer suggests `<源>_filtered_<timestamp>.csv` as the default name.
+    const lastSaveFileCall = mockElectronAPI.saveFile.mock.calls.at(-1);
+    expect(lastSaveFileCall[0]).toMatch(/a_filtered_\d+\.csv$/);
+    const [path, messages, nameMap] = mockElectronAPI.exportLogCSV.mock.calls[0];
+    expect(path).toBe('C:/logs/a_filtered.csv');
+    expect(messages).toHaveLength(1);
+    expect(nameMap[0x100]).toBe('MsgA');
+  });
+
   it('hides the badge when the load reports no parse errors', async () => {
     mockElectronAPI.openFile.mockResolvedValueOnce('C:/logs/clean.asc');
     mockElectronAPI.loadASC.mockResolvedValueOnce({
@@ -137,7 +277,10 @@ describe('R4 parse-error reporting UI', () => {
       fireEvent.click(screen.getByText('加载 ASC'));
     });
 
-    await screen.findByText(/加载成功/);
+    // Wait for the load to complete (its success toast is a no-op spy).
+    await waitFor(() => {
+      expect(message.success).toHaveBeenCalled();
+    });
     expect(screen.queryByTestId('parse-error-badge')).toBeNull();
   });
 });

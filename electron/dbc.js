@@ -4,8 +4,15 @@
 // R3 additions:
 //   - BA_DEF_ / BA_DEF_DEF_ / BA_ attribute definitions & assignments
 //     (GenMsgCycleTime / GenMsgSendType / VFrameFormat / GenSigStartValue)
-//   - Extended-frame modeling via BA_ "VFrameFormat" BO_ <id> 1
+//   - Extended-frame modeling: canonical 0x80000000 BO_ id flag (takes
+//     precedence) + BA_ "VFrameFormat" BO_ <id> 1 as supplementary path
 //   - SIG_VALTYPE_ float32 / float64 signal typing + IEEE754 decoding
+//
+// #7 rework (PM Issue #7): canonical extended-frame flag bit.
+//   BO_ <rawId> where rawId >= 0x80000000 declares a 29-bit extended frame;
+//   the stored id is normalized to rawId & 0x1FFFFFFF (cantools frame_id).
+//   BA_DEF_DEF_ defaults are applied to messages/signals that carry no
+//   explicit BA_ assignment (e.g. "VFrameFormat" 0 => standard frame).
 // =====================================================================
 
 /** Parse a BA_/BA_DEF_DEF_/BA_ attribute value: boolean / number / string. */
@@ -40,21 +47,30 @@ function parseDBC(content) {
   const sigAttrs = {};   // "msgId:sigName" -> { attrName: value }
   // R3: SIG_VALTYPE_ float typing
   const sigValueTypes = {}; // "msgId:sigName" -> 'float32' | 'float64'
+  // #7: BA_DEF_DEF_ attribute default values (cantools db.attributes)
+  const attrDefaults = {}; // attrName -> default value
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
 
     // BO_ - Message definition
+    // #7: rawId >= 0x80000000 is the canonical DBC encoding of a 29-bit
+    // extended frame; the stored id is normalized (frame_id & 0x1FFFFFFF)
+    // exactly like cantools does.
     const msgMatch = trimmed.match(/^BO_\s+(\d+)\s+([\w\-\.]+)\s*:\s*(\d+)\s+([\w\-\.]+)/);
     if (msgMatch) {
       if (currentMessage) messages.push(currentMessage);
+      let rawId = parseInt(msgMatch[1]);
+      const isExtFlag = rawId >= 0x80000000;
+      if (isExtFlag) rawId &= 0x1FFFFFFF;
       currentMessage = {
-        id: parseInt(msgMatch[1]),
+        id: rawId,
         name: msgMatch[2],
         dlc: parseInt(msgMatch[3]),
         sender: msgMatch[4],
-        signals: []
+        signals: [],
+        ...(isExtFlag ? { isExtended: true } : {})
       };
       continue;
     }
@@ -89,7 +105,8 @@ function parseDBC(content) {
     // Format: VAL_ <msgId> <sigName> <value> "<label>" ... ;
     const valMatch = trimmed.match(/^VAL_\s+(\d+)\s+([\w\-\.]+)\s+(.*)\s*;?/);
     if (valMatch) {
-      const msgId = parseInt(valMatch[1]);
+      // Normalize the extended-frame flag bit on the msgId (#7).
+      const msgId = parseInt(valMatch[1]) & 0x1FFFFFFF;
       const sigName = valMatch[2];
       const pairs = valMatch[3];
       const key = `${msgId}:${sigName}`;
@@ -113,8 +130,11 @@ function parseDBC(content) {
 
     // R3: BA_DEF_DEF_ - attribute default value
     // Format: BA_DEF_DEF_ "<name>" <default>;
-    const baDefDefMatch = trimmed.match(/^BA_DEF_DEF_\s+"([^"]+)"\s+(\S+)\s*;?$/);
+    // Note: lazy capture keeps a trailing ';' out of the value.
+    const baDefDefMatch = trimmed.match(/^BA_DEF_DEF_\s+"([^"]+)"\s+(.+?)\s*;?$/);
     if (baDefDefMatch) {
+      // #7: record the default; applied below to objects without a BA_ assignment.
+      attrDefaults[baDefDefMatch[1]] = parseAttrValue(baDefDefMatch[2]);
       continue;
     }
 
@@ -127,13 +147,13 @@ function parseDBC(content) {
       const attrName = baMatch[1];
       const value = parseAttrValue(baMatch[6]);
       if (baMatch[2] !== undefined) {
-        // BO_ <id>
-        const msgId = parseInt(baMatch[2]);
+        // BO_ <id> — normalize the extended-frame flag bit (#7)
+        const msgId = parseInt(baMatch[2]) & 0x1FFFFFFF;
         if (!msgAttrs[msgId]) msgAttrs[msgId] = {};
         msgAttrs[msgId][attrName] = value;
       } else if (baMatch[3] !== undefined) {
-        // SG_ <id> <sigName>
-        const msgId = parseInt(baMatch[3]);
+        // SG_ <id> <sigName> — normalize the extended-frame flag bit (#7)
+        const msgId = parseInt(baMatch[3]) & 0x1FFFFFFF;
         const sigName = baMatch[4];
         const key = `${msgId}:${sigName}`;
         if (!sigAttrs[key]) sigAttrs[key] = {};
@@ -147,7 +167,8 @@ function parseDBC(content) {
     // Format: SIG_VALTYPE_ <msgId> <sigName> : <1|2>;
     const valtypeMatch = trimmed.match(/^SIG_VALTYPE_\s+(\d+)\s+([\w\-\.]+)\s*:\s*([12])\s*;?$/);
     if (valtypeMatch) {
-      const msgId = parseInt(valtypeMatch[1]);
+      // Normalize the extended-frame flag bit on the msgId (#7).
+      const msgId = parseInt(valtypeMatch[1]) & 0x1FFFFFFF;
       const sigName = valtypeMatch[2];
       sigValueTypes[`${msgId}:${sigName}`] = valtypeMatch[3] === '1' ? 'float32' : 'float64';
       continue;
@@ -163,10 +184,23 @@ function parseDBC(content) {
       if (attrs.GenMsgCycleTime !== undefined) msg.cycleTime = attrs.GenMsgCycleTime;
       if (attrs.GenMsgSendType !== undefined) msg.sendType = attrs.GenMsgSendType;
       if (attrs.VFrameFormat !== undefined) msg.frameFormat = attrs.VFrameFormat;
-      // VFrameFormat 1 => 29-bit extended frame
-      const ff = msg.frameFormat;
+    }
+    // #7: canonical 0x80000000 BO_ flag wins; VFrameFormat (explicit BA_ or
+    // BA_DEF_DEF_ default) is the supplementary path.
+    if (msg.isExtended === undefined) {
+      const ff = attrs && attrs.VFrameFormat !== undefined ? attrs.VFrameFormat : attrDefaults.VFrameFormat;
       if (ff === 1 || ff === true || ff === '1') msg.isExtended = true;
       else if (ff === 0 || ff === false || ff === '0') msg.isExtended = false;
+    }
+    // BA_DEF_DEF_ defaults fill attributes that lack an explicit BA_ assignment.
+    if (msg.frameFormat === undefined && attrDefaults.VFrameFormat !== undefined) {
+      msg.frameFormat = attrDefaults.VFrameFormat;
+    }
+    if (msg.cycleTime === undefined && attrDefaults.GenMsgCycleTime !== undefined) {
+      msg.cycleTime = attrDefaults.GenMsgCycleTime;
+    }
+    if (msg.sendType === undefined && attrDefaults.GenMsgSendType !== undefined) {
+      msg.sendType = attrDefaults.GenMsgSendType;
     }
     for (const sig of msg.signals) {
       const key = `${msg.id}:${sig.name}`;
@@ -175,6 +209,8 @@ function parseDBC(content) {
       const sigAttr = sigAttrs[key];
       if (sigAttr && sigAttr.GenSigStartValue !== undefined) {
         sig.genSigStartValue = sigAttr.GenSigStartValue;
+      } else if (sig.genSigStartValue === undefined && attrDefaults.GenSigStartValue !== undefined) {
+        sig.genSigStartValue = attrDefaults.GenSigStartValue;
       }
     }
   }
