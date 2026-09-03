@@ -111,8 +111,9 @@
     <tr><td><b>R8</b></td><td>UI 增量优化</td></tr>
   </table>
 
-  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">最近提交（远程 main，最新 f96bd1f）</h4>
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">最近提交（远程 main，最新 f8ddc56 · 09-03 起无新代码）</h4>
   <div>
+    <div class="commit"><span class="sha">f8ddc56</span><span class="msg">docs: 看板同步至 f96bd1f — 终验就绪度 3/6 + 缺口清单 + v2.1.1 候选</span><span class="date">09-01</span></div>
     <div class="commit"><span class="sha">f96bd1f</span><span class="msg">docs: v2.1 发版就绪度清单（RELEASE-CHECKLIST-v2.1.md）+ v2.1.1 候选计划（PLAN-v2.1.1.md）</span><span class="date">09-01</span></div>
     <div class="commit"><span class="sha">ee89a5b</span><span class="msg">docs: v2.1 acceptance 09-01 — R2/R3/R5/R6/R7/R8 全部验收通过（基线 013c7cd）</span><span class="date">09-01</span></div>
     <div class="commit"><span class="sha">bda9cad</span><span class="msg">docs: 同步看板为「4 项已推送 commit 013c7cd·待 PM 复核」</span><span class="date">09-01</span></div>
@@ -138,17 +139,17 @@
       <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/2">#2</a></b></td>
       <td>[v2.1][R2] 分块/流式解码引擎（1M 帧支持）</td>
       <td><span class="pill p0">P0</span></td>
-      <td><span class="pill wait">🔴 Open（待关闭）</span></td>
-      <td class="verdict">✅ 验收通过（09-01）：纯流式 + 基准可复现 + 收敛测试。验收记录 docs/ACCEPTANCE-2026-09-01.md，待恢复 GitHub 连接后关闭</td>
-      <td>09-01</td>
+      <td><span class="pill closed">✅ Closed（09-03）</span></td>
+      <td class="verdict">✅ 验收通过（09-01）：纯流式 + 基准可复现 + 收敛测试。验收记录 docs/ACCEPTANCE-2026-09-01.md，09-03 关闭并附验收评论</td>
+      <td>09-03</td>
     </tr>
     <tr>
       <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/3">#3</a></b></td>
       <td>[v2.1][R3] DBC 解析补全：BA_ 属性/扩展帧/mux/SIG_VALTYPE_</td>
       <td><span class="pill p1">P1</span></td>
-      <td><span class="pill wait">🔴 Open（待关闭）</span></td>
-      <td class="verdict">✅ 验收通过（09-01，随 #7 返工）：cantools 直载零补丁 + 12/12 对拍。待关闭 #7 后关 #3</td>
-      <td>09-01</td>
+      <td><span class="pill closed">✅ Closed（09-03）</span></td>
+      <td class="verdict">✅ 验收通过（09-01，随 #7 返工）：cantools 直载零补丁 + 12/12 对拍。09-03 关闭并附验收评论</td>
+      <td>09-03</td>
     </tr>
     <tr>
       <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/4">#4</a></b></td>
@@ -162,25 +163,25 @@
       <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/5">#5</a></b></td>
       <td>[v2.1][R5/R6] 工程保存/恢复 + 最近文件 + 偏好持久化</td>
       <td><span class="pill p0">P0</span></td>
-      <td><span class="pill wait">🔴 Open（待关闭）</span></td>
-      <td class="verdict">✅ 验收通过（09-01）：.claproj 校验/最近文件/settings 落盘+恢复/单实例/前端集成。待恢复 GitHub 连接后关闭</td>
-      <td>09-01</td>
+      <td><span class="pill closed">✅ Closed（09-03）</span></td>
+      <td class="verdict">✅ 验收通过（09-01）：.claproj 校验/最近文件/settings 落盘+恢复/单实例/前端集成。09-03 关闭并附验收评论</td>
+      <td>09-03</td>
     </tr>
     <tr>
       <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/6">#6</a></b></td>
       <td>[v2.1][R7/R8] 导出补全（CSV/BLF）+ UI 增量</td>
       <td><span class="pill p1">P1</span></td>
-      <td><span class="pill wait">🔴 Open（待关闭）</span></td>
-      <td class="verdict">✅ 验收通过（09-01）：三类导出 + UI 增量（进度/空态/徽章/快捷键）。待恢复 GitHub 连接后关闭</td>
-      <td>09-01</td>
+      <td><span class="pill closed">✅ Closed（09-03）</span></td>
+      <td class="verdict">✅ 验收通过（09-01）：三类导出 + UI 增量（进度/空态/徽章/快捷键）。09-03 关闭并附验收评论</td>
+      <td>09-03</td>
     </tr>
     <tr>
       <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/7">#7</a></b></td>
       <td>R3 交付缺陷：样例 DBC 无法被 cantools 加载 + 引擎不识别扩展帧标志位</td>
       <td><span class="pill p1">P1 high</span></td>
-      <td><span class="pill wait">🔴 Open（待关闭）</span></td>
-      <td class="verdict">✅ 验收通过（09-01）：样例直载修复/标志位支持/id 归一化/单测 31/31/12-12 对拍。验收记录已固化，待恢复连接后关闭</td>
-      <td>09-01</td>
+      <td><span class="pill closed">✅ Closed（09-03）</span></td>
+      <td class="verdict">✅ 验收通过（09-01）：样例直载修复/标志位支持/id 归一化/单测 31/31/12-12 对拍。09-03 关闭并附验收评论</td>
+      <td>09-03</td>
     </tr>
   </table>
 </section>
@@ -197,36 +198,42 @@
 
   <div class="todo"><div class="mark pm">2</div>
     <div class="body">
-      <div class="t">关闭 GitHub Issues #2/#3/#5/#6/#7<span class="tag">PM · 待 GitHub 连接器恢复</span></div>
-      <div class="d">验收结论已固化于 docs/ACCEPTANCE-2026-09-01.md；连接器恢复后逐一关闭（#7 → #3 → #2/#5/#6），关闭正文引用验收记录。</div>
+      <div class="t">✅ GitHub Issues #2/#3/#5/#6/#7 已关闭<span class="tag">PM · 09-03 完成</span></div>
+      <div class="d">连接器恢复后逐一关闭，各附验收结论文（引用 docs/ACCEPTANCE-2026-09-01.md）。至此 7 个 Issue 全部闭环。</div>
     </div></div>
 
-  <div class="todo"><div class="mark pm">3</div>
+  <div class="todo"><div class="mark p0">3</div>
     <div class="body">
-      <div class="t">v2.1 终验 + 发版（DoD 6 条核对，就绪度清单已出）<span class="tag">PM · 目标 09-19</span></div>
-      <div class="d">就绪度：3/6 ✅（单测 162/162、对拍 0 不一致、基准可复现）；3 项缺口待开发补齐：① CHANGELOG [2.1.0] 缺 09-01 五项功能条目（R2 Phase 2/R5/R6/R7/R8）；② README 缺 R5-R8 使用手册章节；③ release 产物为 08-31 打包（ae3aec6），须用最新 main 重新打包 Setup + Portable。详见 <a href="RELEASE-CHECKLIST-v2.1.md">RELEASE-CHECKLIST-v2.1.md</a>。补齐后 PM 执行终验（双形态冒烟/工程恢复走查/导出往返）→ 产出 ACCEPTANCE-v2.1.md + v2.1.0 release。</div>
+      <div class="t">⛔ 开发补齐 v2.1 发版 3 缺口（09-01 通知后无回应，需催办）<span class="tag">开发 · deadline 09-05</span></div>
+      <div class="d">09-03 复核确认缺口未动：① CHANGELOG [2.1.0] 缺 09-01 五项条目（R2 Phase 2/R5/R6/R7/R8）；② README 缺 R5-R8 使用手册章节；③ release 产物仍为 08-31 打包（ae3aec6 基线），须用最新 main 重新打包 Setup + Portable 并冒烟验证。详见 <a href="RELEASE-CHECKLIST-v2.1.md">RELEASE-CHECKLIST-v2.1.md</a>。</div>
     </div></div>
 
-  <div class="todo"><div class="mark p1">4</div>
+  <div class="todo"><div class="mark pm">4</div>
     <div class="body">
-      <div class="t">v2.1.1 候选需求（草案已出，待转 Issue）<span class="tag">PM · 连接器恢复后</span></div>
+      <div class="t">v2.1 终验 + 发版<span class="tag">PM · 缺口补齐后 · 目标 09-19</span></div>
+      <div class="d">就绪度 3/6（单测 162/162 于 09-03 重跑通过、对拍 0 不一致、基准可复现）。缺口补齐后 PM 执行终验：双形态冒烟 / .claproj 保存重启恢复 / 三类导出往返 → 产出 docs/ACCEPTANCE-v2.1.md + v2.1.0 release。</div>
+    </div></div>
+
+  <div class="todo"><div class="mark p1">5</div>
+    <div class="body">
+      <div class="t">v2.1.1 候选需求转 GitHub Issue（连接器已恢复，可执行）<span class="tag">PM · v2.1 发版后</span></div>
       <div class="d">R2 双路径收敛（decodeAll 归一化）/ 1M 帧端到端 UI 实测 / BLF 超时参数化 / 大文件压缩进度提示。详见 <a href="PLAN-v2.1.1.md">PLAN-v2.1.1.md</a>。</div>
     </div></div>
 
-  <div class="todo"><div class="mark pm">5</div>
+  <div class="todo"><div class="mark pm">6</div>
     <div class="body">
       <div class="t">每周进度周报<span class="tag">PM · 每周五 17:00 自动化</span></div>
-      <div class="d">周报自动化已配置。首期 09-04：汇总本周「4 项验收通过 + 连接器待恢复关闭 Issues」进展。</div>
+      <div class="d">周报自动化已配置。09-04 本期要点：4 项交付验收通过 + 7 个 Issue 全部关闭 + 3 项发版缺口催办情况。</div>
     </div></div>
 
   <div class="confirm">
-    ⏳ <b>待办：</b>① 恢复 GitHub 连接器后由 PM 关闭 #2/#3/#5/#6/#7（验收结论已固化，一键执行）；② v2.1 终验 + 发版（目标 09-19）；③ 周五 09-04 首期周报。
+    ⏳ <b>待办：</b>① 开发补齐 3 项发版缺口（CHANGELOG / README / release 重打包，deadline 09-05，PM 已催办）；② 缺口补齐后 PM 终验 + v2.1.0 发版（目标 09-19）；③ 09-04 首期周报。
   </div>
 
   <div class="legend">
     <span>🟢 <span class="pill done">完成/验收通过</span></span>
-    <span>🟡 <span class="pill wait">验收通过·待关闭</span></span>
-    <span>⚪ <span class="pill open">未开始</span></span>
+    <span>🔵 <span class="pill closed">已关闭</span></span>
+    <span>🟡 <span class="pill wait">进行中/催办</span></span>
     <span>验收基线：cantools 43.0.2 对拍 0 不一致 + 全量 npm test 通过</span>
   </div>
 </section>
