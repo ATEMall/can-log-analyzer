@@ -73,28 +73,29 @@
     <div class="sub">离线智能通信分析工具（CAN / LIN / 车载以太网 / UDS / XCP）</div>
   </div>
   <div class="meta">
-    <div>版本：v2.1（需求全部闭环 · 待终验发版）</div>
-    <div>更新时间：2026-09-01 22:10</div>
+    <div>版本：v2.1（需求全部闭环 · Issue 全关 · v2.1.1 backlog 已立 #8-#11）</div>
+    <div>更新时间：2026-09-03 20:10</div>
     <div>仓库：<a href="https://github.com/ATEMall/can-log-analyzer" style="color:#fff;text-decoration:underline;">github.com/ATEMall/can-log-analyzer</a></div>
   </div>
 </header>
 
 <!-- ============ 一、现在进展 ============ -->
 <section>
-  <div class="sec-title">📊 一、现在进展 <span class="badge">v2.1 完成度 ≈ 90%</span></div>
+  <div class="sec-title">📊 一、现在进展 <span class="badge">v2.1 完成度 ≈ 92%</span></div>
 
-  <div class="banner">✅ <b>09-01 22:10：R2/R3/R5/R6/R7/R8 全部验收通过</b>（基线 commit <code>013c7cd</code>，全量回归 162/162，cantools 直载 + 12/12 对拍）。验收记录已提交 <code>ee89a5b</code>（docs/ACCEPTANCE-2026-09-01.md）。v2.1 需求全部闭环，仅剩「PM 终验 + 发版」。</div>
+  <div class="banner">✅ <b>09-03 20:10：Issues 全部关闭 + v2.1.1 backlog 立项</b>。09-03 复核：远程无新代码提交（基线 <code>013c7cd</code> 不变），全量回归 162/162 重跑通过。GitHub 连接器恢复后关闭 #2/#3/#5/#6/#7（各附验收结论评论），7 个 Issue 闭环；v2.1.1 候选转正式 Issue <b>#8-#11</b>。⚠️ 开发侧 3 项发版缺口（CHANGELOG / README / release 重打包）<b>自 09-01 通知后无回应</b>，deadline 09-05。</div>
 
   <div class="progress-grid">
-    <div class="ring"><div class="pct">90<small>%</small></div></div>
+    <div class="ring"><div class="pct">92<small>%</small></div></div>
     <div>
       <div class="stats">
         <div class="stat"><div class="num ok">6</div><div class="lbl">✅ 需求验收通过（R1-R8）</div></div>
-        <div class="stat"><div class="num warn">1</div><div class="lbl">⏳ Issue 关闭（待连接器）</div></div>
-        <div class="stat"><div class="num todo">1</div><div class="lbl">⬜ PM 终验 + 发版</div></div>
-        <div class="stat"><div class="num ok">162</div><div class="lbl">回归测试通过</div></div>
+        <div class="stat"><div class="num ok">7/7</div><div class="lbl">✅ v2.1 Issues 全部关闭</div></div>
+        <div class="stat"><div class="num todo">4</div><div class="lbl">🔵 v2.1.1 backlog（#8-#11）</div></div>
+        <div class="stat"><div class="num warn">3</div><div class="lbl">⚠️ 开发侧发版缺口</div></div>
+        <div class="stat"><div class="num ok">162</div><div class="lbl">回归测试通过（09-03 重跑）</div></div>
       </div>
-      <div class="note" style="margin-top:10px;"><b>关键路径</b>：验收记录已固化（commit ee89a5b）→ 恢复 GitHub 连接后关闭 #7/#3/#2/#5/#6 → v2.1 终验 + 发版（目标 09-19，产出 ACCEPTANCE-v2.1.md + release）→ v2.1.1 候选（双路径收敛/大文件实测）</div>
+      <div class="note" style="margin-top:10px;"><b>关键路径</b>：开发补齐 3 缺口（deadline 09-05）→ PM 终验（双形态冒烟/工程恢复/导出往返）→ v2.1.0 发版（目标 09-19）→ v2.1.1（#8-#11）</div>
     </div>
   </div>
 
@@ -124,7 +125,7 @@
 
 <!-- ============ 二、Issue 清单 ============ -->
 <section>
-  <div class="sec-title">🐞 二、Issue 清单 <span class="badge">共 7 项 · 5 待关（验收通过）· 2 已关</span></div>
+  <div class="sec-title">🐞 二、Issue 清单 <span class="badge">v2.1 共 7 项全关 ✅ · v2.1.1 backlog #8-#11</span></div>
   <table>
     <tr><th>#</th><th>标题</th><th>优先级</th><th>GitHub 状态</th><th>PM 结论 / 备注</th><th>更新时间</th></tr>
     <tr>
@@ -184,6 +185,15 @@
       <td>09-03</td>
     </tr>
   </table>
+
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">v2.1.1 backlog（09-03 新立，v2.1.0 发版后启动）</h4>
+  <table>
+    <tr><th>#</th><th>标题</th><th>优先级</th><th>状态</th><th>备注</th></tr>
+    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/8">#8</a></b></td><td>R2 双路径收敛：decodeAll 归一化为分块薄封装</td><td><span class="pill p0">P1</span></td><td><span class="pill open">Open</span></td><td class="verdict">refactor · 消除双路径漂移风险</td></tr>
+    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/10">#10</a></b></td><td>1M 帧端到端 UI 实测 + BENCHMARK-R2-UI.md</td><td><span class="pill p0">P1</span></td><td><span class="pill open">Open</span></td><td class="verdict">perf · UI 不冻结/内存 &lt; 2GB/取消即时</td></tr>
+    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/9">#9</a></b></td><td>BLF 解析超时参数化（按文件大小自适应）</td><td><span class="pill p1">P2</span></td><td><span class="pill open">Open</span></td><td class="verdict">enhancement · 超大文件不误杀</td></tr>
+    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/11">#11</a></b></td><td>大文件加载压缩缓存进度提示</td><td><span class="pill p1">P2</span></td><td><span class="pill open">Open</span></td><td class="verdict">ux · 100MB+ 首载进度反馈</td></tr>
+  </table>
 </section>
 
 <!-- ============ 三、To Do ============ -->
@@ -216,8 +226,8 @@
 
   <div class="todo"><div class="mark p1">5</div>
     <div class="body">
-      <div class="t">v2.1.1 候选需求转 GitHub Issue（连接器已恢复，可执行）<span class="tag">PM · v2.1 发版后</span></div>
-      <div class="d">R2 双路径收敛（decodeAll 归一化）/ 1M 帧端到端 UI 实测 / BLF 超时参数化 / 大文件压缩进度提示。详见 <a href="PLAN-v2.1.1.md">PLAN-v2.1.1.md</a>。</div>
+      <div class="t">✅ v2.1.1 候选需求已转 GitHub Issue #8-#11<span class="tag">PM · 09-03 完成</span></div>
+      <div class="d">#8 双路径收敛（P1）/ #10 1M 帧 UI 实测（P1）/ #9 BLF 超时参数化（P2）/ #11 压缩缓存进度提示（P2）。排期于 v2.1.0 发版后启动，详见 <a href="PLAN-v2.1.1.md">PLAN-v2.1.1.md</a>。</div>
     </div></div>
 
   <div class="todo"><div class="mark pm">6</div>
@@ -227,7 +237,7 @@
     </div></div>
 
   <div class="confirm">
-    ⏳ <b>待办：</b>① 开发补齐 3 项发版缺口（CHANGELOG / README / release 重打包，deadline 09-05，PM 已催办）；② 缺口补齐后 PM 终验 + v2.1.0 发版（目标 09-19）；③ 09-04 首期周报。
+    ⏳ <b>待办：</b>① 开发补齐 3 项发版缺口（CHANGELOG / README / release 重打包，deadline 09-05，PM 已催办）；② 缺口补齐后 PM 终验 + v2.1.0 发版（目标 09-19）；③ v2.1.0 发版后启动 v2.1.1（#8-#11）；④ 09-04 首期周报。
   </div>
 
   <div class="legend">

@@ -50,9 +50,9 @@
 
 ## 连接器恢复后的 Issue 映射（草案）
 
-| 需求 | Issue 标题（建议） | 优先级 | 标签 |
-|---|---|---|---|
-| R2C1 | [v2.1.1][P1] R2 双路径收敛：decodeAll 归一化为分块实现的薄封装 | P1 | refactor |
-| R2C2 | [v2.1.1][P1] 1M 帧端到端 UI 实测 + BENCHMARK-R2-UI.md | P1 | perf |
-| BLFC1 | [v2.1.1][P2] BLF 解析超时参数化（按文件大小自适应） | P2 | enhancement |
-| UIC1 | [v2.1.1][P2] 大文件加载压缩缓存进度提示 | P2 | ux |
+| 需求 | Issue | 优先级 | 标签 | 状态 |
+|---|---|---|---|---|
+| R2C1 | [#8](https://github.com/ATEMall/can-log-analyzer/issues/8) 双路径收敛：decodeAll 归一化 | P1 | refactor | Open |
+| R2C2 | [#10](https://github.com/ATEMall/can-log-analyzer/issues/10) 1M 帧端到端 UI 实测 + BENCHMARK-R2-UI.md | P1 | perf | Open |
+| BLFC1 | [#9](https://github.com/ATEMall/can-log-analyzer/issues/9) BLF 解析超时参数化 | P2 | enhancement | Open |
+| UIC1 | [#11](https://github.com/ATEMall/can-log-analyzer/issues/11) 大文件加载压缩缓存进度提示 | P2 | ux | Open |
