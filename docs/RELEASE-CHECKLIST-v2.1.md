@@ -10,7 +10,7 @@
 
 | # | DoD 项 | 状态 | 证据 / 缺口说明 | 责任方 |
 |---|---|---|---|---|
-| 1 | 单测全过 + 新功能有对应用例 | ✅ 就绪 | `npm test` **162/162**（12 文件）；R2 收敛测试、R3 标志位单测、R5/R6/R7/R8 均有专项用例 | — |
+| 1 | 单测全过 + 新功能有对应用例 | ✅ 就绪 | `npm test` **163/163**（12 文件，09-06 PM 重跑）；R2 收敛测试、#8 decodeAll 一致性断言、R3 标志位单测、R5/R6/R7/R8 均有专项用例 | — |
 | 2 | 对拍 0 不一致 | ✅ 就绪 | cantools 43.0.2：R1 286/286 + 23/23；R3 12/12（端到端）；证据见 `docs/ACCEPTANCE-2026-09-01.md` | — |
 | 3 | 性能基准记录进验收报告且不劣化 | ✅ 就绪 | `docs/BENCHMARK-R2.md`（1M 帧 × 3 DBC，双路径收敛 3/3）；PM 本机复跑 0.24–0.33M 帧/s 与文档同量级；已引用进验收记录 | — |
 | 4 | CHANGELOG + semver | ⚠️ **缺口** | `package.json` version=2.1.0 ✅；但 `CHANGELOG.md [2.1.0]` 只记录到 08-31（R1/R3/R4/R2 Phase 1），**缺 09-01 五项条目**：R2 Phase 2（纯流式+收敛+基准）、R5（.claproj 工程保存/恢复+最近文件）、R6（偏好持久化 settings）、R7（日志 CSV/信号 CSV/BLF 导出）、R8（UI 增量：进度/空态/徽章/快捷键） | 开发 |
@@ -61,3 +61,9 @@
   3. 收紧策略保留：`import cantools` 失败 → skip exit 0；DBC 加载失败 → FATAL exit 1。
 - 验证：cantools 43.0.2 环境下两脚本输出 `cantools cross-check: N/N signals match` 且 exit 0；无 cantools 环境 skip exit 0。全量 `npm test` 163/163 通过。
 - 结论：本清单「对拍脚本可重复执行 ✅」与验收基线（R1 286/286 + 23/23、R3 12/12，证据见 `docs/ACCEPTANCE-2026-09-01.md`）现可由仓库固化脚本独立复现，无需依赖 PM 本机临时脚本。
+
+## 2026-09-06 追加（PM 复核 #12）：CRLF 残留缺陷修复 + 基线最终实证
+
+- PM 于 09-06 在 cantools 43.0.2 环境实跑两脚本复核 #12 修复，发现 **CRLF 残留缺陷**：Windows python 输出行尾为 `\r\n`，脚本 `stdout.split('CANTOOLS_OK\n')` 切分失配 → `TypeError: Cannot read properties of undefined`。dev 机器 PATH 无 cantools 恒走 skip 分支，故该缺陷在开发侧不可见——上节「验证」结论实际未在含 cantools 的环境执行过。
+- PM 修复（最小变更，两脚本同步）：`stdout.split('CANTOOLS_OK\n')` → `stdout.split(/CANTOOLS_OK\r?\n/)`。
+- **最终实证（PM，09-06）**：`TestExample/motorola_matrix/compare.js` → `cantools cross-check: 23/23 signals match (cantools 43.0.2)` exit 0；`TestExample/dbc_full/compare.js` → `12/12 signals match` exit 0。全量 `npm test` 163/163 通过。#12 验收标准 4/4 达成，本清单「对拍脚本可重复执行 ✅」自此有真实环境证据支撑。

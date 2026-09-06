@@ -73,29 +73,32 @@
     <div class="sub">离线智能通信分析工具（CAN / LIN / 车载以太网 / UDS / XCP）</div>
   </div>
   <div class="meta">
-    <div>版本：v2.1（需求全部闭环 · Issue 全关 · v2.1.1 backlog 已立 #8-#11）</div>
-    <div>更新时间：2026-09-03 20:10</div>
+    <div>版本：v2.1（需求全部闭环 · 12 个 Issue 全关 · v2.1.1 已发布 · 待 PM 终验收口）</div>
+    <div>更新时间：2026-09-06 15:40</div>
     <div>仓库：<a href="https://github.com/ATEMall/can-log-analyzer" style="color:#fff;text-decoration:underline;">github.com/ATEMall/can-log-analyzer</a></div>
   </div>
 </header>
 
 <!-- ============ 一、现在进展 ============ -->
 <section>
-  <div class="sec-title">📊 一、现在进展 <span class="badge">v2.1 完成度 ≈ 92%</span></div>
+  <div class="sec-title">📊 一、现在进展 <span class="badge">v2.1 完成度 ≈ 95%（仅剩 PM 终验 + ACCEPTANCE 文档）</span></div>
 
-  <div class="banner">✅ <b>09-03 20:10：Issues 全部关闭 + v2.1.1 backlog 立项</b>。09-03 复核：远程无新代码提交（基线 <code>013c7cd</code> 不变），全量回归 162/162 重跑通过。GitHub 连接器恢复后关闭 #2/#3/#5/#6/#7（各附验收结论评论），7 个 Issue 闭环；v2.1.1 候选转正式 Issue <b>#8-#11</b>。⚠️ 开发侧 3 项发版缺口（CHANGELOG / README / release 重打包）<b>自 09-01 通知后无回应</b>，deadline 09-05。</div>
+  <div class="banner">✅ <b>09-06：v2.1.1 backlog 清零 — #8-#12 全部关闭，PM 逐项复核通过</b>。开发以提交 <code>9bff68d</code>（09-06 13:24）关闭 #8/#9/#10/#11/#12。PM 实证复核：① #12 对拍脚本在 cantools 43.0.2 环境复跑发现 <b>CRLF 残留缺陷</b>（<code>split('CANTOOLS_OK\n')</code> 在 Windows python 输出下失配），PM 直接最小修复（<code>split(/CANTOOLS_OK\r?\n/)</code>）后 <b>motorola 23/23、dbc_full 12/12 signals match，exit 0</b>——验收基线首次由仓库内脚本真实复现；② #10 基准脚本 PM 实跑复现（1M 帧×3 DBC，0.29-0.45M 帧/s，与开发数据同量级）；③ #8 一致性断言、#9 超时参数化、#11 压缩进度事件代码落点核验属实；④ 全量回归 <b>163/163</b> 通过。此前 09-03 晚开发以 <code>bbf9c76</code> 发布 v2.1.1 补齐 3 缺口（早于 PM 终验，流程偏差已记录）。</div>
+
+  <div class="banner" style="background:var(--ok-bg);border-left:4px solid var(--ok);">📌 <b>09-03 20:10：7 个 v2.1 Issue 全关 + 开发以 v2.1.1 名义补齐发版 3 缺口</b>（CHANGELOG [2.1.1] / README R5-R8 手册 / release Setup+Portable 重打包，tag v2.1.1 → <code>bbf9c76</code>）。⚠️ 该发布绕过了 PM 终验（DoD#6），<code>docs/ACCEPTANCE-v2.1.md</code> 仍未产出。</div>
 
   <div class="progress-grid">
-    <div class="ring"><div class="pct">92<small>%</small></div></div>
+    <div class="ring"><div class="pct">95<small>%</small></div></div>
     <div>
       <div class="stats">
         <div class="stat"><div class="num ok">6</div><div class="lbl">✅ 需求验收通过（R1-R8）</div></div>
-        <div class="stat"><div class="num ok">7/7</div><div class="lbl">✅ v2.1 Issues 全部关闭</div></div>
-        <div class="stat"><div class="num todo">4</div><div class="lbl">🔵 v2.1.1 backlog（#8-#11）</div></div>
-        <div class="stat"><div class="num warn">3</div><div class="lbl">⚠️ 开发侧发版缺口</div></div>
-        <div class="stat"><div class="num ok">162</div><div class="lbl">回归测试通过（09-03 重跑）</div></div>
+        <div class="stat"><div class="num ok">12/12</div><div class="lbl">✅ GitHub Issues 全部关闭</div></div>
+        <div class="stat"><div class="num ok">0</div><div class="lbl">🔵 v2.1.1 backlog（#8-#12 已清零）</div></div>
+        <div class="stat"><div class="num ok">0</div><div class="lbl">⚠️ 开发侧发版缺口（v2.1.1 已补齐）</div></div>
+        <div class="stat"><div class="num warn">1</div><div class="lbl">⏳ PM 终验 + ACCEPTANCE-v2.1.md</div></div>
+        <div class="stat"><div class="num ok">163</div><div class="lbl">回归测试通过（09-06 重跑）</div></div>
       </div>
-      <div class="note" style="margin-top:10px;"><b>关键路径</b>：开发补齐 3 缺口（deadline 09-05）→ PM 终验（双形态冒烟/工程恢复/导出往返）→ v2.1.0 发版（目标 09-19）→ v2.1.1（#8-#11）</div>
+      <div class="note" style="margin-top:10px;"><b>关键路径</b>：PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 <code>docs/ACCEPTANCE-v2.1.md</code> → v2.1 正式收口（目标 09-19）</div>
     </div>
   </div>
 
@@ -112,8 +115,11 @@
     <tr><td><b>R8</b></td><td>UI 增量优化</td></tr>
   </table>
 
-  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">最近提交（远程 main，最新 f8ddc56 · 09-03 起无新代码）</h4>
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">最近提交（远程 main，最新 9bff68d · 09-06）</h4>
   <div>
+    <div class="commit"><span class="sha">9bff68d</span><span class="msg">fix(issues #8-#12): close open issue batch — 对拍 _norm 修复 / decodeAll 一致性断言 / BLF 超时参数化 / 压缩进度事件 / 1M 帧 UI 基准 + BENCHMARK-R2-UI.md（163/163）</span><span class="date">09-06</span></div>
+    <div class="commit"><span class="sha">bf3f845</span><span class="msg">test: add v3.x roadmap test materials + regenerate dbc_full.blf（25 素材入库）</span><span class="date">09-06</span></div>
+    <div class="commit"><span class="sha">bbf9c76</span><span class="msg">release(v2.1.1): 发布 v2.1.1 — 补齐 CHANGELOG/README/release 三缺口（早于 PM 终验，流程偏差）</span><span class="date">09-03</span></div>
     <div class="commit"><span class="sha">f8ddc56</span><span class="msg">docs: 看板同步至 f96bd1f — 终验就绪度 3/6 + 缺口清单 + v2.1.1 候选</span><span class="date">09-01</span></div>
     <div class="commit"><span class="sha">f96bd1f</span><span class="msg">docs: v2.1 发版就绪度清单（RELEASE-CHECKLIST-v2.1.md）+ v2.1.1 候选计划（PLAN-v2.1.1.md）</span><span class="date">09-01</span></div>
     <div class="commit"><span class="sha">ee89a5b</span><span class="msg">docs: v2.1 acceptance 09-01 — R2/R3/R5/R6/R7/R8 全部验收通过（基线 013c7cd）</span><span class="date">09-01</span></div>
@@ -125,7 +131,7 @@
 
 <!-- ============ 二、Issue 清单 ============ -->
 <section>
-  <div class="sec-title">🐞 二、Issue 清单 <span class="badge">v2.1 共 7 项全关 ✅ · v2.1.1 backlog #8-#11</span></div>
+  <div class="sec-title">🐞 二、Issue 清单 <span class="badge">共 12 项全关 ✅（v2.1 七项 + v2.1.1 backlog 五项）</span></div>
   <table>
     <tr><th>#</th><th>标题</th><th>优先级</th><th>GitHub 状态</th><th>PM 结论 / 备注</th><th>更新时间</th></tr>
     <tr>
@@ -186,13 +192,14 @@
     </tr>
   </table>
 
-  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">v2.1.1 backlog（09-03 新立，v2.1.0 发版后启动）</h4>
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">v2.1.1 backlog（09-06 全部关闭，PM 逐项复核通过）</h4>
   <table>
     <tr><th>#</th><th>标题</th><th>优先级</th><th>状态</th><th>备注</th></tr>
-    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/8">#8</a></b></td><td>R2 双路径收敛：decodeAll 归一化为分块薄封装</td><td><span class="pill p0">P1</span></td><td><span class="pill open">Open</span></td><td class="verdict">refactor · 消除双路径漂移风险</td></tr>
-    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/10">#10</a></b></td><td>1M 帧端到端 UI 实测 + BENCHMARK-R2-UI.md</td><td><span class="pill p0">P1</span></td><td><span class="pill open">Open</span></td><td class="verdict">perf · UI 不冻结/内存 &lt; 2GB/取消即时</td></tr>
-    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/9">#9</a></b></td><td>BLF 解析超时参数化（按文件大小自适应）</td><td><span class="pill p1">P2</span></td><td><span class="pill open">Open</span></td><td class="verdict">enhancement · 超大文件不误杀</td></tr>
-    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/11">#11</a></b></td><td>大文件加载压缩缓存进度提示</td><td><span class="pill p1">P2</span></td><td><span class="pill open">Open</span></td><td class="verdict">ux · 100MB+ 首载进度反馈</td></tr>
+    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/8">#8</a></b></td><td>R2 双路径收敛：decodeAll 归一化为分块薄封装</td><td><span class="pill p0">P1</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 复核 ✅ 新增 decodeAll vs decodeFramesChunk 位级一致性断言</td></tr>
+    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/10">#10</a></b></td><td>1M 帧端到端 UI 实测 + BENCHMARK-R2-UI.md</td><td><span class="pill p0">P1</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 复核 ✅ 实跑 r2-ui.cjs 复现（0.29-0.45M 帧/s）；UI 人工观测步骤已在报告中诚实标注</td></tr>
+    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/9">#9</a></b></td><td>BLF 解析超时参数化（按文件大小自适应）</td><td><span class="pill p1">P2</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 复核 ✅ blfParseTimeoutMs（2min+6s/MB，cap 60min）+ settings 可调 + 错误提示当前值</td></tr>
+    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/11">#11</a></b></td><td>大文件加载压缩缓存进度提示</td><td><span class="pill p1">P2</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 复核 ✅ cache:compress-progress start/done/error + 二次加载命中跳过 + preload/App 订阅</td></tr>
+    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/12">#12</a></b></td><td>对拍脚本不可复现（NamedSignalValue 序列化崩溃）</td><td><span class="pill p0">P1</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 建立并闭环 ✅ dev 修 _norm 后 PM 实跑仍暴露 CRLF 残留缺陷 → PM 修复 split(/\r?\n/) → 23/23 + 12/12 match exit 0（cantools 43.0.2）</td></tr>
   </table>
 </section>
 
@@ -212,32 +219,26 @@
       <div class="d">连接器恢复后逐一关闭，各附验收结论文（引用 docs/ACCEPTANCE-2026-09-01.md）。至此 7 个 Issue 全部闭环。</div>
     </div></div>
 
+  <div class="todo"><div class="mark pm">1</div>
+    <div class="body">
+      <div class="t">✅ v2.1.1 backlog 清零：#8-#12 全关 + PM 逐项复核通过<span class="tag">PM · 09-06 完成</span></div>
+      <div class="d">开发 9bff68d 关闭 #8/#9/#10/#11/#12。PM 实证：#12 对拍脚本 PM 实跑发现 CRLF 残留缺陷并直接修复 → 23/23 + 12/12 match exit 0（cantools 43.0.2，验收基线首次由仓库脚本真实复现）；#10 基准实跑复现；#8 断言、#9/#11 代码落点核验属实；全量回归 163/163。</div>
+    </div></div>
+
+  <div class="todo"><div class="mark pm">2</div>
+    <div class="body">
+      <div class="t">⏳ PM 终验（DoD#6）+ ACCEPTANCE-v2.1.md<span class="tag">PM · 唯一剩余关键路径 · 目标 09-19</span></div>
+      <div class="d">对已发布的 v2.1.1 产物执行终验：双形态启动冒烟 / 加载 dbc_full 样例三视图走查 / .claproj 保存重启恢复 / 三类导出往返 diff → 产出 docs/ACCEPTANCE-v2.1.md（含 v2.1.1 发布说明与基准数据）。注：开发 09-03 以 v2.1.1 名义提前发布（早于终验，流程偏差已记录），终验针对现有 2.1.1 产物补做。</div>
+    </div></div>
+
   <div class="todo"><div class="mark p0">3</div>
     <div class="body">
-      <div class="t">⛔ 开发补齐 v2.1 发版 3 缺口（09-01 通知后无回应，需催办）<span class="tag">开发 · deadline 09-05</span></div>
-      <div class="d">09-03 复核确认缺口未动：① CHANGELOG [2.1.0] 缺 09-01 五项条目（R2 Phase 2/R5/R6/R7/R8）；② README 缺 R5-R8 使用手册章节；③ release 产物仍为 08-31 打包（ae3aec6 基线），须用最新 main 重新打包 Setup + Portable 并冒烟验证。详见 <a href="RELEASE-CHECKLIST-v2.1.md">RELEASE-CHECKLIST-v2.1.md</a>。</div>
-    </div></div>
-
-  <div class="todo"><div class="mark pm">4</div>
-    <div class="body">
-      <div class="t">v2.1 终验 + 发版<span class="tag">PM · 缺口补齐后 · 目标 09-19</span></div>
-      <div class="d">就绪度 3/6（单测 162/162 于 09-03 重跑通过、对拍 0 不一致、基准可复现）。缺口补齐后 PM 执行终验：双形态冒烟 / .claproj 保存重启恢复 / 三类导出往返 → 产出 docs/ACCEPTANCE-v2.1.md + v2.1.0 release。</div>
-    </div></div>
-
-  <div class="todo"><div class="mark p1">5</div>
-    <div class="body">
-      <div class="t">✅ v2.1.1 候选需求已转 GitHub Issue #8-#11<span class="tag">PM · 09-03 完成</span></div>
-      <div class="d">#8 双路径收敛（P1）/ #10 1M 帧 UI 实测（P1）/ #9 BLF 超时参数化（P2）/ #11 压缩缓存进度提示（P2）。排期于 v2.1.0 发版后启动，详见 <a href="PLAN-v2.1.1.md">PLAN-v2.1.1.md</a>。</div>
-    </div></div>
-
-  <div class="todo"><div class="mark pm">6</div>
-    <div class="body">
-      <div class="t">每周进度周报<span class="tag">PM · 每周五 17:00 自动化</span></div>
-      <div class="d">周报自动化已配置。09-04 本期要点：4 项交付验收通过 + 7 个 Issue 全部关闭 + 3 项发版缺口催办情况。</div>
+      <div class="t">✅ 开发补齐 v2.1 发版 3 缺口<span class="tag">开发 · 09-03 完成（以 v2.1.1 名义）</span></div>
+      <div class="d">bbf9c76：CHANGELOG [2.1.1] 条目 + README 六~八节 R5-R8 手册 + release Setup+Portable 2.1.1 重打包（tag v2.1.1，Releases 页正式发布）。缺口内容补齐，但发布早于 PM 终验（DoD#6 流程偏差，已记录为改进项）。</div>
     </div></div>
 
   <div class="confirm">
-    ⏳ <b>待办：</b>① 开发补齐 3 项发版缺口（CHANGELOG / README / release 重打包，deadline 09-05，PM 已催办）；② 缺口补齐后 PM 终验 + v2.1.0 发版（目标 09-19）；③ v2.1.0 发版后启动 v2.1.1（#8-#11）；④ 09-04 首期周报。
+    ⏳ <b>待办：</b>① PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 docs/ACCEPTANCE-v2.1.md（目标 09-19）；② RELEASE-CHECKLIST-v2.1.md 终验结论更新为全绿；③ v2.1 收口后规划 v3.0（roadmap_v3x 测试素材已入库：LIN / UDS·XCP / SOME-IP / DoIP）。
   </div>
 
   <div class="legend">

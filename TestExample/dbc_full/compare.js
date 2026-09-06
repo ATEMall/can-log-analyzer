@@ -100,7 +100,7 @@ if (!stdout.includes('CANTOOLS_OK')) {
   console.error('FATAL: unexpected cantools output');
   process.exit(1);
 }
-const cantoolsResult = JSON.parse(stdout.split('CANTOOLS_OK\n')[1].trim());
+const cantoolsResult = JSON.parse(stdout.split(/CANTOOLS_OK\r?\n/)[1].trim());
 
 // 3. Compare with our engine
 const parsed = parseDBC(fs.readFileSync(dbcFile, 'utf8'));
