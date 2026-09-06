@@ -2,6 +2,21 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-09-06（Issue #8–#12 批次）
+
+> open Issues 清零批次：#8 R2 双路径收敛断言、#9 BLF 超时参数化、#10 R2 UI 基准、#11 大文件压缩缓存进度提示、#12 对拍脚本 cantools NamedSignalValue 序列化崩溃。
+
+### 修复
+
+- **对拍脚本 cantools 43.0.2 崩溃（#12）**：`TestExample/motorola_matrix/compare.js` 与 `TestExample/dbc_full/compare.js` 内嵌 pyScript 新增 `_norm(v)`（`getattr(v, 'value', v)` 解包枚举信号 `NamedSignalValue`）+ `json.dumps(..., default=str)` 兜底，含 cantools 环境不再抛序列化异常；收紧策略保留（import 失败 skip exit 0、DBC 加载失败 FATAL exit 1）。无 cantools 环境 skip exit 0、全量 `npm test` 163/163 通过
+- **BLF 解析超时误杀（#9）**：`electron/main.js` BLF python-can 子进程超时由硬编码 600000ms 改为按文件大小自适应（2 min 基准 + 6 s/MB，上限 60 min），并支持 settings.json `blfParseTimeoutMs` 覆盖（每次加载即时生效、无需重启）；超时错误信息包含当前超时值与调参路径
+- **大文件压缩缓存无反馈（#11）**：`file:loadASC` 对 >100MB 文件生成 `.gz` 缓存前通过 `cache:compress-progress` 事件通知渲染进程（start/done/error 三阶段），二次加载直接命中缓存跳过压缩；preload 暴露 `onCacheCompressProgress`，App 以 keyed toast 提示「正在为大文件生成压缩缓存…」
+
+### 新增
+
+- **R2 双路径收敛断言（#8）**：`signalDecode.test.js` 新增单测断言 `decodeAll` 与整批 `decodeFramesChunk` 位级一致（decodeAll 已收敛为薄封装）
+- **R2 UI 端到端基准（#10）**：`TestExample/bench/r2-ui.cjs`（确定性 1M 帧 × 3 DBC，驱动主进程同款解析/压缩/分块解码+IPC 序列化路径）→ `docs/BENCHMARK-R2-UI.md`：本机主进程解析 1M 帧 2.0s、.gz 压缩 1.5s、分块解码 ~1.8s/DBC、峰值堆 735MB；渲染层人工观测步骤与回填表（待 PM 真机实测）
+
 ## [2.1.1] - 2026-09-03
 
 > v2.1 验收（2026-09-01，commit `013c7cd`）通过的 4 项交付：R3 返工缺陷修复（#7）、R5/R6、R7/R8、R2 Phase 2 补缺。详见 `docs/ACCEPTANCE-2026-09-01.md`。

@@ -35,6 +35,8 @@ const mockElectronAPI = {
   exportSignalCSV: vi.fn().mockResolvedValue({ success: false }),
   exportText: vi.fn().mockResolvedValue({ success: true }),
   onExportProgress: vi.fn(() => () => {}),
+  // #11 (v2.1.1): >100MB ASC cache-compression progress events.
+  onCacheCompressProgress: vi.fn(() => () => {}),
   openExternal: vi.fn().mockResolvedValue({ success: true }),
   // R5/R6: project + preferences surface
   saveProject: vi.fn().mockResolvedValue({ success: false }),

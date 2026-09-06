@@ -28,6 +28,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('export:progress', handler);
   },
 
+  // #11 (v2.1.1): >100MB ASC files are cached as a .gz sidecar by the main
+  // process; these events tell the UI when compression starts / finishes so
+  // the first load can show feedback instead of appearing frozen.
+  onCacheCompressProgress: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('cache:compress-progress', handler);
+    return () => ipcRenderer.removeListener('cache:compress-progress', handler);
+  },
+
   // Application menu events (Help > 使用手册, Tool > 清空, etc.) dispatched
   // from the main process. Returns an unsubscribe function.
   onMenuEvent: (callback) => {

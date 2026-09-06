@@ -73,6 +73,36 @@ function App() {
     }).catch(() => {});
   }, []);
 
+  // #11 (v2.1.1): show feedback while the main process compresses a >100MB
+  // ASC file into its .gz cache on first load (second load hits the cache and
+  // never emits these events). Uses a keyed toast so start/done/error update
+  // in place instead of stacking.
+  useEffect(() => {
+    const off = window.electronAPI?.onCacheCompressProgress?.(data => {
+      if (!data) return;
+      if (data.phase === 'start') {
+        message.loading({
+          key: 'asc-cache-compress',
+          content: '正在为大文件生成压缩缓存（首次加载，请稍候）…',
+          duration: 0
+        });
+      } else if (data.phase === 'done') {
+        message.success({
+          key: 'asc-cache-compress',
+          content: '压缩缓存已生成，下次加载将直接命中',
+          duration: 3
+        });
+      } else if (data.phase === 'error') {
+        message.error({
+          key: 'asc-cache-compress',
+          content: '生成压缩缓存失败（不影响本次加载）',
+          duration: 3
+        });
+      }
+    });
+    return off;
+  }, []);
+
   // ======= Signal Selection Toggle =======
   const handleSignalToggle = useCallback((msgId, signalName) => {
     setSelectedSignals(prev => {

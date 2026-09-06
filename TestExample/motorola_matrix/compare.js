@@ -46,16 +46,23 @@ try:
 except Exception as e:
     print('CANTOOLS_DBC_LOAD_FAILED', repr(e))
     sys.exit(3)
+
+def _norm(v):
+    # cantools returns NamedSignalValue (a namedtuple) for VAL_ enum signals —
+    # unwrap to its numeric .value so json.dumps can serialize it (Issue #12).
+    v = getattr(v, 'value', v)
+    return round(v, 6) if isinstance(v, float) else v
+
 data = bytes([0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0])
 out = {}
 for msg in db.messages:
     try:
         dec = db.decode_message(msg.frame_id, data)
-        out[str(msg.frame_id)] = {k: (round(v, 6) if isinstance(v, float) else v) for k, v in dec.items()}
+        out[str(msg.frame_id)] = {k: _norm(v) for k, v in dec.items()}
     except Exception as e:
         out[str(msg.frame_id)] = {'__error__': str(e)}
 print('CANTOOLS_OK')
-print(json.dumps(out))
+print(json.dumps(out, default=str))
 `;
 let stdout;
 try {

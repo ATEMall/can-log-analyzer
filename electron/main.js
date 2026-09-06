@@ -930,7 +930,24 @@ async function loadASCFile(filePath, selectedIds) {
 
 // ==================== BLF Handler (using python-can via subprocess) ====================
 
+// #9 (v2.1.1): BLF parse timeout is adaptive to the source file size and
+// overridable via settings.json `blfParseTimeoutMs` (milliseconds). Default
+// formula: 2 min base + 6 s per MB of file, capped at 60 min. The previous
+// hard-coded 10 min could kill legitimate parses of very large BLFs on slow
+// machines; the override is read on every load, so it takes effect without an
+// app restart (set it through the settings surface or by editing the JSON).
+async function blfParseTimeoutMs(filePath) {
+  const configured = getSetting('blfParseTimeoutMs', null);
+  if (typeof configured === 'number' && configured > 0) return configured;
+  let mb = 0;
+  try {
+    mb = (await fs.promises.stat(filePath)).size / (1024 * 1024);
+  } catch { /* stat failed -> base timeout only */ }
+  return Math.min(Math.max(120000, 120000 + Math.ceil(mb) * 6000), 3600000);
+}
+
 async function loadBLFFilePython(filePath, selectedIds) {
+  const timeoutMs = await blfParseTimeoutMs(filePath);
   const pythonScript = `
 import sys
 import json
@@ -1029,8 +1046,14 @@ except Exception as e:
 
     const timeout = setTimeout(() => {
       proc.kill();
-      reject(new Error('BLF parsing timeout (file may be very large)'));
-    }, 600000);
+      reject(new Error(
+        `BLF parsing timed out after ${(timeoutMs / 60000).toFixed(1)} min ` +
+        `(source file: ${path.basename(filePath)}). ` +
+        `The timeout is adaptive to file size; if this file is genuinely huge ` +
+        `or the machine is slow, raise it by setting ` +
+        `settings.blfParseTimeoutMs (current value: ${timeoutMs} ms) and retry.`
+      ));
+    }, timeoutMs);
 
     proc.on('close', (code) => {
       clearTimeout(timeout);
@@ -1196,14 +1219,30 @@ ipcMain.handle('file:loadASC', async (event, filePath, selectedIds) => {
     // decoding can stream over them without the renderer holding the corpus.
     storeMessages(filePath, result.messages);
     addRecent('log', filePath); // R6
-    
+
+    // #11 (v2.1.1): >100MB logs get a .gz sidecar cache for fast reloads.
+    // Notify the renderer before/after compressing so the user sees feedback
+    // instead of a frozen-looking UI; when the cache already exists we skip
+    // silently (second load hits the cache with no duplicate compression).
     try {
       const stats = await fs.promises.stat(filePath);
       if (stats.size > 100 * 1024 * 1024) {
-        await saveCompressed(filePath, generateASC(result.headerLines, result.messages));
+        const cachePath = filePath + '.gz';
+        if (fs.existsSync(cachePath)) {
+          console.log(`ASC cache hit, skipping re-compression: ${cachePath}`);
+        } else {
+          sendToRenderer('cache:compress-progress', { phase: 'start', filePath, size: stats.size });
+          try {
+            const savedPath = await saveCompressed(filePath, generateASC(result.headerLines, result.messages));
+            sendToRenderer('cache:compress-progress', { phase: 'done', filePath, cachePath: savedPath });
+          } catch (cacheErr) {
+            sendToRenderer('cache:compress-progress', { phase: 'error', filePath, message: cacheErr.message });
+            console.error('ASC cache compression failed (load continues):', cacheErr.message);
+          }
+        }
       }
     } catch (_) {}
-    
+
     return {
       success: true, ...result,
       parseErrors: result.parseErrors || [],

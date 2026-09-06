@@ -126,6 +126,26 @@ describe('R2 signal decode engine', () => {
     expect(decodedCount).toBe(0);
   });
 
+  // #8 (v2.1.1): decodeAll is a thin wrapper over decodeFramesChunk — no
+  // duplicated decode logic may drift apart. Assert the two entry points are
+  // bit-identical when the chunked path is invoked as a single whole-corpus
+  // block (the exact equivalence the wrapper is meant to guarantee).
+  it('decodeAll delegates to decodeFramesChunk on the whole corpus (bit-identical)', () => {
+    const frames = makeFrames(50, 256, i => [i & 0xFF, (i >> 8) & 0xFF, 0xAB, 0, 0, 0, 0, 0]);
+    const selection = [
+      { msgId: 256, signalName: 'SigI' },
+      { msgId: 256, signalName: 'SigM' }
+    ];
+    const ctx = buildDecodeContext(dbcMessages, selection);
+    const whole = decodeFramesChunk(frames, ctx); // one single whole-corpus chunk
+    const all = decodeAll(frames, selection, dbcMessages);
+
+    expect(whole.rows).toEqual(all.signalData);
+    expect(whole.decodedCount).toBe(all.stats.decodedFrames);
+    expect(all.stats.totalFrames).toBe(50);
+    expect(all.stats.selectedSignals).toBe(2);
+  });
+
   // R2 Phase 2: path convergence under scale — the chunked decoder must be
   // bit-identical to the one-shot path on a large randomised corpus covering
   // mux branches, enums and unknown IDs, at several chunk sizes.

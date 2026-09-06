@@ -49,3 +49,15 @@
 ## 阻塞项
 
 - GitHub 连接器断开：关闭 #2/#3/#5/#6/#7 与后续建 Issue（v2.1.1 候选）待连接器恢复后执行；验收正文已固化于 `docs/ACCEPTANCE-2026-09-01.md`，恢复后一键关闭。
+
+---
+
+## 2026-09-06 追加（Issue #12）：仓库对拍脚本「可重复执行」结论修复
+
+- 背景：PM 于 09-04 周报复核发现，`TestExample/motorola_matrix/compare.js` 与 `TestExample/dbc_full/compare.js` 内嵌 pyScript 对 cantools 解码结果 `json.dumps` 时，VAL_ 枚举信号的 `NamedSignalValue`（namedtuple）不可序列化 → 含 cantools 环境必现崩溃（exit 非零）；此前「对拍可重复执行 ✅」实为无 cantools 环境的 skip 分支（exit 0），形成虚假绿色。
+- 修复（随 Issue #12 关闭）：
+  1. pyScript 新增 `_norm(v)`：`getattr(v, 'value', v)` 解包 NamedSignalValue 为数值（与引擎侧枚举数值输出对齐）；
+  2. 兜底 `json.dumps(out, default=str)`，任何 cantools 返回类型不再抛序列化异常；
+  3. 收紧策略保留：`import cantools` 失败 → skip exit 0；DBC 加载失败 → FATAL exit 1。
+- 验证：cantools 43.0.2 环境下两脚本输出 `cantools cross-check: N/N signals match` 且 exit 0；无 cantools 环境 skip exit 0。全量 `npm test` 163/163 通过。
+- 结论：本清单「对拍脚本可重复执行 ✅」与验收基线（R1 286/286 + 23/23、R3 12/12，证据见 `docs/ACCEPTANCE-2026-09-01.md`）现可由仓库固化脚本独立复现，无需依赖 PM 本机临时脚本。
