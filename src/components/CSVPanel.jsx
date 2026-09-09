@@ -34,7 +34,7 @@ function CSVPanel({
         <Text code style={{ fontSize: 11 }}>
           {`0x${record.msgId.toString(16).toUpperCase().padStart(3, '0')}`}
           <br />
-          <span style={{ color: '#999', fontSize: 10 }}>{`(${record.msgId})`}</span>
+          <span style={{ color: 'var(--text-hint)', fontSize: 10 }}>{`(${record.msgId})`}</span>
         </Text>
       )
     },
@@ -112,7 +112,7 @@ function CSVPanel({
       }
     >
       {!csvData && (
-        <div style={{ textAlign: 'center', padding: 20, color: '#999' }}>
+        <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-hint)' }}>
           <FileTextOutlined style={{ fontSize: 28, marginBottom: 8 }} />
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>
@@ -150,7 +150,7 @@ function CSVPanel({
                 title="DBC匹配"
                 value={matchedMsgCount}
                 suffix={`/${csvData.msgIds.length}`}
-                valueStyle={{ fontSize: 16, color: matchedMsgCount > 0 ? '#52c41a' : '#ff4d4f' }}
+                valueStyle={{ fontSize: 16, color: matchedMsgCount > 0 ? 'var(--ok-green)' : 'var(--danger-red)' }}
               />
             </Col>
           </Row>
@@ -177,7 +177,7 @@ function CSVPanel({
                 CRC 算法选择
               </Text>
               <Tooltip title="选择 CRC 算法用于自动填充 CAN 报文中的 Checksum 信号。选择 NONE 则保留 CSV 中的原始校验值。">
-                <InfoCircleOutlined style={{ marginLeft: 4, color: '#999', fontSize: 11 }} />
+                <InfoCircleOutlined style={{ marginLeft: 4, color: 'var(--text-hint)', fontSize: 11 }} />
               </Tooltip>
             </div>
 
@@ -196,7 +196,7 @@ function CSVPanel({
                       <Tag color={alg.name === 'NONE' ? 'default' : alg.name.startsWith('CRC8') ? 'blue' : alg.name.startsWith('CRC16') ? 'purple' : 'red'} style={{ fontSize: 10, marginRight: 4 }}>
                         {alg.name}
                       </Tag>
-                      <span style={{ fontSize: 11, color: '#666' }}>{alg.description.substring(0, 30)}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-regular)' }}>{alg.description.substring(0, 30)}</span>
                     </span>
                   </Tooltip>
                 </Option>

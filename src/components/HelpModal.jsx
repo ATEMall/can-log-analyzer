@@ -9,7 +9,7 @@ const { Title, Paragraph, Text } = Typography;
 
 // 简单代码/文件路径样式
 const codeStyle = {
-  background: '#f5f5f5', border: '1px solid #eee', borderRadius: 4,
+  background: 'var(--bg-chip)', border: '1px solid var(--border-faint)', borderRadius: 4,
   padding: '1px 5px', fontSize: 12, fontFamily: 'Consolas, "Courier New", monospace'
 };
 

@@ -55,7 +55,7 @@ function SignalTable({ signalData, selectedSignals, dbcMessages }) {
     signalCols.push({
       title: (
         <span>
-          <ThunderboltOutlined style={{ fontSize: 10, marginRight: 4, color: '#1890ff' }} />
+          <ThunderboltOutlined style={{ fontSize: 10, marginRight: 4, color: 'var(--brand-blue)' }} />
           <Text style={{ fontSize: 11 }}>{sig.signalName}</Text>
           {unit && <Tag style={{ marginLeft: 4, fontSize: 9 }}>{unit}</Tag>}
         </span>

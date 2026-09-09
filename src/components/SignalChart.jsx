@@ -4,14 +4,21 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer
 } from 'recharts';
+import { SIGNAL_PALETTE, SIGNAL_PALETTE_LENGTH } from '../palette';
+import { useThemeTokens } from '../theme';
 
 const { Text } = Typography;
 
-// Colors for multiple signal lines
-const LINE_COLORS = [
-  '#1890ff', '#52c41a', '#fa8c16', '#eb2f96', '#722ed1',
-  '#13c2c2', '#f5222d', '#2f54eb', '#faad14', '#a0d911'
-];
+// Chart-neutral SVG colours recharts needs as concrete values (CSS var()
+// is not accepted by SVG attributes). Light values below mirror index.css;
+// dark mode resolves through the stylesheet — see theme.js CHART_TOKEN_DEFAULTS.
+const CHART_DEFAULTS = {
+  '--chart-grid': '#f0f0f0',
+  '--text-quiet': '#8c8c8c',
+  '--text-base': '#333333',
+  '--bg-panel': '#ffffff',
+  '--border-subtle': '#f0f0f0'
+};
 
 function SignalChart({ signalData, selectedSignals, dbcMessages }) {
   const hasData = Array.isArray(signalData) && signalData.length > 0;
@@ -164,6 +171,14 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
     };
   }, []);
 
+  // Theme-aware SVG colours (grid stroke, axis text, tooltip shell). The hook
+  // re-resolves on <html data-theme> flips so a live theme switch re-paints
+  // the chart without a reload.
+  const tokens = useThemeTokens(
+    ['--chart-grid', '--text-quiet', '--text-base', '--bg-panel', '--border-subtle'],
+    CHART_DEFAULTS
+  );
+
   // ---- Conditional renders (after all hooks) ----
 
   if (!hasData) {
@@ -198,7 +213,7 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
           type="monotone"
           dataKey={sig.key}
           name={signalLabels[sig.key]}
-          stroke={LINE_COLORS[originalIdx % LINE_COLORS.length]}
+          stroke={SIGNAL_PALETTE[originalIdx % SIGNAL_PALETTE_LENGTH]}
           strokeWidth={1.5}
           dot={false}
           // Each frame row only carries the signals of that frame's message,
@@ -233,7 +248,7 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
           return (
             <Tag
               key={sig.key}
-              color={visible ? LINE_COLORS[idx % LINE_COLORS.length] : undefined}
+              color={visible ? SIGNAL_PALETTE[idx % SIGNAL_PALETTE_LENGTH] : undefined}
               style={{
                 cursor: 'pointer',
                 opacity: visible ? 1 : 0.5,
@@ -260,15 +275,33 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
           minWidth={0}
         >
           <LineChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid strokeDasharray="3 3" stroke={tokens['--chart-grid']} />
             <XAxis
               dataKey="t"
-              tick={{ fontSize: 10 }}
-              label={{ value: '时间 (s)', position: 'insideBottomRight', offset: -5, style: { fontSize: 11 } }}
+              tick={{ fontSize: 10, fill: tokens['--text-quiet'] }}
+              axisLine={{ stroke: tokens['--border-subtle'] }}
+              tickLine={{ stroke: tokens['--border-subtle'] }}
+              label={{
+                value: '时间 (s)', position: 'insideBottomRight', offset: -5,
+                style: { fontSize: 11, fill: tokens['--text-quiet'] }
+              }}
             />
-            <YAxis tick={{ fontSize: 10 }} domain={yDomain} />
+            <YAxis
+              tick={{ fontSize: 10, fill: tokens['--text-quiet'] }}
+              axisLine={{ stroke: tokens['--border-subtle'] }}
+              tickLine={{ stroke: tokens['--border-subtle'] }}
+              domain={yDomain}
+            />
             <Tooltip
-              contentStyle={{ fontSize: 11 }}
+              contentStyle={{
+                fontSize: 11,
+                background: tokens['--bg-panel'],
+                border: `1px solid ${tokens['--border-subtle']}`,
+                color: tokens['--text-base']
+              }}
+              itemStyle={{ color: tokens['--text-base'] }}
+              labelStyle={{ color: tokens['--text-base'] }}
+              cursor={{ stroke: tokens['--border-subtle'] }}
               formatter={(value, name) => [typeof value === 'number' ? value.toFixed(4) : value, name]}
               labelFormatter={(label) => `时间: ${label}s`}
             />

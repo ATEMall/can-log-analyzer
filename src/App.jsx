@@ -745,8 +745,8 @@ function App() {
           信号解析
           {selectedSignals.length > 0 && (
             <span style={{
-              marginLeft: 6, fontSize: 10, background: '#722ed1',
-              color: '#fff', padding: '0 5px', borderRadius: 10
+              marginLeft: 6, fontSize: 10, background: 'var(--accent-purple)',
+              color: 'var(--text-inverse)', padding: '0 5px', borderRadius: 10
             }}>
               {selectedSignals.length}
             </span>
@@ -774,8 +774,8 @@ function App() {
           CAN 报文日志
           {totalMessages > 0 && (
             <span style={{
-              marginLeft: 6, fontSize: 10, background: '#1890ff',
-              color: '#fff', padding: '0 5px', borderRadius: 10
+              marginLeft: 6, fontSize: 10, background: 'var(--brand-blue)',
+              color: 'var(--text-inverse)', padding: '0 5px', borderRadius: 10
             }}>
               {totalMessages > 9999 ? '9999+' : totalMessages}
             </span>
@@ -806,8 +806,8 @@ function App() {
           物理量 CSV
           {csvData && (
             <span style={{
-              marginLeft: 6, fontSize: 10, background: '#52c41a',
-              color: '#fff', padding: '0 5px', borderRadius: 10
+              marginLeft: 6, fontSize: 10, background: 'var(--ok-green)',
+              color: 'var(--text-inverse)', padding: '0 5px', borderRadius: 10
             }}>
               {csvData.totalRows}行
             </span>
@@ -836,11 +836,11 @@ function App() {
     <Layout style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* ======= Header ======= */}
       <Header style={{
-        background: '#ffffff', padding: '0 16px',
+        background: 'var(--bg-panel)', padding: '0 16px',
         display: 'flex', alignItems: 'center', gap: 12,
         flexShrink: 0, height: 52, lineHeight: '52px',
-        borderBottom: '1px solid #e8e8e8',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)'
+        borderBottom: '1px solid var(--border-strong)',
+        boxShadow: 'var(--shadow-header)'
       }}>
         {/* Logo: transparent-background brand mark (red ATEMall + gears on white).
             Slightly inset from the bar edge with objectFit:contain so the artwork
@@ -851,18 +851,18 @@ function App() {
           alt="CAN Log Analyzer"
           style={{ height: 44, padding: 4, objectFit: 'contain' }}
         />
-        <Title level={4} style={{ color: '#1f1f1f', margin: 0, fontSize: 16, whiteSpace: 'nowrap' }}>
+        <Title level={4} style={{ color: 'var(--text-strong)', margin: 0, fontSize: 16, whiteSpace: 'nowrap' }}>
           CAN Log Analyzer <Tag color="gold" style={{ fontSize: 10, lineHeight: '16px' }}>Pro</Tag>
         </Title>
 
         <div style={{
           marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 14,
-          color: 'rgba(0,0,0,0.85)', fontSize: 12
+          color: 'var(--text-primary)', fontSize: 12
         }}>
-          <span>报文 <b style={{ color: '#1677ff' }}>{totalMessages}</b></span>
-          <span>唯一ID <b style={{ color: '#1677ff' }}>{uniqueIds}</b></span>
-          <span>DBC消息 <b style={{ color: '#1677ff' }}>{dbcMessages.length}</b></span>
-          <span>已选信号 <b style={{ color: '#722ed1' }}>{selectedSignals.length}</b></span>
+          <span>报文 <b style={{ color: 'var(--brand)' }}>{totalMessages}</b></span>
+          <span>唯一ID <b style={{ color: 'var(--brand)' }}>{uniqueIds}</b></span>
+          <span>DBC消息 <b style={{ color: 'var(--brand)' }}>{dbcMessages.length}</b></span>
+          <span>已选信号 <b style={{ color: 'var(--accent-purple)' }}>{selectedSignals.length}</b></span>
         </div>
 
         {/* Inline header buttons removed: "帮助" → moved to the application
@@ -931,7 +931,7 @@ function App() {
             list inside the left panel. */}
         <div style={{ marginBottom: 10, flexShrink: 0 }}>
           <Input
-            prefix={<SearchOutlined style={{ color: '#999' }} />}
+            prefix={<SearchOutlined style={{ color: 'var(--text-hint)' }} />}
             placeholder="检索消息名 / ID / 信号名"
             value={dbcSearch}
             onChange={e => setDbcSearch(e.target.value)}
@@ -949,8 +949,8 @@ function App() {
           {/* Left: DBC structure full window (R8: width resizable + persisted) */}
           <div style={{
             width: `${panelWidth}%`, minWidth: 540, flexShrink: 0,
-            border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden',
-            background: '#fff', display: 'flex', flexDirection: 'column'
+            border: '1px solid var(--border-strong)', borderRadius: 8, overflow: 'hidden',
+            background: 'var(--bg-panel)', display: 'flex', flexDirection: 'column'
           }}>
             <DBCPanel
               messages={dbcMessages}
@@ -983,8 +983,8 @@ function App() {
           {/* Right: tabbed results */}
           <div style={{
             flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column',
-            border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden',
-            background: '#fff'
+            border: '1px solid var(--border-strong)', borderRadius: 8, overflow: 'hidden',
+            background: 'var(--bg-panel)'
           }}>
             <Tabs
               activeKey={activeTab}
@@ -1013,8 +1013,9 @@ function App() {
         <pre style={{
           maxHeight: '72vh', overflow: 'auto', fontSize: 12,
           fontFamily: 'Consolas, "Courier New", monospace',
-          background: '#fafafa', padding: 12, borderRadius: 6,
-          border: '1px solid #f0f0f0', lineHeight: 1.5
+          background: 'var(--bg-well)', padding: 12, borderRadius: 6,
+          border: '1px solid var(--border-subtle)', lineHeight: 1.5,
+          color: 'var(--text-base)'
         }}>
           {dbcRawContent || '（无 DBC 内容）'}
         </pre>
@@ -1027,7 +1028,7 @@ function App() {
       <Drawer
         title={
           <Space>
-            <WarningOutlined style={{ color: '#faad14' }} />
+            <WarningOutlined style={{ color: 'var(--warn-gold)' }} />
             解析错误报告
             <Tag color="warning">共 {parseErrorCount} 条</Tag>
           </Space>
@@ -1058,9 +1059,9 @@ function App() {
                       description={
                         err.line ? (
                           <code style={{
-                            display: 'block', fontSize: 11, color: '#595959',
+                            display: 'block', fontSize: 11, color: 'var(--text-secondary)',
                             whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-                            background: '#fafafa', padding: '4px 8px', borderRadius: 4
+                            background: 'var(--bg-well)', padding: '4px 8px', borderRadius: 4
                           }}>
                             {err.line}
                           </code>

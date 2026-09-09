@@ -1,12 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Tooltip, Empty, Modal, Button, Space } from 'antd';
 import { FullscreenOutlined } from '@ant-design/icons';
-
-const PALETTE = [
-  '#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96',
-  '#13c2c2', '#f5222d', '#2f54eb', '#a0d911', '#faad14',
-  '#531dab', '#08979c', '#c41d7f', '#389e0d', '#d46b08'
-];
+import { SIGNAL_PALETTE, SIGNAL_PALETTE_LENGTH } from '../palette';
 
 /**
  * Compute the [byteIdx, bitIdx] grid position for every bit of a signal.
@@ -42,7 +37,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
 
   const colorMap = useMemo(() => {
     const m = {};
-    signals.forEach((s, i) => { m[s.name] = PALETTE[i % PALETTE.length]; });
+    signals.forEach((s, i) => { m[s.name] = SIGNAL_PALETTE[i % SIGNAL_PALETTE_LENGTH]; });
     return m;
   }, [signals]);
 
@@ -128,7 +123,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
       headerCells.push(
         <div key={`h${bit}`} style={{
           width: cellSize, textAlign: 'center',
-          fontSize: 10, color: '#8c8c8c', fontWeight: 600
+          fontSize: 10, color: 'var(--text-quiet)', fontWeight: 600
         }}>
             {bit}
         </div>
@@ -143,7 +138,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
     for (let byte = 0; byte < visibleEnd; byte++) {
       const rowCells = [
         <div key={`l${byte}`} style={{
-          width: 36, fontSize: 10, color: '#8c8c8c',
+          width: 36, fontSize: 10, color: 'var(--text-quiet)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontWeight: 600
         }}>
@@ -170,9 +165,9 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
           cursor: sigName ? 'pointer' : 'default',
           background: sigName ? color : 'transparent',
           opacity: sigName ? (selected ? 1 : 0.35) : 1,
-          border: sigName ? (selected ? `2px solid ${color}` : '1px solid rgba(0,0,0,0.15)') : '1px solid rgba(0,0,0,0.06)',
+          border: sigName ? (selected ? `2px solid ${color}` : '1px solid var(--cell-border)') : '1px solid var(--cell-border-faint)',
           borderRadius: 2,
-          color: '#fff',
+          color: 'var(--text-inverse)',
           fontWeight: sigName && isFirst ? 700 : 400,
           boxSizing: 'border-box'
         };
@@ -234,7 +229,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
           {renderGrid(inlineVisibleEnd, false)}
         </div>
         {hasMoreBytes && (
-          <div style={{ fontSize: 10, color: '#999', marginTop: 4, textAlign: 'right' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-hint)', marginTop: 4, textAlign: 'right' }}>
             已显示前 {MAX_INLINE_BYTES} 字节（共 {totalBytes} 字节）
           </div>
         )}
@@ -259,7 +254,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
         style={{
           marginBottom: 6,
           fontSize: 11,
-          color: '#8c8c8c',
+          color: 'var(--text-quiet)',
           display: 'flex',
           gap: '4px 16px',
           alignItems: 'center',
@@ -277,7 +272,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
           always reachable, no matter how many signals the message defines. */}
       <div style={{
         marginTop: 10,
-        borderTop: '1px solid #f0f0f0', paddingTop: 8
+        borderTop: '1px solid var(--border-subtle)', paddingTop: 8
       }}>
         <div
           data-testid="legend-list"
@@ -311,7 +306,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
                     display: 'inline-block', borderRadius: 2, flexShrink: 0
                   }} />
                   {s.name}
-                  <span style={{ color: '#999' }}>{s.startBit}|{s.length}@{s.byteOrder === 'little' ? '1' : '0'}</span>
+                  <span style={{ color: 'var(--text-hint)' }}>{s.startBit}|{s.length}@{s.byteOrder === 'little' ? '1' : '0'}</span>
                 </span>
               </Tooltip>
             );
@@ -328,7 +323,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
         title={
           <Space>
             <span>信号位布局图</span>
-            <span style={{ color: '#999', fontWeight: 400 }}>
+            <span style={{ color: 'var(--text-hint)', fontWeight: 400 }}>
               {message?.name} · {totalBytes} 字节 · {signals.length} 信号
             </span>
           </Space>
@@ -338,8 +333,8 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
         <div
           data-testid="layout-grid-modal"
           style={{
-            background: '#fafafa',
-            border: '1px solid #f0f0f0',
+            background: 'var(--bg-well)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: 8,
             padding: 16,
             maxHeight: '70vh',
@@ -352,7 +347,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
           {/* Same legend in the modal so signal colors stay anchored. */}
           <div style={{
             marginTop: 14,
-            borderTop: '1px solid #f0f0f0',
+            borderTop: '1px solid var(--border-subtle)',
             paddingTop: 10
           }}>
             <div
@@ -383,7 +378,7 @@ function SignalLayoutView({ message, selectedSignalNames = [], onSignalToggle, c
                         display: 'inline-block', borderRadius: 2, flexShrink: 0
                       }} />
                       {s.name}
-                      <span style={{ color: '#999' }}>{s.startBit}|{s.length}@{s.byteOrder === 'little' ? '1' : '0'}</span>
+                      <span style={{ color: 'var(--text-hint)' }}>{s.startBit}|{s.length}@{s.byteOrder === 'little' ? '1' : '0'}</span>
                     </span>
                   </Tooltip>
                 );

@@ -95,7 +95,7 @@ function ExportPanel({ onExport, onExportCSV, onExportBLF, disabled, loading, ex
         </div>
       )}
 
-      <div style={{ marginTop: 12, padding: 8, background: '#f0f0f0', borderRadius: 4 }}>
+      <div style={{ marginTop: 12, padding: 8, background: 'var(--bg-strip)', borderRadius: 4 }}>
         <FileTextOutlined style={{ marginRight: 8 }} />
         <small>
           ASC/CSV 可直接用文本工具或 Excel 打开；BLF 可用 CANalyzer/CANoe 打开
