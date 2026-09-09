@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="zh-CN" data-page-node-id="K6Iq6Rzfuzeoqq3stTp1BY">
+<head data-page-node-id="RD0qCIlVB7QtHCsCnqAdCQ">
+<meta charset="UTF-8" data-page-node-id="7TZFBEgyGhY813CA3azAjd">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="OUJSDpXjjL79M5eIc72yPE">
 <title>can-log-analyzer · v2.1 项目看板</title>
 <style>
   :root{
@@ -64,192 +64,198 @@
   @media(max-width:760px){ .progress-grid{grid-template-columns:1fr;} .ring{width:150px;height:150px;} .ring::before{inset:15px;} header .meta{text-align:left;} }
 </style>
 </head>
-<body>
-<div class="wrap">
+<body data-page-node-id="wRnkWphdAayTnkdoDBGFEJ">
+<div class="wrap" data-page-node-id="Kt0GGs3JA2qiIYsaoFJ2XT">
 
-<header>
-  <div>
-    <h1>can-log-analyzer · 项目看板</h1>
-    <div class="sub">离线智能通信分析工具（CAN / LIN / 车载以太网 / UDS / XCP）</div>
+<header data-page-node-id="JGGXZJzPQbliuR1ib3H6bv">
+  <div data-page-node-id="D3D9uSGnsPBSKrXeF0XwwT">
+    <h1 data-page-node-id="dLoYAjkKdmIyl5a9zPiDPh">can-log-analyzer · 项目看板</h1>
+    <div class="sub" data-page-node-id="RDnbtpcNJy51SwLCc5P2Uw">离线智能通信分析工具（CAN / LIN / 车载以太网 / UDS / XCP）</div>
   </div>
-  <div class="meta">
-    <div>版本：v2.1（需求全部闭环 · 12 个 Issue 全关 · v2.1.1 已发布 · 待 PM 终验收口）</div>
-    <div>更新时间：2026-09-06 15:40</div>
-    <div>仓库：<a href="https://github.com/ATEMall/can-log-analyzer" style="color:#fff;text-decoration:underline;">github.com/ATEMall/can-log-analyzer</a></div>
+  <div class="meta" data-page-node-id="6Ezqd25K3fSinknnlvjZdo">
+    <div data-page-node-id="qA91uxnhAVuKuFNGGSpiH8">版本：v2.1（需求全部闭环 · 12 个 Issue 全关 · v2.1.1 已发布 · 待 PM 终验收口）</div>
+    <div data-page-node-id="PGVKtgqBDyz4MkFBDTPFrx">更新时间：2026-09-06 15:40</div>
+    <div data-page-node-id="Ay7hXaOqK6Yf4CdThB5Unf">仓库：<a href="https://github.com/ATEMall/can-log-analyzer" style="color:#fff;text-decoration:underline;" data-page-node-id="sC8kvNZibQ1Gw9iVAA9hDI">github.com/ATEMall/can-log-analyzer</a></div>
   </div>
 </header>
 
 <!-- ============ 一、现在进展 ============ -->
-<section>
-  <div class="sec-title">📊 一、现在进展 <span class="badge">v2.1 完成度 ≈ 95%（仅剩 PM 终验 + ACCEPTANCE 文档）</span></div>
+<section data-page-node-id="RYtJyFRSeeWph9adGFOryg">
+  <div class="sec-title" data-page-node-id="HUziUJFGNa3jVSK6LItVZ6">📊 一、现在进展 <span class="badge" data-page-node-id="2OpSGE6jqDNK95pafEf8so">v2.1 完成度 ≈ 95%（仅剩 PM 终验 + ACCEPTANCE 文档）</span></div>
 
-  <div class="banner">✅ <b>09-06：v2.1.1 backlog 清零 — #8-#12 全部关闭，PM 逐项复核通过</b>。开发以提交 <code>9bff68d</code>（09-06 13:24）关闭 #8/#9/#10/#11/#12。PM 实证复核：① #12 对拍脚本在 cantools 43.0.2 环境复跑发现 <b>CRLF 残留缺陷</b>（<code>split('CANTOOLS_OK\n')</code> 在 Windows python 输出下失配），PM 直接最小修复（<code>split(/CANTOOLS_OK\r?\n/)</code>）后 <b>motorola 23/23、dbc_full 12/12 signals match，exit 0</b>——验收基线首次由仓库内脚本真实复现；② #10 基准脚本 PM 实跑复现（1M 帧×3 DBC，0.29-0.45M 帧/s，与开发数据同量级）；③ #8 一致性断言、#9 超时参数化、#11 压缩进度事件代码落点核验属实；④ 全量回归 <b>163/163</b> 通过。此前 09-03 晚开发以 <code>bbf9c76</code> 发布 v2.1.1 补齐 3 缺口（早于 PM 终验，流程偏差已记录）。</div>
+  <div class="banner" data-page-node-id="o1JxUcs9vSoDlOMBTjKSKF">✅ <b data-page-node-id="ZxoUNRn2z5ueRhTV6FUuIG">09-06：v2.1.1 backlog 清零 — #8-#12 全部关闭，PM 逐项复核通过</b>。开发以提交 <code data-page-node-id="YVTIRYaEv4V2D43AUUGQBs">9bff68d</code>（09-06 13:24）关闭 #8/#9/#10/#11/#12。PM 实证复核：① #12 对拍脚本在 cantools 43.0.2 环境复跑发现 <b data-page-node-id="Y6eB7JWGLmnW2S9LDiFz05">CRLF 残留缺陷</b>（<code data-page-node-id="hiRsIAWjVQ1MFytUmpJosH">split('CANTOOLS_OK\n')</code> 在 Windows python 输出下失配），PM 直接最小修复（<code data-page-node-id="FafRU8sdv1LSoEwvRsiJmn">split(/CANTOOLS_OK\r?\n/)</code>）后 <b data-page-node-id="J7WyojzKQ7zkzpCU3SfutS">motorola 23/23、dbc_full 12/12 signals match，exit 0</b>——验收基线首次由仓库内脚本真实复现；② #10 基准脚本 PM 实跑复现（1M 帧×3 DBC，0.29-0.45M 帧/s，与开发数据同量级）；③ #8 一致性断言、#9 超时参数化、#11 压缩进度事件代码落点核验属实；④ 全量回归 <b data-page-node-id="hWfy1MMulzgFy8Obfg26iD">163/163</b> 通过。此前 09-03 晚开发以 <code data-page-node-id="V6arDSCzLacLSnViM6428G">bbf9c76</code> 发布 v2.1.1 补齐 3 缺口（早于 PM 终验，流程偏差已记录）。</div>
 
-  <div class="banner" style="background:var(--ok-bg);border-left:4px solid var(--ok);">📌 <b>09-03 20:10：7 个 v2.1 Issue 全关 + 开发以 v2.1.1 名义补齐发版 3 缺口</b>（CHANGELOG [2.1.1] / README R5-R8 手册 / release Setup+Portable 重打包，tag v2.1.1 → <code>bbf9c76</code>）。⚠️ 该发布绕过了 PM 终验（DoD#6），<code>docs/ACCEPTANCE-v2.1.md</code> 仍未产出。</div>
+  <div class="banner" style="background:var(--ok-bg);border-left:4px solid var(--ok);" data-page-node-id="IfdTTg4V0J6GLVTqHn92Mj">📌 <b data-page-node-id="R88Doc4gjG5VDa6SIRpWH7">09-03 20:10：7 个 v2.1 Issue 全关 + 开发以 v2.1.1 名义补齐发版 3 缺口</b>（CHANGELOG [2.1.1] / README R5-R8 手册 / release Setup+Portable 重打包，tag v2.1.1 → <code data-page-node-id="k31eCT5R4WCSrQArDGiHmV">bbf9c76</code>）。⚠️ 该发布绕过了 PM 终验（DoD#6），<code data-page-node-id="DBXRFnovuKeaTypr2eIYHE">docs/ACCEPTANCE-v2.1.md</code> 仍未产出。</div>
 
-  <div class="progress-grid">
-    <div class="ring"><div class="pct">95<small>%</small></div></div>
-    <div>
-      <div class="stats">
-        <div class="stat"><div class="num ok">6</div><div class="lbl">✅ 需求验收通过（R1-R8）</div></div>
-        <div class="stat"><div class="num ok">12/12</div><div class="lbl">✅ GitHub Issues 全部关闭</div></div>
-        <div class="stat"><div class="num ok">0</div><div class="lbl">🔵 v2.1.1 backlog（#8-#12 已清零）</div></div>
-        <div class="stat"><div class="num ok">0</div><div class="lbl">⚠️ 开发侧发版缺口（v2.1.1 已补齐）</div></div>
-        <div class="stat"><div class="num warn">1</div><div class="lbl">⏳ PM 终验 + ACCEPTANCE-v2.1.md</div></div>
-        <div class="stat"><div class="num ok">163</div><div class="lbl">回归测试通过（09-06 重跑）</div></div>
+  <div class="progress-grid" data-page-node-id="HOD8mY8lyNfRxYACeehGip">
+    <div class="ring" data-page-node-id="7BPLKKI4jQRb1l12yfvENB"><div class="pct" data-page-node-id="G62kWWhNvjLMIqcBRiWrOz">95<small data-page-node-id="8TdgAFAbo3lJ8ybsj19SgS">%</small></div></div>
+    <div data-page-node-id="HJUw9Vn5uvikleTGoUFr8H">
+      <div class="stats" data-page-node-id="F5IEI0JbRdkLeeVCufgbsG">
+        <div class="stat" data-page-node-id="EVwLAyxBVO0TXLtDjGhSGK"><div class="num ok" data-page-node-id="bUx9ekAs3U0TjpDSGrx98Z">6</div><div class="lbl" data-page-node-id="uTR4SFisErOGoKLybmlNRB">✅ 需求验收通过（R1-R8）</div></div>
+        <div class="stat" data-page-node-id="LA22YXwAnPe3sz0MpSqFoJ"><div class="num ok" data-page-node-id="CeQ9RLBANIOQAzJbLZtf8e">12/12</div><div class="lbl" data-page-node-id="E9ipWdNmGjYH7w5c93rCoT">✅ GitHub Issues 全部关闭</div></div>
+        <div class="stat" data-page-node-id="Uwy84x1LIQxqt0rn4fGL4O"><div class="num ok" data-page-node-id="bIkxJiLwDoDwPW97EeqXbI">0</div><div class="lbl" data-page-node-id="Iw8pQ38SPwdMT6CzaBeSae">🔵 v2.1.1 backlog（#8-#12 已清零）</div></div>
+        <div class="stat" data-page-node-id="imNI0rLBhHue9CAH1x4mhA"><div class="num ok" data-page-node-id="VDLkmxdxG78tD0hLh1E7CN">0</div><div class="lbl" data-page-node-id="R1oOMbDIuqVADUhg9LkGUh">⚠️ 开发侧发版缺口（v2.1.1 已补齐）</div></div>
+        <div class="stat" data-page-node-id="UJFmYytpowY7GwcIudTLhA"><div class="num warn" data-page-node-id="RY7OD57iuKGIBPJGgncSu3">1</div><div class="lbl" data-page-node-id="jWDxrtkekbEr2gUT9XEExB">⏳ PM 终验 + ACCEPTANCE-v2.1.md</div></div>
+        <div class="stat" data-page-node-id="o6OS1Nx9uzqCTPA0riy5Mu"><div class="num ok" data-page-node-id="CTL4kr0hL14SJNGkoS1VVA">163</div><div class="lbl" data-page-node-id="wfSwa76XofMkQ33SMCP6DY">回归测试通过（09-06 重跑）</div></div>
       </div>
-      <div class="note" style="margin-top:10px;"><b>关键路径</b>：PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 <code>docs/ACCEPTANCE-v2.1.md</code> → v2.1 正式收口（目标 09-19）</div>
+      <div class="note" style="margin-top:10px;" data-page-node-id="jstzQrZvpGS26mRFmw2lHS"><b data-page-node-id="eQYAYmhgfTaEZnNnuGT5my">关键路径</b>：PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 <code data-page-node-id="VBzkchNrnsXd3kwVsJViun">docs/ACCEPTANCE-v2.1.md</code> → v2.1 正式收口（目标 09-19）</div>
     </div>
   </div>
 
-  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">需求状态总览（SRS-v2.1，R1–R8）</h4>
-  <table>
-    <tr><th>需求</th><th>内容</th><th>Issue</th><th>优先级</th><th>状态</th><th>PM 结论</th></tr>
-    <tr><td><b>R1</b></td><td>Motorola 大端信号解码修复</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/1">#1</a></td><td><span class="pill p0">P0</span></td><td><span class="pill done">✅ 完成</span></td><td class="verdict">验收通过（08-31）：23/23 + 286/286 对拍 cantools，写读闭环 10/10，已关闭</td></tr>
-    <tr><td><b>R2</b></td><td>分块解码引擎重构（1M 帧）</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/2">#2</a></td><td><span class="pill p0">P0</span></td><td><span class="pill done">✅ 完成</span></td><td class="verdict">验收通过（09-01）：纯流式 + 收敛测试 + 基准可复现（1M 帧×3 DBC，0.24-0.33M 帧/s 本机实测）</td></tr>
-    <tr><td><b>R3</b></td><td>DBC 解析补全（属性/扩展帧/mux/浮点）</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/3">#3</a></td><td><span class="pill p1">P1</span></td><td><span class="pill done">✅ 完成</span></td><td class="verdict">验收通过（09-01，#7 返工）：cantools 直载零补丁 + 12/12 对拍，标志位/属性双格式扩展帧解析正确</td></tr>
-    <tr><td><b>R4</b></td><td>解析容错与错误报告</td><td><a href="https://github.com/ATEMall/can-log-analyzer/issues/4">#4</a></td><td><span class="pill p1">P1</span></td><td><span class="pill done">✅ 完成</span></td><td class="verdict">验收通过（08-30）：代码复核 + 119/119 回归 + tolerance 专项覆盖，已关闭</td></tr>
-    <tr><td><b>R5</b></td><td>工程保存/恢复（.claproj）+ 最近文件</td><td rowspan="2"><a href="https://github.com/ATEMall/can-log-analyzer/issues/5">#5</a></td><td rowspan="2"><span class="pill p0">P0</span></td><td rowspan="2"><span class="pill done">✅ 完成</span></td><td rowspan="2" class="verdict">验收通过（09-01）：.claproj 格式校验 + 最近文件三类×10 + settings 落盘/启动恢复 + 单实例/文件关联 + 前端集成</td></tr>
-    <tr><td><b>R6</b></td><td>偏好持久化</td></tr>
-    <tr><td><b>R7</b></td><td>导出补全（CSV/BLF）</td><td rowspan="2"><a href="https://github.com/ATEMall/can-log-analyzer/issues/6">#6</a></td><td rowspan="2"><span class="pill p1">P1</span></td><td rowspan="2"><span class="pill done">✅ 完成</span></td><td rowspan="2" class="verdict">验收通过（09-01）：日志 CSV（nameMap+流式）/信号 CSV（枚举 label）/BLF 导出 + UI 增量（进度/空态/徽章/快捷键）</td></tr>
-    <tr><td><b>R8</b></td><td>UI 增量优化</td></tr>
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);" data-page-node-id="Ywg2zU4EEWZYZ0QsgyCKu5">需求状态总览（SRS-v2.1，R1–R8）</h4>
+  <table data-page-node-id="IiDrgA3M3JKynENBYMszek">
+    <tr data-page-node-id="42PlkXwLzlX6mNzufZF46p"><th data-page-node-id="kIMQgUoBKG3IAm3XV5dcT7">需求</th><th data-page-node-id="hBZRiE5yp24HJCees80WEG">内容</th><th data-page-node-id="nd37cRj4EgxCAKlQmHkVyU">Issue</th><th data-page-node-id="gfJOf2ynQ0ylBnnxa6xMrv">优先级</th><th data-page-node-id="BNI8bFCP7NSLorD1aD1uyC">状态</th><th data-page-node-id="XM8E1QDARlwDbBKkNXw0gY">PM 结论</th></tr>
+    <tr data-page-node-id="XuKfUIcm0SlL1ykNVd1GbU"><td data-page-node-id="AieTn5ZzgB3eJcqmvSVPhf"><b data-page-node-id="jloAdefw9mBuEK4bQGfoYa">R1</b></td><td data-page-node-id="a1RUcqxxRcPOvlkRktePsy">Motorola 大端信号解码修复</td><td data-page-node-id="GdePOSldaJQbrk53GjsvHi"><a href="https://github.com/ATEMall/can-log-analyzer/issues/1" data-page-node-id="kq6vL7EGpy3JmSKdTYG6LR">#1</a></td><td data-page-node-id="NqDx43OMugP2p6yH6NUguD"><span class="pill p0" data-page-node-id="6Vxkp3g3u7uETNJJVj42x6">P0</span></td><td data-page-node-id="xuQDfmxrslsRoR1ir23iMr"><span class="pill done" data-page-node-id="Sqz3UGtXu5s7fe823GmZko">✅ 完成</span></td><td class="verdict" data-page-node-id="BrGZ9LY33BItwJLIOYi0Yy">验收通过（08-31）：23/23 + 286/286 对拍 cantools，写读闭环 10/10，已关闭</td></tr>
+    <tr data-page-node-id="J0JKV9NNurZunvB0T2VmGO"><td data-page-node-id="6F99ZlIwocRNWDX6XLFegx"><b data-page-node-id="F7ySXZ7a5qAMN8fZDAJVEK">R2</b></td><td data-page-node-id="df93INiltMvEKEI3IhmRjf">分块解码引擎重构（1M 帧）</td><td data-page-node-id="udgVLfVFvmMIcvJRUKp1Jv"><a href="https://github.com/ATEMall/can-log-analyzer/issues/2" data-page-node-id="UxlSIrinH3Fw72gCUFA1Zr">#2</a></td><td data-page-node-id="DO8hU1Qd6gSntiBZUokkLI"><span class="pill p0" data-page-node-id="XMfQk8mEhn2WX2sahDrGky">P0</span></td><td data-page-node-id="LcoQhQclu7YZxw8cxBESl5"><span class="pill done" data-page-node-id="fqqoFRReI6zsCm5ylkC0T6">✅ 完成</span></td><td class="verdict" data-page-node-id="PgNwggk27rRz2MXlhi2w1O">验收通过（09-01）：纯流式 + 收敛测试 + 基准可复现（1M 帧×3 DBC，0.24-0.33M 帧/s 本机实测）</td></tr>
+    <tr data-page-node-id="od1V22qwATkpu5gj8RzukR"><td data-page-node-id="vSRmnr7BwkBtD8aP4aNVBM"><b data-page-node-id="64sa09Q06eybjvUblNFxZi">R3</b></td><td data-page-node-id="t8DiCNLUamNBBj9WjbyWN9">DBC 解析补全（属性/扩展帧/mux/浮点）</td><td data-page-node-id="2ZjMKsriI6Ren52vR1Syqi"><a href="https://github.com/ATEMall/can-log-analyzer/issues/3" data-page-node-id="MjAazHVgCi7FSUNnYky7iy">#3</a></td><td data-page-node-id="N3p8ahLNYc18mu6CeJQkz5"><span class="pill p1" data-page-node-id="LnP2rWfCvhJrXZ1uIjw72v">P1</span></td><td data-page-node-id="rPT3lMvBKgGvIM6NVCytZ1"><span class="pill done" data-page-node-id="iXMWRPbkOzdQzLSeCgaERt">✅ 完成</span></td><td class="verdict" data-page-node-id="wUQMaFeYe3zBNcPuGDrZs8">验收通过（09-01，#7 返工）：cantools 直载零补丁 + 12/12 对拍，标志位/属性双格式扩展帧解析正确</td></tr>
+    <tr data-page-node-id="dmff6LnOHDhsTcuGhFpF5H"><td data-page-node-id="v3QHHRaPlvpsebU9oOGcBB"><b data-page-node-id="ZfR8S7XAFTF9BzDUQCU36R">R4</b></td><td data-page-node-id="ASbV9WHw9FcrHOqDK4aXZE">解析容错与错误报告</td><td data-page-node-id="23Cu53H1q289XCBBjErSoR"><a href="https://github.com/ATEMall/can-log-analyzer/issues/4" data-page-node-id="LVwv9Jj3o4S4cbcprqkvkN">#4</a></td><td data-page-node-id="gszPIhnFu7Ul4nbfgsEQf2"><span class="pill p1" data-page-node-id="BTGH182JBBY0AKeTf9gxkr">P1</span></td><td data-page-node-id="FwqrOu1ccigvMIfWCzTPGd"><span class="pill done" data-page-node-id="WUDm2p2ZfDWUfoNsx2cTJV">✅ 完成</span></td><td class="verdict" data-page-node-id="BpYrPoMqbyFaaB0i9Z70nx">验收通过（08-30）：代码复核 + 119/119 回归 + tolerance 专项覆盖，已关闭</td></tr>
+    <tr data-page-node-id="Z2fHMA5MmfRJrcqmtsGNwN"><td data-page-node-id="WJ6UX9zo2AFTXMt6hMqHp7"><b data-page-node-id="4BTIZGaPaAnzbzCSBkAbDB">R5</b></td><td data-page-node-id="NxeySCSlXlwjQOjFmaAgXZ">工程保存/恢复（.claproj）+ 最近文件</td><td rowspan="2" data-page-node-id="gx6lNE4MUOTPf2D7GRfrW4"><a href="https://github.com/ATEMall/can-log-analyzer/issues/5" data-page-node-id="AEGHj94D4P3VzzCHlDtCly">#5</a></td><td rowspan="2" data-page-node-id="oJpN2wRBjnT98MhMnP8sHK"><span class="pill p0" data-page-node-id="dce8jL32QgDfFjOTi9sTmD">P0</span></td><td rowspan="2" data-page-node-id="LoLPRzgHFS3PzzJjXTqoJ6"><span class="pill done" data-page-node-id="5Ev6bLDJc3T56mp5ahmJai">✅ 完成</span></td><td rowspan="2" class="verdict" data-page-node-id="kjGlomHnQwLFDFnTDoMMz5">验收通过（09-01）：.claproj 格式校验 + 最近文件三类×10 + settings 落盘/启动恢复 + 单实例/文件关联 + 前端集成</td></tr>
+    <tr data-page-node-id="fTodHDeisW5QKxDeS1p8AQ"><td data-page-node-id="zJehEPqNROT7InWo6EEUKB"><b data-page-node-id="OLqNd3oRHVWBRTAyEwpWyC">R6</b></td><td data-page-node-id="g7oX8kcvMtqxKzWjyBN7TR">偏好持久化</td></tr>
+    <tr data-page-node-id="dho5u3G6FoSJlnX0f70s5Q"><td data-page-node-id="mQC75MIfsceTWzS9nczekh"><b data-page-node-id="7xgdOuWKw5y9fW0onkRq3W">R7</b></td><td data-page-node-id="2BkPzjtt4X8g4MnQ9T5IHS">导出补全（CSV/BLF）</td><td rowspan="2" data-page-node-id="UAie1FSQAkcEyGG6bZIwCR"><a href="https://github.com/ATEMall/can-log-analyzer/issues/6" data-page-node-id="hZsZQOX0fO7IHHolzD7OPO">#6</a></td><td rowspan="2" data-page-node-id="jp2lDDpiurxGpLHGyG4YZB"><span class="pill p1" data-page-node-id="ItZkb6mBpFzRWO4lYDWYSH">P1</span></td><td rowspan="2" data-page-node-id="ZOliGdRgODVqBnQRXw268D"><span class="pill done" data-page-node-id="fuLib8uBiyRDf2Jx4hpTEt">✅ 完成</span></td><td rowspan="2" class="verdict" data-page-node-id="RAO5tkfVhDm2tsBOrbhvhs">验收通过（09-01）：日志 CSV（nameMap+流式）/信号 CSV（枚举 label）/BLF 导出 + UI 增量（进度/空态/徽章/快捷键）</td></tr>
+    <tr data-page-node-id="tN3t4VHwA5AAl01JXeafRT"><td data-page-node-id="P6EnvIjItZOD5FcjKiMX5I"><b data-page-node-id="5CfsyqgiJtVh34tRwNhWFn">R8</b></td><td data-page-node-id="WEUWiBpCFDlZKNiApQhHec">UI 增量优化</td></tr>
   </table>
 
-  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">最近提交（远程 main，最新 9bff68d · 09-06）</h4>
-  <div>
-    <div class="commit"><span class="sha">9bff68d</span><span class="msg">fix(issues #8-#12): close open issue batch — 对拍 _norm 修复 / decodeAll 一致性断言 / BLF 超时参数化 / 压缩进度事件 / 1M 帧 UI 基准 + BENCHMARK-R2-UI.md（163/163）</span><span class="date">09-06</span></div>
-    <div class="commit"><span class="sha">bf3f845</span><span class="msg">test: add v3.x roadmap test materials + regenerate dbc_full.blf（25 素材入库）</span><span class="date">09-06</span></div>
-    <div class="commit"><span class="sha">bbf9c76</span><span class="msg">release(v2.1.1): 发布 v2.1.1 — 补齐 CHANGELOG/README/release 三缺口（早于 PM 终验，流程偏差）</span><span class="date">09-03</span></div>
-    <div class="commit"><span class="sha">f8ddc56</span><span class="msg">docs: 看板同步至 f96bd1f — 终验就绪度 3/6 + 缺口清单 + v2.1.1 候选</span><span class="date">09-01</span></div>
-    <div class="commit"><span class="sha">f96bd1f</span><span class="msg">docs: v2.1 发版就绪度清单（RELEASE-CHECKLIST-v2.1.md）+ v2.1.1 候选计划（PLAN-v2.1.1.md）</span><span class="date">09-01</span></div>
-    <div class="commit"><span class="sha">ee89a5b</span><span class="msg">docs: v2.1 acceptance 09-01 — R2/R3/R5/R6/R7/R8 全部验收通过（基线 013c7cd）</span><span class="date">09-01</span></div>
-    <div class="commit"><span class="sha">bda9cad</span><span class="msg">docs: 同步看板为「4 项已推送 commit 013c7cd·待 PM 复核」</span><span class="date">09-01</span></div>
-    <div class="commit"><span class="sha">013c7cd</span><span class="msg">feat(v2.1): 4 项交付 — #7 返工 + R5/R6 + R7/R8 + R2 Phase 2（162/162）</span><span class="date">09-01</span></div>
-    <div class="commit"><span class="sha">ae3aec6</span><span class="msg">feat(v2.1): R1 Motorola sawtooth 返工 + R3 DBC 补全 · 153/153</span><span class="date">08-31</span></div>
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);" data-page-node-id="zriHHUpqdHb2HTegBEeqZ2">最近提交（远程 main，最新 9bff68d · 09-06）</h4>
+  <div data-page-node-id="goTjqGtXmrgZoBHX3afEuT">
+    <div class="commit" data-page-node-id="PEDSzdh6bnxFvJCJrZ2R0s"><span class="sha" data-page-node-id="BCQZv3lUaehHVANKAg89I4">9bff68d</span><span class="msg" data-page-node-id="DpSX49NZ45Wwj0GG3n6Pqd">fix(issues #8-#12): close open issue batch — 对拍 _norm 修复 / decodeAll 一致性断言 / BLF 超时参数化 / 压缩进度事件 / 1M 帧 UI 基准 + BENCHMARK-R2-UI.md（163/163）</span><span class="date" data-page-node-id="mb1s1DGqhosYyKihPiXtyC">09-06</span></div>
+    <div class="commit" data-page-node-id="bdbUsQPZKlLLJETkW6jpUc"><span class="sha" data-page-node-id="ODT5SNM92tkVboZcJwRtVe">bf3f845</span><span class="msg" data-page-node-id="HGh8gq6v4YHBampjkjaMHv">test: add v3.x roadmap test materials + regenerate dbc_full.blf（25 素材入库）</span><span class="date" data-page-node-id="OZKeC0C2MEFumFN7NoE4yn">09-06</span></div>
+    <div class="commit" data-page-node-id="P45QqXsyqcfOLxVn4wDAho"><span class="sha" data-page-node-id="AKFy9ejoUtkEoe1G2xqxeO">bbf9c76</span><span class="msg" data-page-node-id="5VPzuJNSiASBaSyNAX8E6T">release(v2.1.1): 发布 v2.1.1 — 补齐 CHANGELOG/README/release 三缺口（早于 PM 终验，流程偏差）</span><span class="date" data-page-node-id="btAuILwsjF1UYfo08DBQFA">09-03</span></div>
+    <div class="commit" data-page-node-id="MqZJxQZs1wNQ9YneH4iLMH"><span class="sha" data-page-node-id="xf5FKGIjfviA2CoAFylHGm">f8ddc56</span><span class="msg" data-page-node-id="fBuRCPsW5679OQRzg8ygTt">docs: 看板同步至 f96bd1f — 终验就绪度 3/6 + 缺口清单 + v2.1.1 候选</span><span class="date" data-page-node-id="ijehNMESzH18uaulNKcUsn">09-01</span></div>
+    <div class="commit" data-page-node-id="g11O5Y3CKKGQoPp9WyG1mW"><span class="sha" data-page-node-id="vByW1Hq096hCCP7k510ALi">f96bd1f</span><span class="msg" data-page-node-id="4soenR1T05R5KFjYUKGNwD">docs: v2.1 发版就绪度清单（RELEASE-CHECKLIST-v2.1.md）+ v2.1.1 候选计划（PLAN-v2.1.1.md）</span><span class="date" data-page-node-id="fHlx22cQTTrUlQwE70mIaG">09-01</span></div>
+    <div class="commit" data-page-node-id="bPoA4quKvWR0wGbe65GUxO"><span class="sha" data-page-node-id="Z8VgVw9S4AESbaNFKrAC13">ee89a5b</span><span class="msg" data-page-node-id="XZCXfejF9rmPDZQwTT8rGA">docs: v2.1 acceptance 09-01 — R2/R3/R5/R6/R7/R8 全部验收通过（基线 013c7cd）</span><span class="date" data-page-node-id="kUQNmrNGgK0XCWBYzmaiEW">09-01</span></div>
+    <div class="commit" data-page-node-id="s7KnXlYwumQ9IlTZTZTW7S"><span class="sha" data-page-node-id="SmFPy0n1NIiSo85UX0AHAR">bda9cad</span><span class="msg" data-page-node-id="lW8jWSekquurChSKsFXMC1">docs: 同步看板为「4 项已推送 commit 013c7cd·待 PM 复核」</span><span class="date" data-page-node-id="tcZjx9TgwczxWJHvm6jZIq">09-01</span></div>
+    <div class="commit" data-page-node-id="ZRPLEZozXGeoBlrAyor9vM"><span class="sha" data-page-node-id="PaMbRhXetikNa4r3WteESP">013c7cd</span><span class="msg" data-page-node-id="h8IilpQ9ryjJw6lkDyAHUe">feat(v2.1): 4 项交付 — #7 返工 + R5/R6 + R7/R8 + R2 Phase 2（162/162）</span><span class="date" data-page-node-id="ukAGmQuYbAcA1whp0m116b">09-01</span></div>
+    <div class="commit" data-page-node-id="lAPJfSteSfZIBUECObNyaF"><span class="sha" data-page-node-id="GHwHlbRvY5tsYzYg1IrzGi">ae3aec6</span><span class="msg" data-page-node-id="Wwx8ddqbqjemSoucxmvLkk">feat(v2.1): R1 Motorola sawtooth 返工 + R3 DBC 补全 · 153/153</span><span class="date" data-page-node-id="NrV3KuNlOX1qQLVvpqS3JP">08-31</span></div>
   </div>
 </section>
 
 <!-- ============ 二、Issue 清单 ============ -->
-<section>
-  <div class="sec-title">🐞 二、Issue 清单 <span class="badge">共 12 项全关 ✅（v2.1 七项 + v2.1.1 backlog 五项）</span></div>
-  <table>
-    <tr><th>#</th><th>标题</th><th>优先级</th><th>GitHub 状态</th><th>PM 结论 / 备注</th><th>更新时间</th></tr>
-    <tr>
-      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/1">#1</a></b></td>
-      <td>[P0][Bug] Motorola 大端信号解码完全错误（10/10 不一致）</td>
-      <td><span class="pill p0">P0 urgent</span></td>
-      <td><span class="pill closed">✅ Closed</span></td>
-      <td class="verdict">✅ 验收通过（08-31）：23/23 + 286/286 对拍一致；8 条返工要求全部落实</td>
-      <td>08-31</td>
+<section data-page-node-id="dn1APBzBEsOLEzN9CcVUH1">
+  <div class="sec-title" data-page-node-id="jcyDMLD77He2L4i0xmYvAI">🐞 二、Issue 清单 <span class="badge" data-page-node-id="kwrPX4kTIXUCgwENJ0l88k">共 12 项全关 ✅（v2.1 七项 + v2.1.1 backlog 五项）</span></div>
+  <table data-page-node-id="Am8DgUGji8uHoNbbYswiVa">
+    <tr data-page-node-id="ZG6Yg5pe2YAxdOVRGq5YKj"><th data-page-node-id="SG9hMdUPxEyYLcMVx46d0G">#</th><th data-page-node-id="sB4o9OkJx6Nvt5x6vHRWlH">标题</th><th data-page-node-id="X5l072dMUrMRcXUBaLInoh">优先级</th><th data-page-node-id="d2KdWPF4lgdbOS3Pc0E3tB">GitHub 状态</th><th data-page-node-id="15uR1XHrRNXRi7W8ZJbMix">PM 结论 / 备注</th><th data-page-node-id="lekS1IwTEYMqn3JQN1qXLC">更新时间</th></tr>
+    <tr data-page-node-id="lIXWEgnktI3MemN7Mt4diR">
+      <td data-page-node-id="eSCurEgdjw8PzNeezD9SC1"><b data-page-node-id="iUy2HwF4YCzdxisF0NY5ph"><a href="https://github.com/ATEMall/can-log-analyzer/issues/1" data-page-node-id="ET4wMlcRoe8am98R3UE1Tc">#1</a></b></td>
+      <td data-page-node-id="s3Ok8a8XKQgbJDLVNq7Qfe">[P0][Bug] Motorola 大端信号解码完全错误（10/10 不一致）</td>
+      <td data-page-node-id="IFHUVkjxwYbREKrYARE41C"><span class="pill p0" data-page-node-id="b5FQZa64fK1DdvIgE0ozpd">P0 urgent</span></td>
+      <td data-page-node-id="pIzBAL6N9H34qhGw8L7HQZ"><span class="pill closed" data-page-node-id="bRbhwBkCZGwaCOAiFB49jQ">✅ Closed</span></td>
+      <td class="verdict" data-page-node-id="CyBwIb4rqBdLGsPkjsTLFF">✅ 验收通过（08-31）：23/23 + 286/286 对拍一致；8 条返工要求全部落实</td>
+      <td data-page-node-id="n1boiC3OHMmYBlQw5G3hnn">08-31</td>
     </tr>
-    <tr>
-      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/2">#2</a></b></td>
-      <td>[v2.1][R2] 分块/流式解码引擎（1M 帧支持）</td>
-      <td><span class="pill p0">P0</span></td>
-      <td><span class="pill closed">✅ Closed（09-03）</span></td>
-      <td class="verdict">✅ 验收通过（09-01）：纯流式 + 基准可复现 + 收敛测试。验收记录 docs/ACCEPTANCE-2026-09-01.md，09-03 关闭并附验收评论</td>
-      <td>09-03</td>
+    <tr data-page-node-id="nadA6uptR4myYfZRAqVXE0">
+      <td data-page-node-id="fhPRqLN9wyeYCzqo56cZeC"><b data-page-node-id="iM77AvnHq22La8jAq8nuzZ"><a href="https://github.com/ATEMall/can-log-analyzer/issues/2" data-page-node-id="dYRWMRf3HPc4eE1a8mFlzI">#2</a></b></td>
+      <td data-page-node-id="nbcq5in8p3eUq9QQuHhkTN">[v2.1][R2] 分块/流式解码引擎（1M 帧支持）</td>
+      <td data-page-node-id="aPYdnsynnbkP2xvCbCHqcB"><span class="pill p0" data-page-node-id="naQSAYh9eC9dKnhMgA1l62">P0</span></td>
+      <td data-page-node-id="DAOrnTcgdu28EW4oxUva4d"><span class="pill closed" data-page-node-id="UUqsJZZcLWB5w1b76csnem">✅ Closed（09-03）</span></td>
+      <td class="verdict" data-page-node-id="eMo0K0Pr8blzRwbP8jQeQr">✅ 验收通过（09-01）：纯流式 + 基准可复现 + 收敛测试。验收记录 docs/ACCEPTANCE-2026-09-01.md，09-03 关闭并附验收评论</td>
+      <td data-page-node-id="Bysk1VUxTXDN4hjDQ6qJLm">09-03</td>
     </tr>
-    <tr>
-      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/3">#3</a></b></td>
-      <td>[v2.1][R3] DBC 解析补全：BA_ 属性/扩展帧/mux/SIG_VALTYPE_</td>
-      <td><span class="pill p1">P1</span></td>
-      <td><span class="pill closed">✅ Closed（09-03）</span></td>
-      <td class="verdict">✅ 验收通过（09-01，随 #7 返工）：cantools 直载零补丁 + 12/12 对拍。09-03 关闭并附验收评论</td>
-      <td>09-03</td>
+    <tr data-page-node-id="X8N6E5yPt5DibSmF8OxopD">
+      <td data-page-node-id="YMHIVlYe5xH5BRCAPsFh4E"><b data-page-node-id="Wh3aOcQq7JIQXZiCQ1izDy"><a href="https://github.com/ATEMall/can-log-analyzer/issues/3" data-page-node-id="6EYg9UExfVthxC7JhjG8KS">#3</a></b></td>
+      <td data-page-node-id="zMR9gkt5wUc7kUheVynGQv">[v2.1][R3] DBC 解析补全：BA_ 属性/扩展帧/mux/SIG_VALTYPE_</td>
+      <td data-page-node-id="b1wRnMWsAiGoNzZTbEmGnj"><span class="pill p1" data-page-node-id="ojLj626lmMPc0mGiyGQi3Q">P1</span></td>
+      <td data-page-node-id="WrarvVImmtT5jPR6bo5Q47"><span class="pill closed" data-page-node-id="dRoLtGRhWxbAZLlE7jgFor">✅ Closed（09-03）</span></td>
+      <td class="verdict" data-page-node-id="akPI55OexQcscDsc0SlaOO">✅ 验收通过（09-01，随 #7 返工）：cantools 直载零补丁 + 12/12 对拍。09-03 关闭并附验收评论</td>
+      <td data-page-node-id="tR0WQYF3nxsN86zSQmnaTk">09-03</td>
     </tr>
-    <tr>
-      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/4">#4</a></b></td>
-      <td>[v2.1][R4] 解析容错与错误报告</td>
-      <td><span class="pill p1">P1</span></td>
-      <td><span class="pill closed">✅ Closed</span></td>
-      <td class="verdict">✅ 验收通过（08-30）：代码复核 + 119/119 测试</td>
-      <td>08-30</td>
+    <tr data-page-node-id="HRzJ6ks5RtU0Dv2RV3gL4P">
+      <td data-page-node-id="Ar5gjUeZ6qz9ZG7uU21gAU"><b data-page-node-id="EWubfisHjCKvqbABgl6HdH"><a href="https://github.com/ATEMall/can-log-analyzer/issues/4" data-page-node-id="92lUMDBrdAN3tKWZf9MEJC">#4</a></b></td>
+      <td data-page-node-id="Czhx1lXN1HImy4VE6hv1He">[v2.1][R4] 解析容错与错误报告</td>
+      <td data-page-node-id="839XWm8sDOp2kUSb2hhs1k"><span class="pill p1" data-page-node-id="m9DmzBHzneakCPPHHgsNWL">P1</span></td>
+      <td data-page-node-id="PGufKzgb8EVLlEcA7WTSqb"><span class="pill closed" data-page-node-id="TY67Q90Kfd7HL3c6ckDjBW">✅ Closed</span></td>
+      <td class="verdict" data-page-node-id="2888H3X1ERBQVFoPqP7PFK">✅ 验收通过（08-30）：代码复核 + 119/119 测试</td>
+      <td data-page-node-id="v8dL1n6Tg8TgpqJ2eZVNED">08-30</td>
     </tr>
-    <tr>
-      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/5">#5</a></b></td>
-      <td>[v2.1][R5/R6] 工程保存/恢复 + 最近文件 + 偏好持久化</td>
-      <td><span class="pill p0">P0</span></td>
-      <td><span class="pill closed">✅ Closed（09-03）</span></td>
-      <td class="verdict">✅ 验收通过（09-01）：.claproj 校验/最近文件/settings 落盘+恢复/单实例/前端集成。09-03 关闭并附验收评论</td>
-      <td>09-03</td>
+    <tr data-page-node-id="BJZcwBDVmZDarx4S6aSS0D">
+      <td data-page-node-id="rsjk60RPZVgIuR8Gzb16hv"><b data-page-node-id="ecY1VIXDp4wwbJFZtKwlkw"><a href="https://github.com/ATEMall/can-log-analyzer/issues/5" data-page-node-id="TfaCJ5YECEEoPpXkH2eh5i">#5</a></b></td>
+      <td data-page-node-id="OQQxgB8b4che2ISPBDqpSn">[v2.1][R5/R6] 工程保存/恢复 + 最近文件 + 偏好持久化</td>
+      <td data-page-node-id="FCeKFbtjgEAtodJALhGBDJ"><span class="pill p0" data-page-node-id="UG6FrVjQYdP48W8mSDZ6uw">P0</span></td>
+      <td data-page-node-id="AGsVE0SOfvB5mMZlcd1axW"><span class="pill closed" data-page-node-id="7ZRbDA9rtmRO9yAYBUF7iR">✅ Closed（09-03）</span></td>
+      <td class="verdict" data-page-node-id="T5aX8ERmRKdRlCZ7fTNwQM">✅ 验收通过（09-01）：.claproj 校验/最近文件/settings 落盘+恢复/单实例/前端集成。09-03 关闭并附验收评论</td>
+      <td data-page-node-id="IlLvTHeTBtFUDdHaxuG98X">09-03</td>
     </tr>
-    <tr>
-      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/6">#6</a></b></td>
-      <td>[v2.1][R7/R8] 导出补全（CSV/BLF）+ UI 增量</td>
-      <td><span class="pill p1">P1</span></td>
-      <td><span class="pill closed">✅ Closed（09-03）</span></td>
-      <td class="verdict">✅ 验收通过（09-01）：三类导出 + UI 增量（进度/空态/徽章/快捷键）。09-03 关闭并附验收评论</td>
-      <td>09-03</td>
+    <tr data-page-node-id="IRyhROzdVHxLnLIOKPdYlY">
+      <td data-page-node-id="cEMTctOT7TuSKipfLovsWS"><b data-page-node-id="aUrbUBvwwQ0Igb4vYqRMK0"><a href="https://github.com/ATEMall/can-log-analyzer/issues/6" data-page-node-id="veNgiPGGj4gAvB3x00IHMn">#6</a></b></td>
+      <td data-page-node-id="2TLvNvvJdrKkmsou4w7U5P">[v2.1][R7/R8] 导出补全（CSV/BLF）+ UI 增量</td>
+      <td data-page-node-id="UmJkam5YeGdMteZ244ifj6"><span class="pill p1" data-page-node-id="eC6oVJk1ZAakLqPT7qy8u8">P1</span></td>
+      <td data-page-node-id="PCwREFEg5UANAhfZUtk2Sx"><span class="pill closed" data-page-node-id="Jl259IycOqFrensuAktu17">✅ Closed（09-03）</span></td>
+      <td class="verdict" data-page-node-id="UROGziKtiHEqKZSXRKrLFT">✅ 验收通过（09-01）：三类导出 + UI 增量（进度/空态/徽章/快捷键）。09-03 关闭并附验收评论</td>
+      <td data-page-node-id="dJQvYbjU5SIBbt8rdKW0lB">09-03</td>
     </tr>
-    <tr>
-      <td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/7">#7</a></b></td>
-      <td>R3 交付缺陷：样例 DBC 无法被 cantools 加载 + 引擎不识别扩展帧标志位</td>
-      <td><span class="pill p1">P1 high</span></td>
-      <td><span class="pill closed">✅ Closed（09-03）</span></td>
-      <td class="verdict">✅ 验收通过（09-01）：样例直载修复/标志位支持/id 归一化/单测 31/31/12-12 对拍。09-03 关闭并附验收评论</td>
-      <td>09-03</td>
+    <tr data-page-node-id="AMBpGoCnH5Tm9IG3KQ7Lsm">
+      <td data-page-node-id="oxCUBSBmxDU5ZLJSG4ICUT"><b data-page-node-id="f8zW2nI4VPK1BOaHG1RwOS"><a href="https://github.com/ATEMall/can-log-analyzer/issues/7" data-page-node-id="Ii5h9NW1pmpiKc8gsHnuVa">#7</a></b></td>
+      <td data-page-node-id="xjSqgaSOcNMW85LzIZqxog">R3 交付缺陷：样例 DBC 无法被 cantools 加载 + 引擎不识别扩展帧标志位</td>
+      <td data-page-node-id="pD2VEQEVvbWNazNJMjDPHm"><span class="pill p1" data-page-node-id="zItFcMh0uyH68y1kdxTeQI">P1 high</span></td>
+      <td data-page-node-id="bGXAUL9GHkiD4E90VorGS1"><span class="pill closed" data-page-node-id="4ggkbEVQx8lhN2Y4aknjpt">✅ Closed（09-03）</span></td>
+      <td class="verdict" data-page-node-id="XZKazGLH5VCpefDMWEt7JK">✅ 验收通过（09-01）：样例直载修复/标志位支持/id 归一化/单测 31/31/12-12 对拍。09-03 关闭并附验收评论</td>
+      <td data-page-node-id="LsXoZ9FNIAVVzB9w7XH32B">09-03</td>
     </tr>
   </table>
 
-  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);">v2.1.1 backlog（09-06 全部关闭，PM 逐项复核通过）</h4>
-  <table>
-    <tr><th>#</th><th>标题</th><th>优先级</th><th>状态</th><th>备注</th></tr>
-    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/8">#8</a></b></td><td>R2 双路径收敛：decodeAll 归一化为分块薄封装</td><td><span class="pill p0">P1</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 复核 ✅ 新增 decodeAll vs decodeFramesChunk 位级一致性断言</td></tr>
-    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/10">#10</a></b></td><td>1M 帧端到端 UI 实测 + BENCHMARK-R2-UI.md</td><td><span class="pill p0">P1</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 复核 ✅ 实跑 r2-ui.cjs 复现（0.29-0.45M 帧/s）；UI 人工观测步骤已在报告中诚实标注</td></tr>
-    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/9">#9</a></b></td><td>BLF 解析超时参数化（按文件大小自适应）</td><td><span class="pill p1">P2</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 复核 ✅ blfParseTimeoutMs（2min+6s/MB，cap 60min）+ settings 可调 + 错误提示当前值</td></tr>
-    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/11">#11</a></b></td><td>大文件加载压缩缓存进度提示</td><td><span class="pill p1">P2</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 复核 ✅ cache:compress-progress start/done/error + 二次加载命中跳过 + preload/App 订阅</td></tr>
-    <tr><td><b><a href="https://github.com/ATEMall/can-log-analyzer/issues/12">#12</a></b></td><td>对拍脚本不可复现（NamedSignalValue 序列化崩溃）</td><td><span class="pill p0">P1</span></td><td><span class="pill closed">Closed</span></td><td class="verdict">PM 建立并闭环 ✅ dev 修 _norm 后 PM 实跑仍暴露 CRLF 残留缺陷 → PM 修复 split(/\r?\n/) → 23/23 + 12/12 match exit 0（cantools 43.0.2）</td></tr>
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);" data-page-node-id="CZEN3gpeMeOKWcaYHndMtB">v2.1.1 backlog（09-06 全部关闭，PM 逐项复核通过）</h4>
+  <table data-page-node-id="5d4zDYuBoD4tx0UEz3TlUJ">
+    <tr data-page-node-id="5xmswWoftcT0onFirJVmy6"><th data-page-node-id="7iTlXxCkQXzoRH3XOOfbMh">#</th><th data-page-node-id="WRnKpSEOvxsHXRsRYOGcQZ">标题</th><th data-page-node-id="NM4wT0peu0ZOrsp31rEUtN">优先级</th><th data-page-node-id="9HEstbxInJqj3x4lHe0wgy">状态</th><th data-page-node-id="uNdFOlwWgXGXi27TTVhvfY">备注</th></tr>
+    <tr data-page-node-id="JQdov1aKP1KnZb3iG3o62t"><td data-page-node-id="hCRcW8y5AAil5A8EH8HPD9"><b data-page-node-id="mmBiAKvIdA6UKhhnrSe6gE"><a href="https://github.com/ATEMall/can-log-analyzer/issues/8" data-page-node-id="lzicN1hiOFQsPBKnGXqYWY">#8</a></b></td><td data-page-node-id="qeGRctFez2MSAeShlAjzvC">R2 双路径收敛：decodeAll 归一化为分块薄封装</td><td data-page-node-id="U7SaA7OZNEnsLwUTulWbIB"><span class="pill p0" data-page-node-id="UHQ0NRf5aMygclxgWU47qr">P1</span></td><td data-page-node-id="dCp9wAdXBEN738d6gdwpO2"><span class="pill closed" data-page-node-id="9VegfcNQRjKk9tmlh8kG9C">Closed</span></td><td class="verdict" data-page-node-id="YvviTXxuCkQLqQcT8yrsez">PM 复核 ✅ 新增 decodeAll vs decodeFramesChunk 位级一致性断言</td></tr>
+    <tr data-page-node-id="kmLs9iyQx6dKkcMC5sVHK0"><td data-page-node-id="3DxB3UHMcdoYgVBCmNO8Pa"><b data-page-node-id="hMNrJCyFe5AhmgTdsCOC60"><a href="https://github.com/ATEMall/can-log-analyzer/issues/10" data-page-node-id="BHUfDRJYwzBMuqtVeTQaMu">#10</a></b></td><td data-page-node-id="ox60FxeXqK3Q888Qu5vp0F">1M 帧端到端 UI 实测 + BENCHMARK-R2-UI.md</td><td data-page-node-id="F93g1cgwBqindHxavNPrDM"><span class="pill p0" data-page-node-id="LVyyVgCYR9eJmR78xl49Bm">P1</span></td><td data-page-node-id="DTxl6RRQfdP3eYvI7yTjYt"><span class="pill closed" data-page-node-id="9M4DlpDB0Yw4HUrHChrQwh">Closed</span></td><td class="verdict" data-page-node-id="Z4eemv1zHCpblip1SXskDY">PM 复核 ✅ 实跑 r2-ui.cjs 复现（0.29-0.45M 帧/s）；UI 人工观测步骤已在报告中诚实标注</td></tr>
+    <tr data-page-node-id="fLw0NQ50nrkfJpGccDT98Q"><td data-page-node-id="wn9rV0RN8luaBrxv7J4ERT"><b data-page-node-id="gac4fHfjH2hIXgB94HV0Sh"><a href="https://github.com/ATEMall/can-log-analyzer/issues/9" data-page-node-id="N420qngAnMcUTZLXDHFUV5">#9</a></b></td><td data-page-node-id="3ciKI5KVQMinmtThpjM9v8">BLF 解析超时参数化（按文件大小自适应）</td><td data-page-node-id="WaaXpBsSLxgPnursygIWgs"><span class="pill p1" data-page-node-id="Eju4HJKYJJe1blHzRSrAxZ">P2</span></td><td data-page-node-id="LKyqgNuIauwTfN7vGn9x7t"><span class="pill closed" data-page-node-id="lLpiRski8IIC37r5HCwuzi">Closed</span></td><td class="verdict" data-page-node-id="jC0ZxSMEbjiABKiGpaisKi">PM 复核 ✅ blfParseTimeoutMs（2min+6s/MB，cap 60min）+ settings 可调 + 错误提示当前值</td></tr>
+    <tr data-page-node-id="KcR7IpWhBG6OfocJJAwIQy"><td data-page-node-id="NjMLiB3e7FDkHpIsHV3aTY"><b data-page-node-id="DoTVZbzfV1C4MCJV3DHge4"><a href="https://github.com/ATEMall/can-log-analyzer/issues/11" data-page-node-id="wHZCrYTBck6zWwDWmy3Obl">#11</a></b></td><td data-page-node-id="b3dN38OAKD1evAUCvDitgb">大文件加载压缩缓存进度提示</td><td data-page-node-id="oLjfEsthb4H5I4n4Flmihm"><span class="pill p1" data-page-node-id="xWoCToSlHmajG80OiCw4r4">P2</span></td><td data-page-node-id="AA0SlWnGl5GC2Rmpfhgydz"><span class="pill closed" data-page-node-id="mCEJlC68FRdWW06RGhpErD">Closed</span></td><td class="verdict" data-page-node-id="psoQEDqNvcBxEzE0BLHsFd">PM 复核 ✅ cache:compress-progress start/done/error + 二次加载命中跳过 + preload/App 订阅</td></tr>
+    <tr data-page-node-id="czahxHxficzGRTuvuArXsW"><td data-page-node-id="j3DCYoABXQbjSPjflCLDQ8"><b data-page-node-id="t8fQbguaGhc8LKJz6XBWOf"><a href="https://github.com/ATEMall/can-log-analyzer/issues/12" data-page-node-id="2P6BRZQVUAOzwi008eSVUK">#12</a></b></td><td data-page-node-id="dVNb5NJ8YFx8PNoWt6QDgi">对拍脚本不可复现（NamedSignalValue 序列化崩溃）</td><td data-page-node-id="nzcHp433dmEKIswizCThNu"><span class="pill p0" data-page-node-id="yazWEBvC5Re0cXzS4ceIgg">P1</span></td><td data-page-node-id="Akv7cSx20iOhPYin76Bmy1"><span class="pill closed" data-page-node-id="YoszD4rDt83G21rRMjuyXv">Closed</span></td><td class="verdict" data-page-node-id="Xsz53eDJlxweGWMX4x6nMn">PM 建立并闭环 ✅ dev 修 _norm 后 PM 实跑仍暴露 CRLF 残留缺陷 → PM 修复 split(/\r?\n/) → 23/23 + 12/12 match exit 0（cantools 43.0.2）</td></tr>
   </table>
 </section>
 
 <!-- ============ 三、To Do ============ -->
-<section>
-  <div class="sec-title">📌 三、To Do（行动清单） <span class="badge">按优先级排序</span></div>
+<section data-page-node-id="lDtMZPa2dLmdqeNUIKynG9">
+  <div class="sec-title" data-page-node-id="oN0qqzvVtKqDTSTb3UBxlQ">📌 三、To Do（行动清单） <span class="badge" data-page-node-id="ET40yoQn25Hs5eKGy9YQbZ">按优先级排序</span></div>
 
-  <div class="todo"><div class="mark p0">✓</div>
-    <div class="body">
-      <div class="t">✅ 4 项交付复核完成 — 全部验收通过<span class="tag">PM · 09-01 完成</span></div>
-      <div class="d">R2（#2）/R3（#3，#7 返工）/R5·R6（#5）/R7·R8（#6）全部验收通过：全量回归 162/162；cantools 直载零补丁 + 12/12 对拍；纯流式 + 基准可复现；验收记录已提交 ee89a5b。</div>
+  <div class="todo" data-page-node-id="pBK5onBh54FswEZlKhZa3B"><div class="mark p0" data-page-node-id="Lg9vGP3UuvlvGuMfh7ZW1m">✓</div>
+    <div class="body" data-page-node-id="zNPqIaqfN6kZAECZgjl0jf">
+      <div class="t" data-page-node-id="diKRLoPW7ZFeL1y77bK0SR">✅ 4 项交付复核完成 — 全部验收通过<span class="tag" data-page-node-id="8mThsAmC2qyaB7ZWlDBgio">PM · 09-01 完成</span></div>
+      <div class="d" data-page-node-id="PoE1PiSdockoYoKlL2gkUk">R2（#2）/R3（#3，#7 返工）/R5·R6（#5）/R7·R8（#6）全部验收通过：全量回归 162/162；cantools 直载零补丁 + 12/12 对拍；纯流式 + 基准可复现；验收记录已提交 ee89a5b。</div>
     </div></div>
 
-  <div class="todo"><div class="mark pm">2</div>
-    <div class="body">
-      <div class="t">✅ GitHub Issues #2/#3/#5/#6/#7 已关闭<span class="tag">PM · 09-03 完成</span></div>
-      <div class="d">连接器恢复后逐一关闭，各附验收结论文（引用 docs/ACCEPTANCE-2026-09-01.md）。至此 7 个 Issue 全部闭环。</div>
+  <div class="todo" data-page-node-id="2KqnSlID7NBLyst22SCW3o"><div class="mark pm" data-page-node-id="kPXW8D1tM6qqrHLfPT6e39">2</div>
+    <div class="body" data-page-node-id="WqZCjHNBSF8LGiXDCL65Hr">
+      <div class="t" data-page-node-id="fM0ZzjCaaUHGPFznM2kAWz">✅ GitHub Issues #2/#3/#5/#6/#7 已关闭<span class="tag" data-page-node-id="gQ0wfhzBjaYuDMHQlbliiZ">PM · 09-03 完成</span></div>
+      <div class="d" data-page-node-id="zcF9m3CGLeCF6f5SbVGvtF">连接器恢复后逐一关闭，各附验收结论文（引用 docs/ACCEPTANCE-2026-09-01.md）。至此 7 个 Issue 全部闭环。</div>
     </div></div>
 
-  <div class="todo"><div class="mark pm">1</div>
-    <div class="body">
-      <div class="t">✅ v2.1.1 backlog 清零：#8-#12 全关 + PM 逐项复核通过<span class="tag">PM · 09-06 完成</span></div>
-      <div class="d">开发 9bff68d 关闭 #8/#9/#10/#11/#12。PM 实证：#12 对拍脚本 PM 实跑发现 CRLF 残留缺陷并直接修复 → 23/23 + 12/12 match exit 0（cantools 43.0.2，验收基线首次由仓库脚本真实复现）；#10 基准实跑复现；#8 断言、#9/#11 代码落点核验属实；全量回归 163/163。</div>
+  <div class="todo" data-page-node-id="JQuFTiPyBqTBASfnNZiOla"><div class="mark pm" data-page-node-id="9tfDWNjH05j7AaNqc2b519">1</div>
+    <div class="body" data-page-node-id="0VZ6w2oWBapE2VDen1rfKL">
+      <div class="t" data-page-node-id="mhzbVuCR2RRnsOPUPfJemQ">✅ v2.1.1 backlog 清零：#8-#12 全关 + PM 逐项复核通过<span class="tag" data-page-node-id="EqpgBdpdF4HcKc3JeoiBXh">PM · 09-06 完成</span></div>
+      <div class="d" data-page-node-id="4wG47PTxmfHoiStfEPx5ve">开发 9bff68d 关闭 #8/#9/#10/#11/#12。PM 实证：#12 对拍脚本 PM 实跑发现 CRLF 残留缺陷并直接修复 → 23/23 + 12/12 match exit 0（cantools 43.0.2，验收基线首次由仓库脚本真实复现）；#10 基准实跑复现；#8 断言、#9/#11 代码落点核验属实；全量回归 163/163。</div>
     </div></div>
 
-  <div class="todo"><div class="mark pm">2</div>
-    <div class="body">
-      <div class="t">⏳ PM 终验（DoD#6）+ ACCEPTANCE-v2.1.md<span class="tag">PM · 唯一剩余关键路径 · 目标 09-19</span></div>
-      <div class="d">对已发布的 v2.1.1 产物执行终验：双形态启动冒烟 / 加载 dbc_full 样例三视图走查 / .claproj 保存重启恢复 / 三类导出往返 diff → 产出 docs/ACCEPTANCE-v2.1.md（含 v2.1.1 发布说明与基准数据）。注：开发 09-03 以 v2.1.1 名义提前发布（早于终验，流程偏差已记录），终验针对现有 2.1.1 产物补做。</div>
+  <div class="todo" data-page-node-id="vfULzASw5NVIkduerJzMtP"><div class="mark pm" data-page-node-id="UtReHhDt1QDnk2OTX9GDoZ">2</div>
+    <div class="body" data-page-node-id="ubcjppmLZq90tyIyguECRD">
+      <div class="t" data-page-node-id="p0plZqCJ390qRBWKDrCZtl">⏳ PM 终验（DoD#6）+ ACCEPTANCE-v2.1.md<span class="tag" data-page-node-id="UKTwyiyCBDHnXwJ7Skx5wW">PM · 唯一剩余关键路径 · 目标 09-19</span></div>
+      <div class="d" data-page-node-id="Rfe3MbOMu1Eb0gO7mlG251">对已发布的 v2.1.1 产物执行终验：双形态启动冒烟 / 加载 dbc_full 样例三视图走查 / .claproj 保存重启恢复 / 三类导出往返 diff → 产出 docs/ACCEPTANCE-v2.1.md（含 v2.1.1 发布说明与基准数据）。注：开发 09-03 以 v2.1.1 名义提前发布（早于终验，流程偏差已记录），终验针对现有 2.1.1 产物补做。</div>
     </div></div>
 
-  <div class="todo"><div class="mark p0">3</div>
-    <div class="body">
-      <div class="t">✅ 开发补齐 v2.1 发版 3 缺口<span class="tag">开发 · 09-03 完成（以 v2.1.1 名义）</span></div>
-      <div class="d">bbf9c76：CHANGELOG [2.1.1] 条目 + README 六~八节 R5-R8 手册 + release Setup+Portable 2.1.1 重打包（tag v2.1.1，Releases 页正式发布）。缺口内容补齐，但发布早于 PM 终验（DoD#6 流程偏差，已记录为改进项）。</div>
+  <div class="todo" data-page-node-id="AXD7DTEc0wEMAaeHG4Ws3a"><div class="mark p0" data-page-node-id="iWfcdpWcxOQLD43n9jvI1X">3</div>
+    <div class="body" data-page-node-id="ppK9V7CeL1sVQbXgIDzpHN">
+      <div class="t" data-page-node-id="PLWB46VaWfCNU00FtcxctN">✅ 开发补齐 v2.1 发版 3 缺口<span class="tag" data-page-node-id="NbnbXdZ29cm4G2ay4JkTDO">开发 · 09-03 完成（以 v2.1.1 名义）</span></div>
+      <div class="d" data-page-node-id="ToUMMyk4ntfTM74oo0rK8j">bbf9c76：CHANGELOG [2.1.1] 条目 + README 六~八节 R5-R8 手册 + release Setup+Portable 2.1.1 重打包（tag v2.1.1，Releases 页正式发布）。缺口内容补齐，但发布早于 PM 终验（DoD#6 流程偏差，已记录为改进项）。</div>
     </div></div>
 
-  <div class="confirm">
-    ⏳ <b>待办：</b>① PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 docs/ACCEPTANCE-v2.1.md（目标 09-19）；② RELEASE-CHECKLIST-v2.1.md 终验结论更新为全绿；③ v2.1 收口后规划 v3.0（roadmap_v3x 测试素材已入库：LIN / UDS·XCP / SOME-IP / DoIP）。
+  <div class="todo"><div class="mark p1">4</div>
+    <div class="body">
+      <div class="t">🆕 v2.2 开发计划已下发（体验与健壮，Issues #13-#18）<span class="tag">PM · 09-09 计划 · 排期 09-10 ~ 09-23</span></div>
+      <div class="d">R9 深色模式（#13 P0）/ R10 可折叠布局+状态记忆（#14 P0）/ R13 多 Y 轴曲线（#15）/ R11 全局搜索+时间轴总览（#16）/ R12 总线负载+错误帧统计（#17）/ R14 错误上报+诊断日志（#18）。两批次：W1（09-16 前）R9/R10/R13，W2（09-22 前）R11/R12/R14 → 09-23 v2.2.0 终验发版。需求详情与 DoD 见 <a href="PLAN-v2.2.md">PLAN-v2.2.md</a>。</div>
+    </div></div>
+
+  <div class="confirm" data-page-node-id="4MoWZ3X9Z8etFq8O7nfWuv">
+    ⏳ <b data-page-node-id="xXLswrpDCuOaOgEt0DR1eR">待办：</b>① PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 docs/ACCEPTANCE-v2.1.md（目标 09-19）；② RELEASE-CHECKLIST-v2.1.md 终验结论更新为全绿；③ v2.2 批次复核（W1 批 09-16 起，R9/R10/R13 → R11/R12/R14）；④ v2.1 收口后规划 v3.0（roadmap_v3x 测试素材已入库：LIN / UDS·XCP / SOME-IP / DoIP）。
   </div>
 
-  <div class="legend">
-    <span>🟢 <span class="pill done">完成/验收通过</span></span>
-    <span>🔵 <span class="pill closed">已关闭</span></span>
-    <span>🟡 <span class="pill wait">进行中/催办</span></span>
-    <span>验收基线：cantools 43.0.2 对拍 0 不一致 + 全量 npm test 通过</span>
+  <div class="legend" data-page-node-id="G2DXBHJEfPQLSfcScsQrql">
+    <span data-page-node-id="ODBF6pKoeJJHhF1HhC3rpS">🟢 <span class="pill done" data-page-node-id="jVdyRbRWq3IxodTMaaQhVr">完成/验收通过</span></span>
+    <span data-page-node-id="sy5LwJ4aTJJCi91n6OFPS4">🔵 <span class="pill closed" data-page-node-id="hkCiHKgihCLqYY8LU3KGBw">已关闭</span></span>
+    <span data-page-node-id="4U0Jb2ErGicH23zEeDZKt3">🟡 <span class="pill wait" data-page-node-id="z6Wu6j6BlVuJr4L8WGeR5Y">进行中/催办</span></span>
+    <span data-page-node-id="nQ8BBhyqYABetKUi8gvoh2">验收基线：cantools 43.0.2 对拍 0 不一致 + 全量 npm test 通过</span>
   </div>
 </section>
 
-<footer>can-log-analyzer · PM 看板 · 由项目记忆 + GitHub 实时数据生成 · 每周五 17:00 自动更新周报</footer>
+<footer data-page-node-id="qAkl66yzOeJuPI07m05vyO">can-log-analyzer · PM 看板 · 由项目记忆 + GitHub 实时数据生成 · 每周五 17:00 自动更新周报</footer>
 </div>
 </body>
 </html>
