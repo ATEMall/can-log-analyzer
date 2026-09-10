@@ -5,6 +5,98 @@
   box-sizing: border-box;
 }
 
+/* =====================================================================
+   v2.2 R9 design tokens (PRD §5.3).
+
+   Light values are the default and live in :root. Dark mode only
+   overrides the surface / text / border / chart-neutral tokens under
+   [data-theme='dark'] (the attribute is set on <html> by the theme
+   host in main.jsx — no window refresh needed).
+
+   Semantic accents that must stay IDENTICAL across themes (signal curve
+   palette, bit-layout colours, ok/purple status hues — see R9 spec) are
+   defined in :root only and deliberately NOT overridden by dark mode.
+   ===================================================================== */
+:root {
+  color-scheme: light;
+
+  /* surfaces */
+  --bg-page: #f5f5f5;            /* window gutter / body */
+  --bg-panel: #ffffff;           /* header bar + panel containers */
+  --bg-well: #fafafa;            /* nested wells: code, pre, layout modal */
+  --bg-strip: #f0f0f0;           /* info strips / chips */
+  --bg-chip: #f5f5f5;            /* help code chips */
+  --bg-selected: #e6f4ff;        /* selected rows / tree items */
+
+  /* text */
+  --text-strong: #1f1f1f;        /* titles */
+  --text-base: #333333;          /* default body text */
+  --text-primary: rgba(0, 0, 0, 0.85); /* header meta */
+  --text-secondary: #595959;     /* weak labels, mux tags */
+  --text-regular: #666666;       /* descriptive text */
+  --text-quiet: #8c8c8c;         /* grid labels, bit header */
+  --text-hint: #999999;          /* hints, counts, placeholders */
+  --text-faint: #bfbfbf;         /* unmatched / disabled */
+  --text-inverse: #ffffff;       /* on-colour foreground */
+  --text-accent: #0958d9;        /* accent text: msg id codes, selected ids */
+
+  /* borders & shadows */
+  --border-strong: #e8e8e8;      /* panel / card outlines */
+  --border-subtle: #f0f0f0;      /* inner separators */
+  --border-faint: #eeeeee;       /* code chip borders */
+  --border-selected: #91caff;    /* selected outline */
+  --cell-border: rgba(0, 0, 0, 0.15);
+  --cell-border-faint: rgba(0, 0, 0, 0.06);
+  --shadow-header: rgba(0, 0, 0, 0.06);
+
+  /* chart neutrals (SVG) */
+  --chart-grid: #f0f0f0;
+
+  /* brand + status accents — constant across themes because they double
+     as the signal curve palette / layout colours (R9 keeps these
+     semantically identical in light & dark). */
+  --brand: #1677ff;
+  --brand-deep: #0958d9;
+  --brand-blue: #1890ff;
+  --ok-green: #52c41a;
+  --accent-purple: #722ed1;
+  --warn-gold: #faad14;
+  --danger-red: #ff4d4f;
+  --icon-neutral: #d9d9d9;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-page: #0b0b0d;
+  --bg-panel: #141416;
+  --bg-well: #1d1d21;
+  --bg-strip: #1f1f24;
+  --bg-chip: #1d1d21;
+  --bg-selected: rgba(22, 119, 255, 0.22);
+
+  --text-strong: rgba(255, 255, 255, 0.92);
+  --text-base: rgba(255, 255, 255, 0.88);
+  --text-primary: rgba(255, 255, 255, 0.85);
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-regular: rgba(255, 255, 255, 0.62);
+  --text-quiet: rgba(255, 255, 255, 0.48);
+  --text-hint: rgba(255, 255, 255, 0.45);
+  --text-faint: rgba(255, 255, 255, 0.28);
+  --text-inverse: #ffffff;
+  --text-accent: #4096ff;        /* light blue, readable on dark panels */
+
+  --border-strong: #2e2e33;
+  --border-subtle: #26262b;
+  --border-faint: #26262b;
+  --border-selected: #2f5f96;
+  --cell-border: rgba(255, 255, 255, 0.2);
+  --cell-border-faint: rgba(255, 255, 255, 0.08);
+  --shadow-header: rgba(0, 0, 0, 0.5);
+
+  --chart-grid: #2e2e33;
+}
+
 html, body, #root {
   width: 100%;
   height: 100%;
@@ -13,14 +105,14 @@ html, body, #root {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: #f5f5f5;
-  color: #333;
+  background: var(--bg-page);
+  color: var(--text-base);
   -webkit-font-smoothing: antialiased;
 }
 
 /* Highlight rows of selected signals in DBC detail table */
 .sig-row-selected td {
-  background-color: #e6f4ff !important;
+  background-color: var(--bg-selected) !important;
 }
 
 /* Prevent antd Tabs content from overflowing in flex layout.

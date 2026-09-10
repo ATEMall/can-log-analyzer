@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const zlib = require('zlib');
@@ -100,12 +100,19 @@ function createWindow() {
 
   // R6: restore the persisted window size/position.
   const savedBounds = getSetting('windowBounds', null);
+
+  // R9 (v2.2): pick a pre-paint background matching the saved theme so a dark
+  // OS theme does not flash white. theme = 'light'|'dark'|'system' (default:
+  // follow the OS via nativeTheme).
+  const savedTheme = getSetting('theme', 'system');
+  const windowDark = savedTheme === 'dark'
+    || (savedTheme !== 'light' && nativeTheme.shouldUseDarkColors);
   mainWindow = new BrowserWindow({
     width: savedBounds?.width || 1400,
     height: savedBounds?.height || 900,
     x: savedBounds?.x,
     y: savedBounds?.y,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: windowDark ? '#141416' : '#f5f5f5',
     icon: icon,
     webPreferences: {
       nodeIntegration: false,
@@ -247,6 +254,31 @@ function buildRecentSubmenu() {
   return items;
 }
 
+// R9 (v2.2): theme selection (View > 主题). The choice is persisted in
+// settings.json under `theme` ('system' default follows the OS); the renderer
+// is told via a theme:set menu action and switches instantly without reload.
+function buildThemeSubmenu() {
+  const saved = getSetting('theme', 'system');
+  const active = (saved === 'light' || saved === 'dark') ? saved : 'system';
+  const items = ['system', 'light', 'dark'].map(mode => ({
+    label: mode === 'system' ? '跟随系统' : (mode === 'light' ? '浅色' : '深色'),
+    type: 'radio',
+    checked: active === mode,
+    click: () => {
+      if (getSetting('theme', 'system') === mode) return;
+      setSetting({ theme: mode });
+      sendMenuAction('theme:set', { theme: mode });
+      buildApplicationMenu(); // refresh the radio checked state
+    }
+  }));
+  items.push({ type: 'separator' });
+  items.push({
+    label: '深色下强调色与曲线色保持一致，图表/位布局无需重新截图',
+    enabled: false
+  });
+  return items;
+}
+
 function buildApplicationMenu() {
   const isMac = process.platform === 'darwin';
 
@@ -323,7 +355,13 @@ function buildApplicationMenu() {
       { role: 'zoomIn' },
       { role: 'zoomOut' },
       { type: 'separator' },
-      { role: 'togglefullscreen' }
+      { role: 'togglefullscreen' },
+      { type: 'separator' },
+      // R9: light / dark / follow-system.
+      {
+        label: '主题',
+        submenu: buildThemeSubmenu()
+      }
     ]
   };
 

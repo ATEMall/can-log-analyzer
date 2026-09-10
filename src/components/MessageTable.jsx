@@ -113,14 +113,14 @@ function MessageTable({ messages, loading, dbcMessages = [] }) {
         const mismatch = !!dbcMsg && frameExt !== dbcExt;
         return (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <Text code style={{ fontSize: 12, color: mismatch ? '#bfbfbf' : undefined }}>
+            <Text code style={{ fontSize: 12, color: mismatch ? 'var(--text-faint)' : undefined }}>
               {id != null ? `0x${id.toString(16).toUpperCase().padStart(3, '0')}` : '0x000'}
             </Text>
             {(frameExt || dbcExt) && (
               <Tag color="blue" style={{ fontSize: 9, lineHeight: '14px', marginInlineEnd: 0 }}>Ext</Tag>
             )}
             {mismatch && (
-              <Tag style={{ fontSize: 9, lineHeight: '14px', marginInlineEnd: 0, color: '#bfbfbf' }}>未匹配</Tag>
+              <Tag style={{ fontSize: 9, lineHeight: '14px', marginInlineEnd: 0, color: 'var(--text-faint)' }}>未匹配</Tag>
             )}
           </span>
         );

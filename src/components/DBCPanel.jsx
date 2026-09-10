@@ -27,14 +27,34 @@ function DBCPanel({
   // search state lives in the parent (App) now so the search box can sit in
   // the top toolbar instead of inside this panel
   search: externalSearch,
-  onSearchChange
+  onSearchChange,
+  // R10: expansion state may be lifted to the parent (App) for persistence.
+  // When `expandedMsgs` is provided the panel is controlled and reports every
+  // change via `onExpandedMsgsChange`; standalone renders (tests, demos) keep
+  // the internal state instead.
+  expandedMsgs: controlledExpandedMsgs,
+  onExpandedMsgsChange
 }) {
   const [internalSearch, setInternalSearch] = useState('');
   const search = externalSearch !== undefined ? externalSearch : internalSearch;
   const setSearch = onSearchChange || setInternalSearch;
-  const [expandedMsgs, setExpandedMsgs] = useState({});
+  const [internalExpandedMsgs, setInternalExpandedMsgs] = useState({});
+  const expandedMsgs = controlledExpandedMsgs !== undefined
+    ? controlledExpandedMsgs
+    : internalExpandedMsgs;
   const [selectedMsgId, setSelectedMsgId] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  // Toggle one message row's expansion. Controlled mode reports the new map
+  // up so the parent can persist it; uncontrolled mode updates internal state.
+  const toggleExpand = (id) => {
+    const next = { ...expandedMsgs, [id]: !expandedMsgs[id] };
+    if (controlledExpandedMsgs !== undefined) {
+      onExpandedMsgsChange?.(next);
+    } else {
+      setInternalExpandedMsgs(next);
+    }
+  };
 
   const selectedSignalKeys = useMemo(() => new Set(selectedSignals.map(s => `${s.msgId}::${s.signalName}`)), [selectedSignals]);
 
@@ -71,10 +91,6 @@ function DBCPanel({
     [messages]
   );
 
-  const toggleExpand = (id) => {
-    setExpandedMsgs(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
   const handleMsgClick = (id) => {
     setSelectedMsgId(id);
     toggleExpand(id);
@@ -92,7 +108,7 @@ function DBCPanel({
         onClick={(e) => { e.stopPropagation(); onSignalToggle(msg.id, sig.name); }}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, padding: '2px 8px 2px 4px',
-          cursor: 'pointer', borderRadius: 4, background: selected ? '#e6f4ff' : 'transparent',
+          cursor: 'pointer', borderRadius: 4, background: selected ? 'var(--bg-selected)' : 'transparent',
           fontSize: 12
         }}
       >
@@ -102,7 +118,7 @@ function DBCPanel({
           <Tag color="purple" style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0 }}>M</Tag>
         )}
         {sig.muxIndicator && sig.muxIndicator !== 'M' && (
-          <Tag style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0, color: '#595959' }}>
+          <Tag style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0, color: 'var(--text-secondary)' }}>
             {sig.muxIndicator}
           </Tag>
         )}
@@ -142,11 +158,11 @@ function DBCPanel({
           style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px',
             cursor: 'pointer', borderRadius: 4,
-            background: isSelected ? '#e6f4ff' : 'transparent',
-            border: isSelected ? '1px solid #91caff' : '1px solid transparent'
+            background: isSelected ? 'var(--bg-selected)' : 'transparent',
+            border: isSelected ? '1px solid var(--border-selected)' : '1px solid transparent'
           }}
         >
-          {isExpanded ? <DownOutlined style={{ fontSize: 10, color: '#999' }} /> : <RightOutlined style={{ fontSize: 10, color: '#999' }} />}
+          {isExpanded ? <DownOutlined style={{ fontSize: 10, color: 'var(--text-hint)' }} /> : <RightOutlined style={{ fontSize: 10, color: 'var(--text-hint)' }} />}
           <span onClick={handleMsgCheck} style={{ display: 'inline-flex', alignItems: 'center' }}>
             <Checkbox
               checked={allSelected}
@@ -154,19 +170,19 @@ function DBCPanel({
               style={{ marginRight: 2 }}
             />
           </span>
-          <code style={{ fontWeight: 700, color: '#0958d9', fontSize: 12 }}>{msgIdString(msg)}</code>
+          <code style={{ fontWeight: 700, color: 'var(--text-accent)', fontSize: 12 }}>{msgIdString(msg)}</code>
           {msg.isExtended && (
             <Tag color="blue" style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0 }}>Ext</Tag>
           )}
           <span style={{ fontSize: 12, fontWeight: 600 }}>{msg.name}</span>
           {typeof msg.cycleTime === 'number' && msg.cycleTime > 0 && (
-            <Tag style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0, color: '#8c8c8c' }}>
+            <Tag style={{ fontSize: 10, lineHeight: '16px', marginInlineEnd: 0, color: 'var(--text-quiet)' }}>
               {msg.cycleTime}ms
             </Tag>
           )}
           <Badge
             count={sigs.length}
-            style={{ marginLeft: 'auto', backgroundColor: '#1677ff' }}
+            style={{ marginLeft: 'auto', backgroundColor: 'var(--brand)' }}
             size="small"
           />
         </div>
@@ -175,7 +191,7 @@ function DBCPanel({
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '0 8px 4px 52px', cursor: 'pointer',
-            fontSize: 11, color: '#666'
+            fontSize: 11, color: 'var(--text-regular)'
           }}
         >
           <Tooltip title={`Tx: ${txNode}`}>
@@ -189,7 +205,7 @@ function DBCPanel({
           <div
             data-testid="dbc-msg-signals"
             style={{
-              paddingLeft: 28, borderLeft: '2px solid #e6f4ff', marginLeft: 14,
+              paddingLeft: 28, borderLeft: '2px solid var(--border-selected)', marginLeft: 14,
               // Cap the inline signal list so very wide messages (e.g. CAN FD with
               // 40+ signals) don't push the right-side layout off-screen.
               maxHeight: 240, overflowY: 'auto',
@@ -198,7 +214,7 @@ function DBCPanel({
             }}
           >
             {sigs.length === 0 && (
-              <div style={{ fontSize: 11, color: '#999', padding: '2px 8px' }}>无信号定义</div>
+              <div style={{ fontSize: 11, color: 'var(--text-hint)', padding: '2px 8px' }}>无信号定义</div>
             )}
             {sigs.map(sig => renderSignalRow(msg, sig))}
           </div>
@@ -225,12 +241,12 @@ function DBCPanel({
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 8,
-        padding: '8px 12px', borderBottom: '1px solid #f0f0f0', flexShrink: 0
+        padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0
       }}>
-        <DatabaseOutlined style={{ color: '#1677ff' }} />
+        <DatabaseOutlined style={{ color: 'var(--brand)' }} />
         <span style={{ fontWeight: 700, fontSize: 14 }}>DBC 结构与信号布局</span>
-        <Badge count={messages.length} size="small" style={{ backgroundColor: '#52c41a' }} />
-        <span style={{ fontSize: 12, color: '#999' }}>
+        <Badge count={messages.length} size="small" style={{ backgroundColor: 'var(--ok-green)' }} />
+        <span style={{ fontSize: 12, color: 'var(--text-hint)' }}>
           {messages.length} 条消息 / {totalSignalCount} 个信号
         </span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
@@ -256,7 +272,7 @@ function DBCPanel({
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Message list */}
         <div style={{
-          width: '38%', minWidth: 220, borderRight: '1px solid #f0f0f0',
+          width: '38%', minWidth: 220, borderRight: '1px solid var(--border-subtle)',
           overflow: 'auto', padding: '4px 6px'
         }}>
           <div style={{
@@ -264,7 +280,7 @@ function DBCPanel({
           }}>
             <Button size="small" icon={<CheckSquareOutlined />} onClick={onSignalSelectAll}
               disabled={!messages.length || selectedSignals.length === totalSignalCount}>全选信号</Button>
-            <span style={{ marginLeft: 'auto', fontSize: 11, color: '#999' }}>
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-hint)' }}>
               已选 {selectedSignals.length}/{totalSignalCount}
             </span>
           </div>
@@ -281,15 +297,15 @@ function DBCPanel({
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap'
               }}>
-                <code style={{ fontWeight: 700, color: '#0958d9' }}>{selectedMsg.id}</code>
+                <code style={{ fontWeight: 700, color: 'var(--text-accent)' }}>{selectedMsg.id}</code>
                 <span style={{ fontWeight: 700 }}>{selectedMsg.name}</span>
                 <Tag color="blue">DLC {selectedMsg.dlc || 8} 字节</Tag>
                 <Tag>{selectedMsg.transmitter || ''}</Tag>
-                <span style={{ marginLeft: 'auto', fontSize: 12, color: '#999' }}>
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-hint)' }}>
                   点击信号或图例可切换解码
                 </span>
               </div>
-              <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: 8 }}>
+              <div style={{ background: 'var(--bg-well)', border: '1px solid var(--border-subtle)', borderRadius: 8, padding: 8 }}>
                 <SignalLayoutView
                   message={selectedMsg}
                   selectedSignalNames={selectedSignals.filter(s => s.msgId === selectedMsg.id).map(s => s.signalName)}
@@ -336,7 +352,7 @@ function DBCPanel({
                 title={
                   <Space>
                     <span>信号列表与详情</span>
-                    <span style={{ color: '#999', fontWeight: 400 }}>
+                    <span style={{ color: 'var(--text-hint)', fontWeight: 400 }}>
                       {selectedMsg.name} · {selectedMsg.signals?.length || 0} 信号
                     </span>
                   </Space>

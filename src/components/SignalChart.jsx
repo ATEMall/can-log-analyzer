@@ -1,17 +1,48 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import { Empty, Typography, Tag, Button, Divider } from 'antd';
+import { Empty, Typography, Tag, Button, Divider, Dropdown } from 'antd';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer
 } from 'recharts';
+import { SIGNAL_PALETTE, SIGNAL_PALETTE_LENGTH } from '../palette';
+import { useThemeTokens } from '../theme';
 
 const { Text } = Typography;
 
-// Colors for multiple signal lines
-const LINE_COLORS = [
-  '#1890ff', '#52c41a', '#fa8c16', '#eb2f96', '#722ed1',
-  '#13c2c2', '#f5222d', '#2f54eb', '#faad14', '#a0d911'
-];
+// Chart-neutral SVG colours recharts needs as concrete values (CSS var()
+// is not accepted by SVG attributes). Light values below mirror index.css;
+// dark mode resolves through the stylesheet — see theme.js CHART_TOKEN_DEFAULTS.
+const CHART_DEFAULTS = {
+  '--chart-grid': '#f0f0f0',
+  '--text-quiet': '#8c8c8c',
+  '--text-base': '#333333',
+  '--bg-panel': '#ffffff',
+  '--border-subtle': '#f0f0f0'
+};
+
+// Padding-aware Y domain for ONE axis, computed from that axis' visible curves
+// only. Padding keeps constant-value curves (e.g. all zeros) visible instead of
+// collapsing the axis to zero height.
+function computeDomain(data, keys) {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const p of data) {
+    for (const k of keys) {
+      const v = p[k];
+      if (typeof v === 'number' && Number.isFinite(v)) {
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+    }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+  if (min === max) {
+    const pad = Math.abs(min) < 1 ? 1 : Math.abs(min) * 0.1;
+    return [min - pad, max + pad];
+  }
+  const pad = (max - min) * 0.05;
+  return [min - pad, max + pad];
+}
 
 function SignalChart({ signalData, selectedSignals, dbcMessages }) {
   const hasData = Array.isArray(signalData) && signalData.length > 0;
@@ -89,9 +120,10 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
     return data;
   }, [signalData, selectedSignals, step, hasData]);
 
-  // Build legend labels with units
-  const signalLabels = useMemo(() => {
-    const labels = {};
+  // Unit per signal (from DBC metadata) — drives the multi-axis auto grouping
+  // and the legend label suffix.
+  const signalUnits = useMemo(() => {
+    const units = {};
     for (const sig of selectedSignals) {
       let unit = '';
       for (const msg of dbcMessages) {
@@ -101,34 +133,102 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
           break;
         }
       }
+      units[sig.key] = unit;
+    }
+    return units;
+  }, [selectedSignals, dbcMessages]);
+
+  // Build legend labels with units
+  const signalLabels = useMemo(() => {
+    const labels = {};
+    for (const sig of selectedSignals) {
+      const unit = signalUnits[sig.key];
       labels[sig.key] = unit ? `${sig.signalName} (${unit})` : sig.signalName;
     }
     return labels;
-  }, [selectedSignals, dbcMessages]);
+  }, [selectedSignals, signalUnits]);
 
-  // Y-axis domain computed from visible curves only.
-  // Adds padding so constant-value curves (e.g. all zeros) stay visible
-  // instead of collapsing the axis to zero height.
-  const yDomain = useMemo(() => {
-    let min = Infinity;
-    let max = -Infinity;
-    for (const p of chartData) {
-      for (const key of visibleKeys) {
-        const v = p[key];
-        if (typeof v === 'number' && Number.isFinite(v)) {
-          if (v < min) min = v;
-          if (v > max) max = v;
-        }
+  // ---- R13 multi Y-axis ----
+  // Per-signal manual axis override ('left' | 'right'); absent = auto grouping.
+  const [axisOverrides, setAxisOverrides] = useState({});
+
+  // Drop overrides for signals that are no longer selected.
+  useEffect(() => {
+    setAxisOverrides(prev => {
+      const keys = Object.keys(prev);
+      if (keys.length === 0) return prev;
+      const next = {};
+      let changed = false;
+      for (const k of keys) {
+        if (selectedSignals.some(s => s.key === k)) next[k] = prev[k];
+        else changed = true;
       }
+      return changed ? next : prev;
+    });
+  }, [selectedSignals]);
+
+  // Auto grouping: same unit (量纲) shares one axis. The largest unit group
+  // takes the left axis (ties resolved by the deterministic sorted order);
+  // every other unit group goes to the right axis. Single-unit selections stay
+  // on a single axis.
+  const autoAxis = useMemo(() => {
+    const groups = new Map(); // unit -> [signalKey]
+    for (const sig of sortedSignals) {
+      const unit = signalUnits[sig.key] || '';
+      if (!groups.has(unit)) groups.set(unit, []);
+      groups.get(unit).push(sig.key);
     }
-    if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
-    if (min === max) {
-      const pad = Math.abs(min) < 1 ? 1 : Math.abs(min) * 0.1;
-      return [min - pad, max + pad];
+    const map = {};
+    if (groups.size <= 1) {
+      for (const sig of sortedSignals) map[sig.key] = 'left';
+      return map;
     }
-    const pad = (max - min) * 0.05;
-    return [min - pad, max + pad];
-  }, [chartData, visibleKeys]);
+    let bestUnit = null;
+    let bestSize = -1;
+    for (const [unit, keys] of groups) {
+      if (keys.length > bestSize) { bestSize = keys.length; bestUnit = unit; }
+    }
+    for (const [unit, keys] of groups) {
+      for (const k of keys) map[k] = unit === bestUnit ? 'left' : 'right';
+    }
+    return map;
+  }, [sortedSignals, signalUnits]);
+
+  // Effective axis for a signal = manual override, else auto grouping.
+  const axisOf = useCallback(
+    (key) => axisOverrides[key] || autoAxis[key] || 'left',
+    [axisOverrides, autoAxis]
+  );
+
+  const setSignalAxis = useCallback((key, axis) => {
+    setAxisOverrides(prev => (prev[key] === axis ? prev : { ...prev, [key]: axis }));
+  }, []);
+
+  // Visible signals on each axis.
+  const leftVisibleKeys = useMemo(
+    () => sortedSignals.filter(s => visibleKeys.has(s.key) && axisOf(s.key) === 'left').map(s => s.key),
+    [sortedSignals, visibleKeys, axisOf]
+  );
+  const rightVisibleKeys = useMemo(
+    () => sortedSignals.filter(s => visibleKeys.has(s.key) && axisOf(s.key) === 'right').map(s => s.key),
+    [sortedSignals, visibleKeys, axisOf]
+  );
+  const hasRightAxis = rightVisibleKeys.length > 0;
+
+  // One independently scaled Y domain per axis.
+  const leftDomain = useMemo(() => computeDomain(chartData, leftVisibleKeys), [chartData, leftVisibleKeys]);
+  const rightDomain = useMemo(() => computeDomain(chartData, rightVisibleKeys), [chartData, rightVisibleKeys]);
+
+  // Axis tint = colour of that axis' first signal (in deterministic order), so
+  // the axis colour always matches a real curve drawn against it.
+  const axisColorFor = useCallback((axis) => {
+    const idx = sortedSignals.findIndex(s => axisOf(s.key) === axis);
+    if (idx < 0) return null;
+    return SIGNAL_PALETTE[idx % SIGNAL_PALETTE_LENGTH];
+  }, [sortedSignals, axisOf]);
+
+  const leftAxisColor = axisColorFor('left');
+  const rightAxisColor = axisColorFor('right');
 
   // ---- Measure the chart container ----
   // ResponsiveContainer with height="100%" renders nothing when its parent has
@@ -164,6 +264,14 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
     };
   }, []);
 
+  // Theme-aware SVG colours (grid stroke, axis text, tooltip shell). The hook
+  // re-resolves on <html data-theme> flips so a live theme switch re-paints
+  // the chart without a reload.
+  const tokens = useThemeTokens(
+    ['--chart-grid', '--text-quiet', '--text-base', '--bg-panel', '--border-subtle'],
+    CHART_DEFAULTS
+  );
+
   // ---- Conditional renders (after all hooks) ----
 
   if (!hasData) {
@@ -195,10 +303,11 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
       return (
         <Line
           key={sig.key}
+          yAxisId={axisOf(sig.key)}
           type="monotone"
           dataKey={sig.key}
           name={signalLabels[sig.key]}
-          stroke={LINE_COLORS[originalIdx % LINE_COLORS.length]}
+          stroke={SIGNAL_PALETTE[originalIdx % SIGNAL_PALETTE_LENGTH]}
           strokeWidth={1.5}
           dot={false}
           // Each frame row only carries the signals of that frame's message,
@@ -233,7 +342,7 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
           return (
             <Tag
               key={sig.key}
-              color={visible ? LINE_COLORS[idx % LINE_COLORS.length] : undefined}
+              color={visible ? SIGNAL_PALETTE[idx % SIGNAL_PALETTE_LENGTH] : undefined}
               style={{
                 cursor: 'pointer',
                 opacity: visible ? 1 : 0.5,
@@ -244,6 +353,47 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
             >
               {sig.signalName}
             </Tag>
+          );
+        })}
+      </div>
+      {/* R13: per-signal Y-axis assignment (auto-grouped by unit, manually
+          overridable). Axis tint matches the signal's curve colour. */}
+      <div
+        data-testid="chart-axis-bar"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: '4px 6px',
+          marginBottom: 8
+        }}
+      >
+        <Text type="secondary" style={{ fontSize: 11 }}>Y 轴：</Text>
+        {sortedSignals.map((sig, idx) => {
+          const axis = axisOf(sig.key);
+          const color = SIGNAL_PALETTE[idx % SIGNAL_PALETTE_LENGTH];
+          return (
+            <Dropdown
+              key={sig.key}
+              trigger={['click']}
+              menu={{
+                items: [
+                  { key: 'left', label: '左轴' },
+                  { key: 'right', label: '右轴' }
+                ],
+                selectable: true,
+                selectedKeys: [axis],
+                onClick: ({ key }) => setSignalAxis(sig.key, key)
+              }}
+            >
+              <Button
+                size="small"
+                data-testid={`axis-btn-${sig.key}`}
+                style={{ fontSize: 11, borderColor: color, color }}
+              >
+                {sig.signalName} · {axis === 'left' ? '左' : '右'}
+              </Button>
+            </Dropdown>
           );
         })}
       </div>
@@ -259,16 +409,45 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
           minHeight={350}
           minWidth={0}
         >
-          <LineChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <LineChart data={chartData} margin={{ top: 8, right: hasRightAxis ? 28 : 16, left: 8, bottom: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={tokens['--chart-grid']} />
             <XAxis
               dataKey="t"
-              tick={{ fontSize: 10 }}
-              label={{ value: '时间 (s)', position: 'insideBottomRight', offset: -5, style: { fontSize: 11 } }}
+              tick={{ fontSize: 10, fill: tokens['--text-quiet'] }}
+              axisLine={{ stroke: tokens['--border-subtle'] }}
+              tickLine={{ stroke: tokens['--border-subtle'] }}
+              label={{
+                value: '时间 (s)', position: 'insideBottomRight', offset: -5,
+                style: { fontSize: 11, fill: tokens['--text-quiet'] }
+              }}
             />
-            <YAxis tick={{ fontSize: 10 }} domain={yDomain} />
+            <YAxis
+              yAxisId="left"
+              tick={{ fontSize: 10, fill: hasRightAxis && leftAxisColor ? leftAxisColor : tokens['--text-quiet'] }}
+              axisLine={{ stroke: hasRightAxis && leftAxisColor ? leftAxisColor : tokens['--border-subtle'] }}
+              tickLine={{ stroke: hasRightAxis && leftAxisColor ? leftAxisColor : tokens['--border-subtle'] }}
+              domain={leftDomain}
+            />
+            {hasRightAxis && (
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 10, fill: rightAxisColor || tokens['--text-quiet'] }}
+                axisLine={{ stroke: rightAxisColor || tokens['--border-subtle'] }}
+                tickLine={{ stroke: rightAxisColor || tokens['--border-subtle'] }}
+                domain={rightDomain}
+              />
+            )}
             <Tooltip
-              contentStyle={{ fontSize: 11 }}
+              contentStyle={{
+                fontSize: 11,
+                background: tokens['--bg-panel'],
+                border: `1px solid ${tokens['--border-subtle']}`,
+                color: tokens['--text-base']
+              }}
+              itemStyle={{ color: tokens['--text-base'] }}
+              labelStyle={{ color: tokens['--text-base'] }}
+              cursor={{ stroke: tokens['--border-subtle'] }}
               formatter={(value, name) => [typeof value === 'number' ? value.toFixed(4) : value, name]}
               labelFormatter={(label) => `时间: ${label}s`}
             />

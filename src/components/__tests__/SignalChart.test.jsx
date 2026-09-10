@@ -256,7 +256,80 @@ describe('SignalChart', () => {
     expect(curves[0].getAttribute('stroke')).toBe('#1890ff');
     expect(curves[7].getAttribute('stroke')).toBe('#2f54eb');
   });
+
+  // ---- R13: multi Y-axis ----
+
+  it('auto-groups signals by unit onto left/right Y axes', () => {
+    render(
+      <SignalChart signalData={makeSignalData(20)} selectedSignals={selectedSignals} dbcMessages={dbcMessages} />
+    );
+
+    // Three distinct units -> a left axis plus a right axis.
+    expect(document.querySelectorAll('.recharts-yAxis').length).toBe(2);
+
+    // Same unit shares one axis: the largest group (tie -> first in the
+    // deterministic order, here degC) takes the left axis, the rest go right.
+    const bar = screen.getByTestId('chart-axis-bar');
+    expect(withinText(bar, 'CoolantTemp · 左')).toBeTruthy();
+    expect(withinText(bar, 'EngineSpeed · 右')).toBeTruthy();
+    expect(withinText(bar, 'SteeringAngle · 右')).toBeTruthy();
+  });
+
+  it('tints each Y axis with the colour of its first signal curve', () => {
+    render(
+      <SignalChart signalData={makeSignalData(20)} selectedSignals={selectedSignals} dbcMessages={dbcMessages} />
+    );
+    const strokes = Array.from(
+      document.querySelectorAll('.recharts-yAxis line.recharts-cartesian-axis-line')
+    ).map(l => l.getAttribute('stroke'));
+    // left axis -> first sorted signal (CoolantTemp, palette #0)
+    // right axis -> first right-axis signal (EngineSpeed, palette #1)
+    expect(strokes).toContain('#1890ff');
+    expect(strokes).toContain('#52c41a');
+  });
+
+  it('uses a single Y axis when every signal shares one unit', () => {
+    render(
+      <SignalChart signalData={makeSignalData(20)} selectedSignals={selectedSignals} dbcMessages={[]} />
+    );
+    expect(document.querySelectorAll('.recharts-yAxis').length).toBe(1);
+    const bar = screen.getByTestId('chart-axis-bar');
+    expect(withinText(bar, 'EngineSpeed · 左')).toBeTruthy();
+    expect(withinText(bar, 'CoolantTemp · 左')).toBeTruthy();
+    expect(withinText(bar, 'SteeringAngle · 左')).toBeTruthy();
+  });
+
+  it('lets the user move a signal between the left and right axis', async () => {
+    render(
+      <SignalChart signalData={makeSignalData(20)} selectedSignals={selectedSignals} dbcMessages={dbcMessages} />
+    );
+    expect(document.querySelectorAll('.recharts-yAxis').length).toBe(2);
+
+    const bar = screen.getByTestId('chart-axis-bar');
+
+    // Move SteeringAngle (auto: right) to the left axis.
+    await chooseAxis('512::SteeringAngle', '左轴');
+    expect(withinText(bar, 'SteeringAngle · 左')).toBeTruthy();
+    // EngineSpeed is still on the right, so the right axis remains.
+    expect(document.querySelectorAll('.recharts-yAxis').length).toBe(2);
+
+    // Move EngineSpeed to the left too -> right axis disappears.
+    await chooseAxis('256::EngineSpeed', '左轴');
+    expect(withinText(bar, 'EngineSpeed · 左')).toBeTruthy();
+    expect(document.querySelectorAll('.recharts-yAxis').length).toBe(1);
+  });
 });
+
+// antd renders the dropdown menu overlay more than once in jsdom, so query the
+// menu item elements directly instead of relying on a unique text match.
+async function chooseAxis(signalKey, label) {
+  fireEvent.click(screen.getByTestId(`axis-btn-${signalKey}`));
+  await screen.findAllByText(label);
+  const items = Array.from(document.querySelectorAll('.ant-dropdown-menu-item'))
+    .filter(el => el.textContent.trim() === label);
+  expect(items.length).toBeGreaterThan(0);
+  fireEvent.click(items[items.length - 1]);
+}
 
 function withinText(container, text) {
   // only match interactive elements: filter tags and buttons

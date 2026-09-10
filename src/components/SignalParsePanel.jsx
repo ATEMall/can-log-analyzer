@@ -270,7 +270,7 @@ function SignalParsePanel({
             <Space size={4} wrap>
               <Input
                 size="small"
-                prefix={<SearchOutlined style={{ color: '#999' }} />}
+                prefix={<SearchOutlined style={{ color: 'var(--text-hint)' }} />}
                 placeholder="检索信号 / 消息名 / ID"
                 allowClear
                 value={searchText}
@@ -299,13 +299,13 @@ function SignalParsePanel({
                 <Statistic
                   title="含信号帧"
                   value={decodeStats.decodedFrames}
-                  valueStyle={{ fontSize: 14, color: '#52c41a' }}
+                  valueStyle={{ fontSize: 14, color: 'var(--ok-green)' }}
                 />
                 {decodeStats.encodedSignals > 0 && (
                   <Statistic
                     title="枚举信号"
                     value={decodeStats.encodedSignals}
-                    valueStyle={{ fontSize: 14, color: '#722ed1' }}
+                    valueStyle={{ fontSize: 14, color: 'var(--accent-purple)' }}
                   />
                 )}
               </Space>
@@ -319,10 +319,10 @@ function SignalParsePanel({
         {!signalData ? (
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            height: '100%', color: '#999'
+            height: '100%', color: 'var(--text-hint)'
           }}>
             <div style={{ textAlign: 'center' }}>
-              <ThunderboltOutlined style={{ fontSize: 48, marginBottom: 16, color: '#d9d9d9' }} />
+              <ThunderboltOutlined style={{ fontSize: 48, marginBottom: 16, color: 'var(--icon-neutral)' }} />
               <br />
               <Text type="secondary" style={{ fontSize: 13 }}>
                 勾选 DBC 信号 → 点击「开始解码」
