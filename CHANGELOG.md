@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-09-10（v2.2 W1 批次）
+
+> v2.2「体验与健壮」W1 批次：R9 深色模式（#13）、R10 可折叠布局与状态记忆（#14）、R13 多 Y 轴曲线（#15）。
+
+### 新增
+
+- **深色模式（R9 / #13）**：浅色/深色两套 CSS 变量设计令牌（`:root` + `[data-theme='dark']`），跟随系统（`prefers-color-scheme`）+ 主菜单手动切换（`theme:set`）即时生效、无需刷新；选择持久化 `settings.json` 启动恢复；全部组件硬编码色迁移为令牌（`--bg-*`/`--text-*`/`--border-*`/`--chart-grid` 等），antd 经 `ConfigProvider` 切换 `darkAlgorithm`，recharts 轴/网格/提示经 `useThemeTokens` 随主题实时重绘；信号曲线/位布局色板跨主题保持同一语义
+- **可折叠布局与状态记忆（R10 / #14）**：左侧 DBC 面板可折叠为一列窄条 rail（默认展开宽 25%；拖拽区间 15%–45%、最小步进 4px 量化）；`panelWidth` / `panelCollapsed` / `dbcExpanded` / `lastTab` 全部写入 `settings.json` 并在启动时校验恢复；DBCPanel 展开状态改为受控 prop + 内部回退
+- **多 Y 轴曲线与降采样复核（R13 / #15）**：曲线视图支持左/右双 Y 轴——按信号量纲（DBC `unit`）自动分组，同单位共享一轴，最大分组占左轴、其余归右轴；每个信号可经下拉手动切换左/右轴；各轴独立自适应量程（含常量曲线防塌陷 padding）；轴色取该轴首个信号的曲线颜色保持一致；保持现有 1M 点 min/max 保真降采样与图例逐信号显隐
+
+### 测试
+
+- 新增 `src/test/theme.test.jsx`（主题核心 + ThemedApp 宿主 12 例）、`App.test.jsx` R10 布局持久化用例（4 例）、`SignalChart.test.jsx` R13 多 Y 轴用例（4 例）；全量回归 **183/183** 通过（13 文件）
+
 ## [Unreleased] - 2026-09-06（Issue #8–#12 批次）
 
 > open Issues 清零批次：#8 R2 双路径收敛断言、#9 BLF 超时参数化、#10 R2 UI 基准、#11 大文件压缩缓存进度提示、#12 对拍脚本 cantools NamedSignalValue 序列化崩溃。
