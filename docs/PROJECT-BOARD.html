@@ -74,7 +74,7 @@
   </div>
   <div class="meta" data-page-node-id="6Ezqd25K3fSinknnlvjZdo">
     <div data-page-node-id="qA91uxnhAVuKuFNGGSpiH8">版本：v2.1（需求全部闭环 · 12 个 Issue 全关 · v2.1.1 已发布 · 待 PM 终验收口）</div>
-    <div data-page-node-id="PGVKtgqBDyz4MkFBDTPFrx">更新时间：2026-09-06 15:40</div>
+    <div data-page-node-id="PGVKtgqBDyz4MkFBDTPFrx">更新时间：2026-09-10 21:20</div>
     <div data-page-node-id="Ay7hXaOqK6Yf4CdThB5Unf">仓库：<a href="https://github.com/ATEMall/can-log-analyzer" style="color:#fff;text-decoration:underline;" data-page-node-id="sC8kvNZibQ1Gw9iVAA9hDI">github.com/ATEMall/can-log-analyzer</a></div>
   </div>
 </header>
@@ -83,7 +83,9 @@
 <section data-page-node-id="RYtJyFRSeeWph9adGFOryg">
   <div class="sec-title" data-page-node-id="HUziUJFGNa3jVSK6LItVZ6">📊 一、现在进展 <span class="badge" data-page-node-id="2OpSGE6jqDNK95pafEf8so">v2.1 完成度 ≈ 95%（仅剩 PM 终验 + ACCEPTANCE 文档）</span></div>
 
-  <div class="banner" data-page-node-id="o1JxUcs9vSoDlOMBTjKSKF">✅ <b data-page-node-id="ZxoUNRn2z5ueRhTV6FUuIG">09-06：v2.1.1 backlog 清零 — #8-#12 全部关闭，PM 逐项复核通过</b>。开发以提交 <code data-page-node-id="YVTIRYaEv4V2D43AUUGQBs">9bff68d</code>（09-06 13:24）关闭 #8/#9/#10/#11/#12。PM 实证复核：① #12 对拍脚本在 cantools 43.0.2 环境复跑发现 <b data-page-node-id="Y6eB7JWGLmnW2S9LDiFz05">CRLF 残留缺陷</b>（<code data-page-node-id="hiRsIAWjVQ1MFytUmpJosH">split('CANTOOLS_OK\n')</code> 在 Windows python 输出下失配），PM 直接最小修复（<code data-page-node-id="FafRU8sdv1LSoEwvRsiJmn">split(/CANTOOLS_OK\r?\n/)</code>）后 <b data-page-node-id="J7WyojzKQ7zkzpCU3SfutS">motorola 23/23、dbc_full 12/12 signals match，exit 0</b>——验收基线首次由仓库内脚本真实复现；② #10 基准脚本 PM 实跑复现（1M 帧×3 DBC，0.29-0.45M 帧/s，与开发数据同量级）；③ #8 一致性断言、#9 超时参数化、#11 压缩进度事件代码落点核验属实；④ 全量回归 <b data-page-node-id="hWfy1MMulzgFy8Obfg26iD">163/163</b> 通过。此前 09-03 晚开发以 <code data-page-node-id="V6arDSCzLacLSnViM6428G">bbf9c76</code> 发布 v2.1.1 补齐 3 缺口（早于 PM 终验，流程偏差已记录）。</div>
+  <div class="banner" data-page-node-id="o1JxUcs9vSoDlOMBTjKSKF">🆕 <b data-page-node-id="ZxoUNRn2z5ueRhTV6FUuIG">09-10 21:20：v2.2 W1 批次（R9/R10/R13）PM 复核完成</b> — 开发以堆叠分支链 <code>feature/v2.2-r9 → r10 → r13</code> 交付 3 项（未合 main）。PM 在 r13 分支独立复跑回归 <b>183/183 通过</b>（基线 163 + 新增 20）。结论：<b>#14 R10 验收通过</b>；<b>#13 R9 有条件通过</b>（品牌红 #C62828 未落地 → 转 <a href="https://github.com/ATEMall/can-log-analyzer/issues/19">#19</a>）；<b>#15 R13 有条件通过、1 项必须返工</b>（降采样仍为等步长抽样，尖峰必丢，要求改 min/max 分桶保真 + 1M 点双轴基准；PM 已就 Issue 原文「保持 min/max」措辞自纠勘误）。⚠️ 流程偏差：开发曾单方面改 CHANGELOG 措辞迁就实现，已在 #15 提出无效。</div>
+
+  <div class="banner" data-page-node-id="o1JxUcs9vSoDlOMBTjKSKF-old">✅ <b data-page-node-id="ZxoUNRn2z5ueRhTV6FUuIG">09-06：v2.1.1 backlog 清零 — #8-#12 全部关闭，PM 逐项复核通过</b>。开发以提交 <code data-page-node-id="YVTIRYaEv4V2D43AUUGQBs">9bff68d</code>（09-06 13:24）关闭 #8/#9/#10/#11/#12。PM 实证复核：① #12 对拍脚本在 cantools 43.0.2 环境复跑发现 <b data-page-node-id="Y6eB7JWGLmnW2S9LDiFz05">CRLF 残留缺陷</b>（<code data-page-node-id="hiRsIAWjVQ1MFytUmpJosH">split('CANTOOLS_OK\n')</code> 在 Windows python 输出下失配），PM 直接最小修复（<code data-page-node-id="FafRU8sdv1LSoEwvRsiJmn">split(/CANTOOLS_OK\r?\n/)</code>）后 <b data-page-node-id="J7WyojzKQ7zkzpCU3SfutS">motorola 23/23、dbc_full 12/12 signals match，exit 0</b>——验收基线首次由仓库内脚本真实复现；② #10 基准脚本 PM 实跑复现（1M 帧×3 DBC，0.29-0.45M 帧/s，与开发数据同量级）；③ #8 一致性断言、#9 超时参数化、#11 压缩进度事件代码落点核验属实；④ 全量回归 <b data-page-node-id="hWfy1MMulzgFy8Obfg26iD">163/163</b> 通过。此前 09-03 晚开发以 <code data-page-node-id="V6arDSCzLacLSnViM6428G">bbf9c76</code> 发布 v2.1.1 补齐 3 缺口（早于 PM 终验，流程偏差已记录）。</div>
 
   <div class="banner" style="background:var(--ok-bg);border-left:4px solid var(--ok);" data-page-node-id="IfdTTg4V0J6GLVTqHn92Mj">📌 <b data-page-node-id="R88Doc4gjG5VDa6SIRpWH7">09-03 20:10：7 个 v2.1 Issue 全关 + 开发以 v2.1.1 名义补齐发版 3 缺口</b>（CHANGELOG [2.1.1] / README R5-R8 手册 / release Setup+Portable 重打包，tag v2.1.1 → <code data-page-node-id="k31eCT5R4WCSrQArDGiHmV">bbf9c76</code>）。⚠️ 该发布绕过了 PM 终验（DoD#6），<code data-page-node-id="DBXRFnovuKeaTypr2eIYHE">docs/ACCEPTANCE-v2.1.md</code> 仍未产出。</div>
 
@@ -239,12 +241,18 @@
 
   <div class="todo"><div class="mark p1">4</div>
     <div class="body">
+      <div class="t">🆕 v2.2 W1 复核收尾（09-10 复核完成，待开发返工）<span class="tag">PM · 09-10 · deadline 09-13</span></div>
+      <div class="d">① #15 返工：min/max 分桶保真降采样 + 1M 点双轴渲染基准 ≤2s + 修订 CHANGELOG 措辞；② #19 新建：品牌强调色对齐 #C62828（ConfigProvider colorPrimary + CSS --brand 系）；③ 开发将 r9→r10→r13 分支链合并回 main（#14 已验收通过待关闭）；④ 返工合入后 PM 补浅/深 × ≥5 视图截图走查。</div>
+    </div></div>
+
+  <div class="todo"><div class="mark pm">N</div>
+    <div class="body">
       <div class="t">🆕 v2.2 开发计划已下发（体验与健壮，Issues #13-#18）<span class="tag">PM · 09-09 计划 · 排期 09-10 ~ 09-23</span></div>
       <div class="d">R9 深色模式（#13 P0）/ R10 可折叠布局+状态记忆（#14 P0）/ R13 多 Y 轴曲线（#15）/ R11 全局搜索+时间轴总览（#16）/ R12 总线负载+错误帧统计（#17）/ R14 错误上报+诊断日志（#18）。两批次：W1（09-16 前）R9/R10/R13，W2（09-22 前）R11/R12/R14 → 09-23 v2.2.0 终验发版。需求详情与 DoD 见 <a href="PLAN-v2.2.md">PLAN-v2.2.md</a>。</div>
     </div></div>
 
   <div class="confirm" data-page-node-id="4MoWZ3X9Z8etFq8O7nfWuv">
-    ⏳ <b data-page-node-id="xXLswrpDCuOaOgEt0DR1eR">待办：</b>① PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 docs/ACCEPTANCE-v2.1.md（目标 09-19）；② RELEASE-CHECKLIST-v2.1.md 终验结论更新为全绿；③ v2.2 批次复核（W1 批 09-16 起，R9/R10/R13 → R11/R12/R14）；④ v2.1 收口后规划 v3.0（roadmap_v3x 测试素材已入库：LIN / UDS·XCP / SOME-IP / DoIP）。
+    ⏳ <b data-page-node-id="xXLswrpDCuOaOgEt0DR1eR">待办：</b>① #15 返工验证（min/max 保真降采样 + 1M 双轴基准，deadline 09-13）；② #19 品牌红强调色落地；③ r9→r10→r13 合并回 main 后关闭 #14；④ PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 docs/ACCEPTANCE-v2.1.md（目标 09-19）；⑤ v2.2 W2 批（R11/R12/R14，#16-#18，09-22 前）；⑥ v2.1 收口后规划 v3.0（roadmap_v3x 测试素材已入库）。
   </div>
 
   <div class="legend" data-page-node-id="G2DXBHJEfPQLSfcScsQrql">
