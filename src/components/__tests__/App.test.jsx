@@ -286,3 +286,82 @@ describe('R4 parse-error reporting UI', () => {
     expect(screen.queryByTestId('parse-error-badge')).toBeNull();
   });
 });
+
+describe('R10 collapsible DBC layout + state persistence', () => {
+  it('renders a collapsed rail when the persisted flag is set, then expands on click', async () => {
+    mockElectronAPI.getSettings.mockResolvedValueOnce({ dbcPanelCollapsed: true });
+    render(<App />);
+
+    // Persisted collapsed state: only the narrow rail is visible.
+    const rail = await screen.findByTestId('dbc-panel-collapsed');
+    expect(rail).toBeTruthy();
+    expect(screen.queryByTestId('dbc-panel')).toBeNull();
+
+    // Clicking the rail (or the round toggle) expands and persists.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('dbc-collapse-toggle'));
+    });
+    expect(screen.getByTestId('dbc-panel')).toBeTruthy();
+    expect(screen.queryByTestId('dbc-panel-collapsed')).toBeNull();
+    const lastCall = mockElectronAPI.setSettings.mock.calls.at(-1)[0];
+    expect(lastCall.dbcPanelCollapsed).toBe(false);
+  });
+
+  it('collapses the full panel into the rail and persists the choice', async () => {
+    render(<App />);
+    expect(await screen.findByTestId('dbc-panel')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('dbc-collapse-toggle'));
+    });
+    expect(screen.getByTestId('dbc-panel-collapsed')).toBeTruthy();
+    expect(screen.queryByTestId('dbc-panel')).toBeNull();
+    expect(mockElectronAPI.setSettings).toHaveBeenCalledWith({ dbcPanelCollapsed: true });
+
+    // Expanding again flips the flag back and remounts the full panel.
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('dbc-panel-collapsed'));
+    });
+    expect(screen.getByTestId('dbc-panel')).toBeTruthy();
+    expect(mockElectronAPI.setSettings).toHaveBeenCalledWith({ dbcPanelCollapsed: false });
+  });
+
+  it('restores the persisted panel width inside the new 15%–45% range', async () => {
+    mockElectronAPI.getSettings.mockResolvedValueOnce({ panelWidth: 30 });
+    render(<App />);
+    const panel = await screen.findByTestId('dbc-panel');
+    // React inlines the percentage width on the container.
+    expect(panel.style.width).toBe('30%');
+  });
+
+  it('restores persisted DBC message expansion after the database loads', async () => {
+    mockElectronAPI.getSettings.mockResolvedValueOnce({ dbcExpanded: { 256: true } });
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/dbc/test.dbc');
+    mockElectronAPI.loadDBC.mockResolvedValueOnce({
+      success: true,
+      messages: [{
+        id: 256, name: 'MsgA', sender: 'VCU', dlc: 8,
+        signals: [{ name: 'SigA', startBit: 0, length: 8, byteOrder: 'little', factor: 1, offset: 0 }]
+      }],
+      rawContent: 'BO_ ...'
+    });
+
+    render(<App />);
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('toolbar-load-dbc'));
+    });
+    // The saved expansion (id 256 = true) is re-applied once messages exist,
+    // so MsgA's signal rows are already expanded after the load.
+    await waitFor(() => {
+      expect(message.success).toHaveBeenCalledWith('加载成功，共 1 条消息，1 个信号');
+    });
+    expect(screen.getByText('SigA')).toBeTruthy();
+
+    // Collapsing that row persists the updated expansion map back to settings.
+    await act(async () => {
+      fireEvent.click(screen.getByText('MsgA'));
+    });
+    const call = mockElectronAPI.setSettings.mock.calls.at(-1)[0];
+    expect(call.dbcExpanded).toEqual({ 256: false });
+  });
+});

@@ -6,7 +6,8 @@ import {
 import {
   DatabaseOutlined,
   TableOutlined, SyncOutlined, ThunderboltOutlined,
-  SearchOutlined, WarningOutlined, DownloadOutlined
+  SearchOutlined, WarningOutlined, DownloadOutlined,
+  LeftOutlined, RightOutlined
 } from '@ant-design/icons';
 import DBCPanel from './components/DBCPanel';
 import MessageTable from './components/MessageTable';
@@ -39,9 +40,16 @@ function App() {
   // R5: DBC source file path — tracked so projects can re-load and restore it.
   const [dbcFile, setDbcFile] = useState(null);
 
-  // R8: left DBC panel width (%) — draggable splitter, persisted in settings.
-  const [panelWidth, setPanelWidth] = useState(46);
-  const panelWidthRef = useRef(46);
+  // R8/R10: left DBC panel width (%) — draggable splitter, persisted in
+  // settings. R10: default ≈25%, drag clamped to 15%–45%; the panel can also
+  // collapse to a narrow rail (dbcPanelCollapsed, persisted) for more room.
+  const [panelWidth, setPanelWidth] = useState(25);
+  const panelWidthRef = useRef(25);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+
+  // R10: which DBC message rows are expanded — lifted here so the state can be
+  // persisted to settings.json alongside the width / collapsed flag.
+  const [dbcExpanded, setDbcExpanded] = useState({});
 
   // Physical CSV state
   const [csvData, setCsvData] = useState(null);
@@ -553,24 +561,28 @@ function App() {
     setConvertProgress(0);
     setDbcRawContent('');
     setDbcFile(null);
+    setDbcExpanded({});
     setParseErrors([]);
     setParseErrorCount(0);
     setParseErrorDrawerOpen(false);
     message.success('已清空所有数据，可以重新加载文件');
   }, []);
 
-  // ======= R8: resizable splitter between the DBC panel and the results =======
+  // ======= R8/R10: resizable splitter between the DBC panel and results =======
   // Drag updates the width live; on release the value is persisted so the next
-  // launch restores the same layout.
+  // launch restores the same layout. R10 narrows the drag range to 15%–45% and
+  // snaps motion to 4px steps (min step per the R10 spec).
   const startPanelDrag = useCallback((e) => {
     e.preventDefault();
+    if (panelCollapsed) return;
     const container = e.currentTarget.parentElement;
     const startX = e.clientX;
     const startW = panelWidthRef.current;
     const onMove = (ev) => {
-      const delta = ev.clientX - startX;
       const total = container?.offsetWidth || 1200;
-      const next = Math.min(80, Math.max(20, startW + (delta / total) * 100));
+      // Quantize raw pixel movement to 4px steps before converting to %.
+      const snapped = Math.round((ev.clientX - startX) / 4) * 4;
+      const next = Math.min(45, Math.max(15, startW + (snapped / total) * 100));
       panelWidthRef.current = next;
       setPanelWidth(next);
     };
@@ -585,6 +597,22 @@ function App() {
     document.addEventListener('mouseup', onUp);
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
+  }, [panelCollapsed]);
+
+  // R10: collapse / expand the DBC panel (narrow rail <-> full width) and
+  // remember the choice for the next launch.
+  const togglePanelCollapsed = useCallback(() => {
+    setPanelCollapsed(prev => {
+      const next = !prev;
+      window.electronAPI?.setSettings?.({ dbcPanelCollapsed: next });
+      return next;
+    });
+  }, []);
+
+  // R10: persist which DBC message rows are expanded alongside the layout.
+  const handleDbcExpandedChange = useCallback((next) => {
+    setDbcExpanded(next);
+    window.electronAPI?.setSettings?.({ dbcExpanded: next });
   }, []);
 
   // ======= R5: Project save / restore (.claproj) =======
@@ -713,7 +741,7 @@ function App() {
     return () => { if (typeof off === 'function') off(); };
   }, [openProjectFile]);
 
-  // R6: restore persisted preferences (last active tab).
+  // R6/R10: restore persisted preferences (last active tab, panel layout).
   useEffect(() => {
     const getSettings = window.electronAPI?.getSettings;
     if (typeof getSettings === 'function') {
@@ -722,9 +750,16 @@ function App() {
           if (s.lastTab && ['signal', 'log', 'csv'].includes(s.lastTab)) {
             setActiveTab(s.lastTab);
           }
-          if (typeof s.panelWidth === 'number' && s.panelWidth >= 20 && s.panelWidth <= 80) {
+          // R10: width restored inside the new 15%–45% drag range (default 25%).
+          if (typeof s.panelWidth === 'number' && s.panelWidth >= 15 && s.panelWidth <= 45) {
             panelWidthRef.current = s.panelWidth;
             setPanelWidth(s.panelWidth);
+          }
+          if (typeof s.dbcPanelCollapsed === 'boolean') {
+            setPanelCollapsed(s.dbcPanelCollapsed);
+          }
+          if (s.dbcExpanded && typeof s.dbcExpanded === 'object') {
+            setDbcExpanded(s.dbcExpanded);
           }
         }
       }).catch(() => {});
@@ -946,39 +981,89 @@ function App() {
 
         {/* Main area: left DBC full window + right results */}
         <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0 }}>
-          {/* Left: DBC structure full window (R8: width resizable + persisted) */}
-          <div style={{
-            width: `${panelWidth}%`, minWidth: 540, flexShrink: 0,
-            border: '1px solid var(--border-strong)', borderRadius: 8, overflow: 'hidden',
-            background: 'var(--bg-panel)', display: 'flex', flexDirection: 'column'
-          }}>
-            <DBCPanel
-              messages={dbcMessages}
-              selectedSignals={selectedSignals}
-              dbcRawContent={dbcRawContent}
-              onSignalToggle={handleSignalToggle}
-              onSignalSelectAll={handleSignalSelectAll}
-              onSignalClearAll={handleSignalClearAll}
-              onMsgSignalSelectAll={handleMsgSignalSelectAll}
-              onMsgSignalClearAll={handleMsgSignalClearAll}
-              onLoadDBC={handleLoadDBC}
-              onViewRaw={() => setRawModalOpen(true)}
-              dbcLoaded={dbcMessages.length > 0}
-              search={dbcSearch}
-              onSearchChange={setDbcSearch}
-            />
-          </div>
+          {/* Left: DBC structure window (R8: width resizable; R10: collapsible) */}
+          {panelCollapsed ? (
+            /* R10: collapsed rail — one narrow column; click to expand. */
+            <div
+              data-testid="dbc-panel-collapsed"
+              onClick={togglePanelCollapsed}
+              title="展开 DBC 面板"
+              role="button"
+              aria-expanded="false"
+              style={{
+                width: 26, flexShrink: 0, cursor: 'pointer',
+                border: '1px solid var(--border-strong)', borderRadius: 8,
+                background: 'var(--bg-panel)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', gap: 10, color: 'var(--text-quiet)',
+                fontSize: 10, userSelect: 'none', transition: 'width 150ms ease'
+              }}
+            >
+              <RightOutlined />
+              <span style={{ writingMode: 'vertical-rl', letterSpacing: 2 }}>DBC 结构</span>
+            </div>
+          ) : (
+            <div
+              data-testid="dbc-panel"
+              style={{
+                width: `${panelWidth}%`, minWidth: 0, flexShrink: 0,
+                border: '1px solid var(--border-strong)', borderRadius: 8,
+                overflow: 'hidden',
+                background: 'var(--bg-panel)', display: 'flex', flexDirection: 'column'
+              }}
+            >
+              <DBCPanel
+                messages={dbcMessages}
+                selectedSignals={selectedSignals}
+                dbcRawContent={dbcRawContent}
+                onSignalToggle={handleSignalToggle}
+                onSignalSelectAll={handleSignalSelectAll}
+                onSignalClearAll={handleSignalClearAll}
+                onMsgSignalSelectAll={handleMsgSignalSelectAll}
+                onMsgSignalClearAll={handleMsgSignalClearAll}
+                onLoadDBC={handleLoadDBC}
+                onViewRaw={() => setRawModalOpen(true)}
+                dbcLoaded={dbcMessages.length > 0}
+                search={dbcSearch}
+                onSearchChange={setDbcSearch}
+                expandedMsgs={dbcExpanded}
+                onExpandedMsgsChange={handleDbcExpandedChange}
+              />
+            </div>
+          )}
 
-          {/* R8: splitter — drag to resize the DBC panel */}
-          <div
-            onMouseDown={startPanelDrag}
-            title="拖动调整面板宽度"
-            data-testid="panel-splitter"
-            style={{
-              width: 8, flexShrink: 0, cursor: 'col-resize',
-              alignSelf: 'stretch'
-            }}
-          />
+          {/* R10: splitter column — drag strip + centred collapse toggle */}
+          <div style={{
+            position: 'relative', width: 10, flexShrink: 0, alignSelf: 'stretch'
+          }}>
+            <div
+              data-testid="panel-splitter"
+              onMouseDown={startPanelDrag}
+              title="拖动调整面板宽度"
+              style={{
+                position: 'absolute', inset: 0,
+                cursor: panelCollapsed ? 'default' : 'col-resize'
+              }}
+            />
+            <button
+              type="button"
+              data-testid="dbc-collapse-toggle"
+              onClick={togglePanelCollapsed}
+              title={panelCollapsed ? '展开 DBC 面板' : '收起 DBC 面板'}
+              aria-expanded={!panelCollapsed}
+              style={{
+                position: 'absolute', top: '50%', left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: 18, height: 18, borderRadius: '50%', padding: 0,
+                border: '1px solid var(--border-strong)',
+                background: 'var(--bg-panel)', color: 'var(--text-quiet)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', fontSize: 9, lineHeight: 1
+              }}
+            >
+              {panelCollapsed ? <RightOutlined /> : <LeftOutlined />}
+            </button>
+          </div>
 
           {/* Right: tabbed results */}
           <div style={{

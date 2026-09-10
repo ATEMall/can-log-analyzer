@@ -27,14 +27,34 @@ function DBCPanel({
   // search state lives in the parent (App) now so the search box can sit in
   // the top toolbar instead of inside this panel
   search: externalSearch,
-  onSearchChange
+  onSearchChange,
+  // R10: expansion state may be lifted to the parent (App) for persistence.
+  // When `expandedMsgs` is provided the panel is controlled and reports every
+  // change via `onExpandedMsgsChange`; standalone renders (tests, demos) keep
+  // the internal state instead.
+  expandedMsgs: controlledExpandedMsgs,
+  onExpandedMsgsChange
 }) {
   const [internalSearch, setInternalSearch] = useState('');
   const search = externalSearch !== undefined ? externalSearch : internalSearch;
   const setSearch = onSearchChange || setInternalSearch;
-  const [expandedMsgs, setExpandedMsgs] = useState({});
+  const [internalExpandedMsgs, setInternalExpandedMsgs] = useState({});
+  const expandedMsgs = controlledExpandedMsgs !== undefined
+    ? controlledExpandedMsgs
+    : internalExpandedMsgs;
   const [selectedMsgId, setSelectedMsgId] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+
+  // Toggle one message row's expansion. Controlled mode reports the new map
+  // up so the parent can persist it; uncontrolled mode updates internal state.
+  const toggleExpand = (id) => {
+    const next = { ...expandedMsgs, [id]: !expandedMsgs[id] };
+    if (controlledExpandedMsgs !== undefined) {
+      onExpandedMsgsChange?.(next);
+    } else {
+      setInternalExpandedMsgs(next);
+    }
+  };
 
   const selectedSignalKeys = useMemo(() => new Set(selectedSignals.map(s => `${s.msgId}::${s.signalName}`)), [selectedSignals]);
 
@@ -70,10 +90,6 @@ function DBCPanel({
     () => messages.reduce((acc, m) => acc + (m.signals?.length || 0), 0),
     [messages]
   );
-
-  const toggleExpand = (id) => {
-    setExpandedMsgs(prev => ({ ...prev, [id]: !prev[id] }));
-  };
 
   const handleMsgClick = (id) => {
     setSelectedMsgId(id);
