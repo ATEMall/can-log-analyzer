@@ -21,6 +21,24 @@ export const THEME_MODES = ['system', 'light', 'dark'];
 export const DEFAULT_THEME_MODE = 'system';
 export const THEME_SETTING_KEY = 'theme';
 
+// Brand accent seed (PRD §5.3: 红 #C62828 + 白). Single source of truth shared
+// by the CSS token (index.css `--brand`) and antd's `colorPrimary` seed, so the
+// platform brand colour can never silently fall back to an antd default.
+export const BRAND_PRIMARY = '#C62828';
+
+/**
+ * antd ConfigProvider theme config for a resolved light|dark theme. Pins
+ * `colorPrimary` to the brand red (antd defaults to blue otherwise) while
+ * switching the algorithm for dark mode.
+ */
+export function antdThemeConfig(resolved, antdTheme) {
+  const { defaultAlgorithm, darkAlgorithm } = antdTheme || {};
+  return {
+    algorithm: resolved === 'dark' ? darkAlgorithm : defaultAlgorithm,
+    token: { colorPrimary: BRAND_PRIMARY }
+  };
+}
+
 /** Does the OS currently ask for a dark colour scheme? */
 export function systemPrefersDark() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;

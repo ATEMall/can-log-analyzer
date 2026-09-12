@@ -318,6 +318,73 @@ describe('SignalChart', () => {
     expect(withinText(bar, 'EngineSpeed · 左')).toBeTruthy();
     expect(document.querySelectorAll('.recharts-yAxis').length).toBe(1);
   });
+
+  // ---- R13 rework: min/max bucket decimation ----
+
+  it('decimates within the render budget and shows the fidelity notice', () => {
+    const rows = [];
+    for (let i = 0; i < 600; i++) {
+      rows.push({
+        t: i * 0.01,
+        signals: {
+          '256::EngineSpeed': 100 + Math.sin(i / 9) * 5,
+          '256::CoolantTemp': 80 + Math.sin(i / 7),
+          '512::SteeringAngle': i % 5
+        }
+      });
+    }
+    const { container } = render(
+      <SignalChart
+        signalData={rows}
+        selectedSignals={selectedSignals}
+        dbcMessages={dbcMessages}
+        maxRenderPoints={40}
+      />
+    );
+
+    expect(screen.getByText(/min\/max 分桶保真降采样/)).toBeTruthy();
+
+    // 40-point budget over 600 rows with 3 signals => far coarser than input.
+    const curve = container.querySelector('path.recharts-line-curve');
+    const segments = (curve.getAttribute('d').match(/[LC]/g) || []).length;
+    expect(segments).toBeGreaterThan(0);
+    expect(segments).toBeLessThan(60);
+  });
+
+  it('keeps a spike end-to-end (its axis still reaches the peak value)', () => {
+    const rows = [];
+    const SPIKE_AT = 337; // arbitrary: equal-step sampling would skip it
+    for (let i = 0; i < 600; i++) {
+      rows.push({
+        t: i * 0.01,
+        signals: {
+          '256::EngineSpeed': i === SPIKE_AT ? 5000 : 100,
+          '256::CoolantTemp': 80,
+          '512::SteeringAngle': 0
+        }
+      });
+    }
+    const { container } = render(
+      <SignalChart
+        signalData={rows}
+        selectedSignals={selectedSignals}
+        dbcMessages={dbcMessages}
+        maxRenderPoints={40}
+      />
+    );
+
+    // Decimation must keep the 5000 spike, so some Y axis still scales to it.
+    // (Axis order is auto-grouped by unit, so scan every Y-axis tick. recharts
+    // v3 hoists tick labels into a chart-root z-index layer, so they are NOT
+    // descendants of .recharts-yAxis — select via the per-axis label group.)
+    const ticks = Array.from(
+      container.querySelectorAll('.recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value')
+    )
+      .map(el => Number(el.textContent))
+      .filter(Number.isFinite);
+    expect(ticks.length).toBeGreaterThan(0);
+    expect(Math.max(...ticks)).toBeGreaterThan(1000);
+  });
 });
 
 // antd renders the dropdown menu overlay more than once in jsdom, so query the

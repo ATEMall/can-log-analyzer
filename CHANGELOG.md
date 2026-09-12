@@ -2,19 +2,22 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased] - 2026-09-10（v2.2 W1 批次）
+## [Unreleased] - 2026-09-11（v2.2 W1 批次 + 复核返工）
 
-> v2.2「体验与健壮」W1 批次：R9 深色模式（#13）、R10 可折叠布局与状态记忆（#14）、R13 多 Y 轴曲线（#15）。
+> v2.2「体验与健壮」W1 批次：R9 深色模式（#13）、R10 可折叠布局与状态记忆（#14）、R13 多 Y 轴曲线（#15）。09-11 依 PM 复核完成 #15 降采样返工（补齐 min/max 保真降采样）与 #19 品牌强调色对齐。
 
 ### 新增
 
 - **深色模式（R9 / #13）**：浅色/深色两套 CSS 变量设计令牌（`:root` + `[data-theme='dark']`），跟随系统（`prefers-color-scheme`）+ 主菜单手动切换（`theme:set`）即时生效、无需刷新；选择持久化 `settings.json` 启动恢复；全部组件硬编码色迁移为令牌（`--bg-*`/`--text-*`/`--border-*`/`--chart-grid` 等），antd 经 `ConfigProvider` 切换 `darkAlgorithm`，recharts 轴/网格/提示经 `useThemeTokens` 随主题实时重绘；信号曲线/位布局色板跨主题保持同一语义
 - **可折叠布局与状态记忆（R10 / #14）**：左侧 DBC 面板可折叠为一列窄条 rail（默认展开宽 25%；拖拽区间 15%–45%、最小步进 4px 量化）；`panelWidth` / `panelCollapsed` / `dbcExpanded` / `lastTab` 全部写入 `settings.json` 并在启动时校验恢复；DBCPanel 展开状态改为受控 prop + 内部回退
-- **多 Y 轴曲线与降采样复核（R13 / #15）**：曲线视图支持左/右双 Y 轴——按信号量纲（DBC `unit`）自动分组，同单位共享一轴，最大分组占左轴、其余归右轴；每个信号可经下拉手动切换左/右轴；各轴独立自适应量程（含常量曲线防塌陷 padding）；轴色取该轴首个信号的曲线颜色保持一致；保持现有降采样路径（>5000 点按步长抽样）与图例逐信号显隐不变
+- **多 Y 轴曲线 + min/max 保真降采样（R13 / #15）**：曲线视图支持左/右双 Y 轴——按信号量纲（DBC `unit`）自动分组，同单位共享一轴，最大分组占左轴、其余归右轴；每个信号可经下拉手动切换左/右轴；各轴独立自适应量程（含常量曲线防塌陷 padding）；轴色取该轴首个信号的曲线颜色保持一致；**新增 min/max 分桶保真降采样**——超过渲染预算（`MAX_RENDER_POINTS = 5000`）时按 `buckets = clamp(floor(maxPoints / (2 × 信号数)), 1, n)` 分桶，每桶每信号保留 argmin/argmax 极值点（替换原等步长抽样，任何瞬时尖峰/毛刺不再被抽样丢弃），并提示「已按 min/max 分桶保真降采样至 N 点（保留峰值）」；图例逐信号显隐不变
+- **品牌强调色对齐（R9-fix / #19）**：品牌红 `#C62828` 经 antd `ConfigProvider` `colorPrimary`（`theme.js` `BRAND_PRIMARY` 单一来源）与 CSS 令牌 `--brand` 落地，替代 antd 默认蓝；选择态强调（`--bg-selected`/`--border-selected`/`--text-accent`）随品牌红对齐；深色底使用品牌红提亮变体（`--brand: #e5484d`，对比度 ≥4.5:1）；曲线/位布局调色板仍由 `palette.js` 独立持有，不受影响
 
 ### 测试
 
-- 新增 `src/test/theme.test.jsx`（主题核心 + ThemedApp 宿主 12 例）、`App.test.jsx` R10 布局持久化用例（4 例）、`SignalChart.test.jsx` R13 多 Y 轴用例（4 例）；全量回归 **183/183** 通过（13 文件）
+- 新增 `src/test/theme.test.jsx`（主题核心 + ThemedApp 宿主 + #19 品牌色，14 例）、`App.test.jsx` R10 布局持久化用例（4 例）、`src/test/chartDownsample.test.mjs`（min/max 分桶降采样 10 例：单点尖峰 / 负向极值 / 多信号独立 / 预算上限 / 升序去重 / 非有限值忽略，含等步长对照回归证明旧算法丢尖峰）、`SignalChart.test.jsx` R13 多 Y 轴 + 降采样用例（6 例：多轴分组 / 轴色 / 单轴 / 手动切轴 + 渲染预算内降采样提示 + 尖峰端到端保留）
+- 新增 `TestExample/bench/r13-render.mjs` → `docs/BENCHMARK-R13.md`：1M 点 × 双轴渲染路径本机 headless 实测 **0.68 s**（min/max 降采样 1,000,000 → 4,801 点 + chartData 构建 + recharts 双轴挂载），满足验收② ≤2 s
+- 全量回归 **197/197** 通过（14 文件）
 
 ## [Unreleased] - 2026-09-06（Issue #8–#12 批次）
 

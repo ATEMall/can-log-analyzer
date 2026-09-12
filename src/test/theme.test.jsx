@@ -1,11 +1,11 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, act, waitFor } from '@testing-library/react';
-import { message } from 'antd';
+import { message, theme as antdTheme } from 'antd';
 import ThemedApp from '../ThemedApp';
 import {
-  THEME_MODES, DEFAULT_THEME_MODE,
-  resolveThemeMode, systemPrefersDark, applyThemeToDocument, cssVar
+  THEME_MODES, DEFAULT_THEME_MODE, BRAND_PRIMARY,
+  resolveThemeMode, systemPrefersDark, applyThemeToDocument, cssVar, antdThemeConfig
 } from '../theme';
 
 // =====================================================================
@@ -87,6 +87,19 @@ describe('theme core (theme.js)', () => {
     // An inline custom property IS visible to getComputedStyle in jsdom.
     html().style.setProperty('--r9-test-token', '#abcdef');
     expect(cssVar('--r9-test-token', '#000000')).toBe('#abcdef');
+  });
+
+  // ---- #19: brand accent ----
+  it('pins the brand accent to PRD #C62828 (never an antd default)', () => {
+    expect(BRAND_PRIMARY).toBe('#C62828');
+
+    const light = antdThemeConfig('light', antdTheme);
+    expect(light.token.colorPrimary).toBe('#C62828');
+    expect(light.algorithm).toBe(antdTheme.defaultAlgorithm);
+
+    const dark = antdThemeConfig('dark', antdTheme);
+    expect(dark.token.colorPrimary).toBe('#C62828');
+    expect(dark.algorithm).toBe(antdTheme.darkAlgorithm);
   });
 });
 
@@ -177,5 +190,25 @@ describe('ThemedApp theme host', () => {
     });
     // Unchanged.
     expect(html().getAttribute('data-theme')).toBe('light');
+  });
+
+  // ---- #19: brand accent reaches antd's generated styles ----
+  it('themes antd with the brand red instead of its default blue', async () => {
+    window.electronAPI = makeElectronAPI({ theme: 'light' });
+    render(<ThemedApp />);
+    await waitFor(() => {
+      expect(html().getAttribute('data-theme')).toBe('light');
+    });
+
+    // antd v5 injects its design-token CSS into <style> tags. In jsdom the
+    // app's own index.css is NOT loaded and no component hard-codes a hex, so
+    // the brand red can only appear here when ConfigProvider's colorPrimary
+    // seed was applied — a direct regression guard for #19.
+    const css = Array.from(document.querySelectorAll('style'))
+      .map(el => el.textContent || '')
+      .join('\n')
+      .toLowerCase();
+    expect(css).toContain('.ant-btn-primary');
+    expect(css).toMatch(/#c62828|rgb\(198,\s*40,\s*40\)/);
   });
 });
