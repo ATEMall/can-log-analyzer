@@ -74,7 +74,7 @@
   </div>
   <div class="meta" data-page-node-id="6Ezqd25K3fSinknnlvjZdo">
     <div data-page-node-id="qA91uxnhAVuKuFNGGSpiH8">版本：v2.1（需求全部闭环 · 12 个 Issue 全关 · v2.1.1 已发布 · 待 PM 终验收口）</div>
-    <div data-page-node-id="PGVKtgqBDyz4MkFBDTPFrx">更新时间：2026-09-10 21:20</div>
+    <div data-page-node-id="PGVKtgqBDyz4MkFBDTPFrx">更新时间：2026-09-12 15:05</div>
     <div data-page-node-id="Ay7hXaOqK6Yf4CdThB5Unf">仓库：<a href="https://github.com/ATEMall/can-log-analyzer" style="color:#fff;text-decoration:underline;" data-page-node-id="sC8kvNZibQ1Gw9iVAA9hDI">github.com/ATEMall/can-log-analyzer</a></div>
   </div>
 </header>
@@ -82,6 +82,8 @@
 <!-- ============ 一、现在进展 ============ -->
 <section data-page-node-id="RYtJyFRSeeWph9adGFOryg">
   <div class="sec-title" data-page-node-id="HUziUJFGNa3jVSK6LItVZ6">📊 一、现在进展 <span class="badge" data-page-node-id="2OpSGE6jqDNK95pafEf8so">v2.1 完成度 ≈ 95%（仅剩 PM 终验 + ACCEPTANCE 文档）</span></div>
+
+  <div class="banner" style="background:var(--ok-bg);border-left:4px solid var(--ok);" data-page-node-id="dev-r13-rework-0912">✅ <b data-page-node-id="dev-r13-rework-0912-t">09-12：v2.2 W1 复核返工交付并合入 main</b> — 开发以分支 <code data-page-node-id="dev-r13-rework-0912-b">feature/v2.2-r13-rework</code> 提交 <code data-page-node-id="dev-r13-rework-0912-sha">744f903</code>（merge <code data-page-node-id="dev-r13-rework-0912-m">b9d6962</code> → main，已推送），完成两项返工：<br>① <b>#15 降采样</b>：等步长抽样 → <b>min/max 分桶保真降采样</b>（新增 <code data-page-node-id="dev-r13-rework-0912-f">src/chartDownsample.mjs</code>，每桶每信号保留 argmin/argmax，1M 点 → 4,801 点），配套算法单测 10 例 + 端到端尖峰用例 2 例；<code data-page-node-id="dev-r13-rework-0912-bm">docs/BENCHMARK-R13.md</code> 1M 点 × 双轴渲染路径实测 <b>0.681 s</b>（≤2s，尖峰保留 ✅）；CHANGELOG 措辞已按 PM 勘误改「<b>新增</b>」。<br>② <b>#19 品牌红</b>：<code data-page-node-id="dev-r13-rework-0912-p">#C62828</code> 经 <code data-page-node-id="dev-r13-rework-0912-cp">ConfigProvider colorPrimary</code>（<code data-page-node-id="dev-r13-rework-0912-bp">BRAND_PRIMARY</code> 单一来源）与 CSS <code data-page-node-id="dev-r13-rework-0912-tk">--brand / --brand-deep / --text-accent / --bg-selected / --border-selected</code> 落地，深色用提亮变体 <code data-page-node-id="dev-r13-rework-0912-dk">#e5484d</code>（对 <code data-page-node-id="dev-r13-rework-0912-bg">#141416</code> 4.70:1）；<code data-page-node-id="dev-r13-rework-0912-pl">palette.js</code> 未改动。<br>全量回归 <b data-page-node-id="dev-r13-rework-0912-r">197/197（14 文件）</b>，交付说明见 <a href="https://github.com/ATEMall/can-log-analyzer/issues/15">#15</a> / <a href="https://github.com/ATEMall/can-log-analyzer/issues/19">#19</a> 评论。⏳ 待 PM 复核：验收②③（1M 真机 + 抽样核对）与 #19 浅/深 × ≥5 视图<b>截图对照</b>。</div>
 
   <div class="banner" data-page-node-id="o1JxUcs9vSoDlOMBTjKSKF">🆕 <b data-page-node-id="ZxoUNRn2z5ueRhTV6FUuIG">09-10 21:20：v2.2 W1 批次（R9/R10/R13）PM 复核完成</b> — 开发以堆叠分支链 <code>feature/v2.2-r9 → r10 → r13</code> 交付 3 项（未合 main）。PM 在 r13 分支独立复跑回归 <b>183/183 通过</b>（基线 163 + 新增 20）。结论：<b>#14 R10 验收通过</b>；<b>#13 R9 有条件通过</b>（品牌红 #C62828 未落地 → 转 <a href="https://github.com/ATEMall/can-log-analyzer/issues/19">#19</a>）；<b>#15 R13 有条件通过、1 项必须返工</b>（降采样仍为等步长抽样，尖峰必丢，要求改 min/max 分桶保真 + 1M 点双轴基准；PM 已就 Issue 原文「保持 min/max」措辞自纠勘误）。⚠️ 流程偏差：开发曾单方面改 CHANGELOG 措辞迁就实现，已在 #15 提出无效。</div>
 
@@ -117,8 +119,11 @@
     <tr data-page-node-id="tN3t4VHwA5AAl01JXeafRT"><td data-page-node-id="P6EnvIjItZOD5FcjKiMX5I"><b data-page-node-id="5CfsyqgiJtVh34tRwNhWFn">R8</b></td><td data-page-node-id="WEUWiBpCFDlZKNiApQhHec">UI 增量优化</td></tr>
   </table>
 
-  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);" data-page-node-id="zriHHUpqdHb2HTegBEeqZ2">最近提交（远程 main，最新 9bff68d · 09-06）</h4>
+  <h4 style="margin:18px 0 8px; font-size:14px; color:var(--ink-2);" data-page-node-id="zriHHUpqdHb2HTegBEeqZ2">最近提交（远程 main，最新 b9d6962 · 09-12）</h4>
   <div data-page-node-id="goTjqGtXmrgZoBHX3afEuT">
+    <div class="commit" data-page-node-id="c-0912-merge"><span class="sha" data-page-node-id="c-0912-merge-sha">b9d6962</span><span class="msg" data-page-node-id="c-0912-merge-msg">merge(v2.2): W1 rework - R13 min/max 保真降采样 + R19 品牌红 (#15 #19)（合并 feature/v2.2-r13-rework，197/197）</span><span class="date" data-page-node-id="c-0912-merge-d">09-12</span></div>
+    <div class="commit" data-page-node-id="c-0912-feat"><span class="sha" data-page-node-id="c-0912-feat-sha">744f903</span><span class="msg" data-page-node-id="c-0912-feat-msg">feat(v2.2): R13 min/max 保真降采样返工 + R19 品牌红落地 (#15 #19) — chartDownsample.mjs / BENCHMARK-R13.md</span><span class="date" data-page-node-id="c-0912-feat-d">09-12</span></div>
+    <div class="commit" data-page-node-id="c-w1-merge"><span class="sha" data-page-node-id="c-w1-merge-sha">2328f0f</span><span class="msg" data-page-node-id="c-w1-merge-msg">merge(v2.2): W1 batch R9+R10+R13 into main (#13 #14 #15)（183/183）</span><span class="date" data-page-node-id="c-w1-merge-d">09-11</span></div>
     <div class="commit" data-page-node-id="PEDSzdh6bnxFvJCJrZ2R0s"><span class="sha" data-page-node-id="BCQZv3lUaehHVANKAg89I4">9bff68d</span><span class="msg" data-page-node-id="DpSX49NZ45Wwj0GG3n6Pqd">fix(issues #8-#12): close open issue batch — 对拍 _norm 修复 / decodeAll 一致性断言 / BLF 超时参数化 / 压缩进度事件 / 1M 帧 UI 基准 + BENCHMARK-R2-UI.md（163/163）</span><span class="date" data-page-node-id="mb1s1DGqhosYyKihPiXtyC">09-06</span></div>
     <div class="commit" data-page-node-id="bdbUsQPZKlLLJETkW6jpUc"><span class="sha" data-page-node-id="ODT5SNM92tkVboZcJwRtVe">bf3f845</span><span class="msg" data-page-node-id="HGh8gq6v4YHBampjkjaMHv">test: add v3.x roadmap test materials + regenerate dbc_full.blf（25 素材入库）</span><span class="date" data-page-node-id="OZKeC0C2MEFumFN7NoE4yn">09-06</span></div>
     <div class="commit" data-page-node-id="P45QqXsyqcfOLxVn4wDAho"><span class="sha" data-page-node-id="AKFy9ejoUtkEoe1G2xqxeO">bbf9c76</span><span class="msg" data-page-node-id="5VPzuJNSiASBaSyNAX8E6T">release(v2.1.1): 发布 v2.1.1 — 补齐 CHANGELOG/README/release 三缺口（早于 PM 终验，流程偏差）</span><span class="date" data-page-node-id="btAuILwsjF1UYfo08DBQFA">09-03</span></div>
@@ -241,8 +246,8 @@
 
   <div class="todo"><div class="mark p1">4</div>
     <div class="body">
-      <div class="t">🆕 v2.2 W1 复核收尾（09-10 复核完成，待开发返工）<span class="tag">PM · 09-10 · deadline 09-13</span></div>
-      <div class="d">① #15 返工：min/max 分桶保真降采样 + 1M 点双轴渲染基准 ≤2s + 修订 CHANGELOG 措辞；② #19 新建：品牌强调色对齐 #C62828（ConfigProvider colorPrimary + CSS --brand 系）；③ 开发将 r9→r10→r13 分支链合并回 main（#14 已验收通过待关闭）；④ 返工合入后 PM 补浅/深 × ≥5 视图截图走查。</div>
+      <div class="t">🆕 v2.2 W1 复核收尾（09-12 开发返工已交付，待 PM 复核收口）<span class="tag">PM · 09-10 复核 · 返工 09-12 · deadline 09-13</span></div>
+      <div class="d">✅ 开发侧已完成（09-12，merge <code>b9d6962</code> → main）：① #15 返工：min/max 分桶保真降采样（<code>src/chartDownsample.mjs</code> + 10 例单测）+ 1M 点双轴渲染基准 0.681s ≤2s（<code>docs/BENCHMARK-R13.md</code>）+ CHANGELOG 措辞改「新增」；② #19 品牌强调色对齐 #C62828（ConfigProvider colorPrimary + CSS --brand 系）；③ r9→r10→r13 分支链已合并回 main。⏳ 待 PM：④ 验收②③真机复核（1M 双轴首屏 ≤2s / 缩放平移 / 尖峰抽样）；⑤ 浅/深 × ≥5 视图截图走查；⑥ 关闭 #14（已验收通过）。</div>
     </div></div>
 
   <div class="todo"><div class="mark pm">N</div>
@@ -252,7 +257,7 @@
     </div></div>
 
   <div class="confirm" data-page-node-id="4MoWZ3X9Z8etFq8O7nfWuv">
-    ⏳ <b data-page-node-id="xXLswrpDCuOaOgEt0DR1eR">待办：</b>① #15 返工验证（min/max 保真降采样 + 1M 双轴基准，deadline 09-13）；② #19 品牌红强调色落地；③ r9→r10→r13 合并回 main 后关闭 #14；④ PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 docs/ACCEPTANCE-v2.1.md（目标 09-19）；⑤ v2.2 W2 批（R11/R12/R14，#16-#18，09-22 前）；⑥ v2.1 收口后规划 v3.0（roadmap_v3x 测试素材已入库）。
+    ⏳ <b data-page-node-id="xXLswrpDCuOaOgEt0DR1eR">待办：</b>✅ <b>开发侧已完成（09-12）</b>：① #15 返工（min/max 保真降采样 + 1M 双轴基准 0.681s + CHANGELOG 措辞）；② #19 品牌红落地；③ W1（r9→r10→r13）已合入 main 并推送。<br>⏳ <b>待 PM：</b>④ #15 验收②③真机复核（1M 点双轴首屏 ≤2s、缩放平移、尖峰抽样）→ 关闭 #15；⑤ #19 浅/深 × ≥5 视图截图对照 → 关闭 #19；⑥ 关闭 #14（已验收通过）；⑦ PM 对 v2.1.1 产物补终验（双形态冒烟 / .claproj 恢复 / 导出往返）→ 产出 docs/ACCEPTANCE-v2.1.md（目标 09-19）；⑧ v2.2 W2 批（R11/R12/R14，#16-#18，09-22 前）；⑨ v2.1 收口后规划 v3.0（roadmap_v3x 测试素材已入库）。
   </div>
 
   <div class="legend" data-page-node-id="G2DXBHJEfPQLSfcScsQrql">
