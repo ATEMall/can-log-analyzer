@@ -3,7 +3,7 @@ import { ConfigProvider, theme as antdTheme } from 'antd';
 import App from './App';
 import {
   THEME_MODES, THEME_SETTING_KEY, DEFAULT_THEME_MODE,
-  resolveThemeMode, systemPrefersDark, applyThemeToDocument
+  resolveThemeMode, systemPrefersDark, applyThemeToDocument, antdThemeConfig
 } from './theme';
 
 // =====================================================================
@@ -83,9 +83,8 @@ function ThemedApp() {
     return undefined;
   }, [applyResolved]);
 
-  const { defaultAlgorithm, darkAlgorithm } = antdTheme;
   return (
-    <ConfigProvider theme={{ algorithm: resolved === 'dark' ? darkAlgorithm : defaultAlgorithm }}>
+    <ConfigProvider theme={antdThemeConfig(resolved, antdTheme)}>
       <App />
     </ConfigProvider>
   );

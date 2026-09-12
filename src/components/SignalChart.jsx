@@ -5,6 +5,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { SIGNAL_PALETTE, SIGNAL_PALETTE_LENGTH } from '../palette';
+import { minMaxDownsampleIndices, MAX_RENDER_POINTS } from '../chartDownsample.mjs';
 import { useThemeTokens } from '../theme';
 
 const { Text } = Typography;
@@ -44,16 +45,10 @@ function computeDomain(data, keys) {
   return [min - pad, max + pad];
 }
 
-function SignalChart({ signalData, selectedSignals, dbcMessages }) {
+function SignalChart({ signalData, selectedSignals, dbcMessages, maxRenderPoints = MAX_RENDER_POINTS }) {
   const hasData = Array.isArray(signalData) && signalData.length > 0;
 
   // ---- All hooks first (keeps hook order stable across data states) ----
-
-  // Downsample if > 5000 points
-  const MAX_POINTS = 5000;
-  const step = hasData && signalData.length > MAX_POINTS
-    ? Math.ceil(signalData.length / MAX_POINTS)
-    : 1;
 
   // Which curves are currently visible (filter bar)
   const [visibleKeys, setVisibleKeys] = useState(() => new Set(selectedSignals.map(s => s.key)));
@@ -101,11 +96,15 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
   );
   const showNone = useCallback(() => setVisibleKeys(new Set()), []);
 
-  // Build chart data: one point per sampled row, only numeric finite values
+  // Build chart data. Large logs are decimated with per-signal min/max bucket
+  // downsampling so transient spikes (worst-case values) are never dropped,
+  // unlike the previous equal-step sampler. Only numeric finite values survive.
   const chartData = useMemo(() => {
     if (!hasData) return [];
+    const keys = selectedSignals.map(s => s.key);
+    const indices = minMaxDownsampleIndices(signalData, keys, maxRenderPoints);
     const data = [];
-    for (let i = 0; i < signalData.length; i += step) {
+    for (const i of indices) {
       const row = signalData[i];
       const t = Number(row.t);
       const point = { t: Number.isFinite(t) ? Number(t.toFixed(4)) : i };
@@ -118,7 +117,9 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
       data.push(point);
     }
     return data;
-  }, [signalData, selectedSignals, step, hasData]);
+  }, [signalData, selectedSignals, hasData, maxRenderPoints]);
+
+  const isDownsampled = hasData && signalData.length > maxRenderPoints;
 
   // Unit per signal (from DBC metadata) — drives the multi-axis auto grouping
   // and the legend label suffix.
@@ -397,9 +398,9 @@ function SignalChart({ signalData, selectedSignals, dbcMessages }) {
           );
         })}
       </div>
-      {step > 1 && (
+      {isDownsampled && (
         <Text type="secondary" style={{ fontSize: 11, marginBottom: 4 }}>
-          数据量较大（{signalData.length} 点），已降采样至 {chartData.length} 点用于绘图
+          数据量较大（{signalData.length} 点），已按 min/max 分桶保真降采样至 {chartData.length} 点（保留峰值）
         </Text>
       )}
       <div ref={chartRef} style={{ flex: 1, minHeight: 350, minWidth: 0, position: 'relative' }}>

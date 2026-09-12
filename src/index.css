@@ -26,7 +26,7 @@
   --bg-well: #fafafa;            /* nested wells: code, pre, layout modal */
   --bg-strip: #f0f0f0;           /* info strips / chips */
   --bg-chip: #f5f5f5;            /* help code chips */
-  --bg-selected: #e6f4ff;        /* selected rows / tree items */
+  --bg-selected: #fdecea;        /* selected rows / tree items (品牌红浅底) */
 
   /* text */
   --text-strong: #1f1f1f;        /* titles */
@@ -38,13 +38,13 @@
   --text-hint: #999999;          /* hints, counts, placeholders */
   --text-faint: #bfbfbf;         /* unmatched / disabled */
   --text-inverse: #ffffff;       /* on-colour foreground */
-  --text-accent: #0958d9;        /* accent text: msg id codes, selected ids */
+  --text-accent: #c62828;        /* accent text: msg id codes, selected ids（品牌红） */
 
   /* borders & shadows */
   --border-strong: #e8e8e8;      /* panel / card outlines */
   --border-subtle: #f0f0f0;      /* inner separators */
   --border-faint: #eeeeee;       /* code chip borders */
-  --border-selected: #91caff;    /* selected outline */
+  --border-selected: #e8a6a6;    /* selected outline（品牌红） */
   --cell-border: rgba(0, 0, 0, 0.15);
   --cell-border-faint: rgba(0, 0, 0, 0.06);
   --shadow-header: rgba(0, 0, 0, 0.06);
@@ -52,11 +52,13 @@
   /* chart neutrals (SVG) */
   --chart-grid: #f0f0f0;
 
-  /* brand + status accents — constant across themes because they double
-     as the signal curve palette / layout colours (R9 keeps these
-     semantically identical in light & dark). */
-  --brand: #1677ff;
-  --brand-deep: #0958d9;
+  /* brand accent (PRD §5.3: 红 #C62828 + 白) — the UI accent colour used by
+     antd (colorPrimary seed) and custom accents. --brand-blue stays a
+     semantic blue for mux / derived-signal badges (it matches
+     SIGNAL_PALETTE[0]) — curve hues are owned by palette.js, never by
+     these tokens. */
+  --brand: #c62828;
+  --brand-deep: #8e1c1c;
   --brand-blue: #1890ff;
   --ok-green: #52c41a;
   --accent-purple: #722ed1;
@@ -73,7 +75,7 @@
   --bg-well: #1d1d21;
   --bg-strip: #1f1f24;
   --bg-chip: #1d1d21;
-  --bg-selected: rgba(22, 119, 255, 0.22);
+  --bg-selected: rgba(198, 40, 40, 0.26);
 
   --text-strong: rgba(255, 255, 255, 0.92);
   --text-base: rgba(255, 255, 255, 0.88);
@@ -84,17 +86,21 @@
   --text-hint: rgba(255, 255, 255, 0.45);
   --text-faint: rgba(255, 255, 255, 0.28);
   --text-inverse: #ffffff;
-  --text-accent: #4096ff;        /* light blue, readable on dark panels */
+  --text-accent: #e5484d;        /* 品牌红提亮变体，深色底可读（≥4.5:1） */
 
   --border-strong: #2e2e33;
   --border-subtle: #26262b;
   --border-faint: #26262b;
-  --border-selected: #2f5f96;
+  --border-selected: #a03a3a;
   --cell-border: rgba(255, 255, 255, 0.2);
   --cell-border-faint: rgba(255, 255, 255, 0.08);
   --shadow-header: rgba(0, 0, 0, 0.5);
 
   --chart-grid: #2e2e33;
+
+  /* 品牌红在深灰底上的提亮变体（保证强调文字/图标对比度）；基础品牌色
+     仍是 :root 的 #C62828，antd colorPrimary 亦为该值。 */
+  --brand: #e5484d;
 }
 
 html, body, #root {
