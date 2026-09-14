@@ -44,7 +44,13 @@ const mockElectronAPI = {
   exportLogCSV: vi.fn().mockResolvedValue({ success: false }),
   getSettings: vi.fn().mockResolvedValue({}),
   setSettings: vi.fn().mockResolvedValue({ success: true }),
-  onProjectOpenRequest: vi.fn(() => () => {})
+  onProjectOpenRequest: vi.fn(() => () => {}),
+  // R11: global search index + timeline buckets.
+  searchQuery: vi.fn().mockResolvedValue({
+    success: true,
+    result: { kind: 'none', matchCount: 0, matchedIds: [], firstIndex: null, nameMatches: [] }
+  }),
+  timelineBuckets: vi.fn().mockResolvedValue({ success: false })
 };
 
 beforeEach(() => {
@@ -332,6 +338,56 @@ describe('R10 collapsible DBC layout + state persistence', () => {
     const panel = await screen.findByTestId('dbc-panel');
     // React inlines the percentage width on the container.
     expect(panel.style.width).toBe('30%');
+  });
+
+  it('R11: global search sends the query to the main-process index and Enter locates', async () => {
+    mockElectronAPI.searchQuery.mockResolvedValueOnce({
+      success: true,
+      result: {
+        kind: 'id',
+        matchCount: 3,
+        matchedIds: [0x123],
+        firstIndex: 2,
+        firstTimestamp: 0.003,
+        nameMatches: []
+      }
+    });
+
+    render(<App />);
+
+    // Ctrl+F focuses the global search box (keyboard shortcut wiring).
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'f', ctrlKey: true });
+      fireEvent.change(screen.getByTestId('global-search-input'), { target: { value: '0x123' } });
+    });
+
+    await waitFor(() => expect(mockElectronAPI.searchQuery).toHaveBeenCalledTimes(1));
+    const payload = mockElectronAPI.searchQuery.mock.calls[0][0];
+    expect(payload.query).toBe('0x123');
+    expect(payload.scope).toBe('all');
+    expect(payload.dbcMessages).toEqual([]);
+
+    // The hit count is surfaced next to the input.
+    expect(screen.getByTestId('global-search-count').textContent).toBe('3 hits');
+
+    // Enter switches to the log tab and hands the locate target to MessageTable.
+    await act(async () => {
+      fireEvent.keyDown(screen.getByTestId('global-search-input'), { key: 'Enter' });
+    });
+    expect(await screen.findByText('导出为 CSV')).toBeTruthy();
+    expect(mockElectronAPI.setSettings).toHaveBeenCalledWith({ lastTab: 'log' });
+  });
+
+  it('R11: Esc clears the global search', async () => {
+    render(<App />);
+    await act(async () => {
+      fireEvent.change(screen.getByTestId('global-search-input'), { target: { value: 'abc' } });
+    });
+    expect(screen.getByTestId('global-search-input').value).toBe('abc');
+    await act(async () => {
+      fireEvent.keyDown(window, { key: 'Escape' });
+    });
+    expect(screen.getByTestId('global-search-input').value).toBe('');
   });
 
   it('restores persisted DBC message expansion after the database loads', async () => {

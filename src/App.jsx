@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Layout, Typography, message, Progress,
-  Button, Space, Tabs, Modal, Tag, Input, Drawer, List, Empty
+  Button, Space, Tabs, Modal, Tag, Drawer, List, Empty
 } from 'antd';
 import {
   DatabaseOutlined,
   TableOutlined, SyncOutlined, ThunderboltOutlined,
-  SearchOutlined, WarningOutlined, DownloadOutlined,
+  WarningOutlined, DownloadOutlined,
   LeftOutlined, RightOutlined
 } from '@ant-design/icons';
 import DBCPanel from './components/DBCPanel';
@@ -15,6 +15,8 @@ import ExportPanel from './components/ExportPanel';
 import CSVPanel from './components/CSVPanel';
 import SignalParsePanel from './components/SignalParsePanel';
 import HelpModal from './components/HelpModal';
+import GlobalSearchBar from './components/GlobalSearchBar';
+import TimelineOverview from './components/TimelineOverview';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -64,15 +66,131 @@ function App() {
   // Help manual dialog
   const [helpOpen, setHelpOpen] = useState(false);
 
-  // Search state for DBC messages/signals (shared so the input sits in the top
-  // toolbar while DBCPanel consumes it for filtering).
-  const [dbcSearch, setDbcSearch] = useState('');
+  // R11: single global search entry — replaces the former DBC-only filter row.
+  // The same query drives the left DBC tree filter *and* a main-process index
+  // search over the resident frames (消息名 / 信号名 / CAN ID / DID).
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [searchScope, setSearchScope] = useState('all');
+  const [searchResult, setSearchResult] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const searchInputRef = useRef(null);
+  // R11: locate target + nonce so a repeated Enter re-scrolls the same frame.
+  const [locate, setLocate] = useState({ index: null, nonce: 0 });
+  // R11: shared timeline overview data + window (absolute seconds; null = full).
+  const [timeline, setTimeline] = useState(null);
+  const [timeWindow, setTimeWindow] = useState(null);
 
   // R4: parse error reporting (ASC data lines / BLF bad blocks that were
   // skipped without aborting the load).
   const [parseErrors, setParseErrors] = useState([]);
   const [parseErrorCount, setParseErrorCount] = useState(0);
   const [parseErrorDrawerOpen, setParseErrorDrawerOpen] = useState(false);
+
+  // ======= R11: global search (main-process index) =======
+  // Debounced so typing on a 1M-frame log does not fire an IPC round trip per
+  // keystroke. The main process caches the frame index per file path, so every
+  // follow-up query is a Map lookup + O(ids) resolution.
+  useEffect(() => {
+    const q = globalSearch.trim();
+    if (!q) {
+      setSearchResult(null);
+      setSearching(false);
+      return undefined;
+    }
+    const api = window.electronAPI?.searchQuery;
+    if (typeof api !== 'function') return undefined;
+    const filePath = (ascFile || blfFile)?.path || null;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await api({
+          filePath,
+          messages: filePath ? undefined : loadedMessages,
+          dbcMessages,
+          query: q,
+          scope: searchScope
+        });
+        if (!cancelled && res?.success) setSearchResult(res.result);
+      } catch (_) {
+        /* search is non-fatal */
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 180);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [globalSearch, searchScope, dbcMessages, loadedMessages, ascFile, blfFile]);
+
+  // R11: timeline buckets (one O(n) pass in the main process, ~2000 buckets).
+  useEffect(() => {
+    const api = window.electronAPI?.timelineBuckets;
+    if (typeof api !== 'function') return undefined;
+    if (!loadedMessages.length) {
+      setTimeline(null);
+      setTimeWindow(null);
+      return undefined;
+    }
+    const filePath = (ascFile || blfFile)?.path || null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api({
+          filePath,
+          messages: filePath ? undefined : loadedMessages,
+          bucketCount: 2000,
+          topN: 6
+        });
+        if (!cancelled && res?.success) setTimeline(res);
+      } catch (_) {
+        /* overview is non-fatal */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [loadedMessages, ascFile, blfFile]);
+
+  // A fresh corpus invalidates the locate target and the shared time window.
+  useEffect(() => {
+    setLocate({ index: null, nonce: 0 });
+    setTimeWindow(null);
+  }, [loadedMessages]);
+
+  // R11: Ctrl+F focuses the global search, Esc clears it (PRD UI-002).
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && String(e.key).toLowerCase() === 'f') {
+        e.preventDefault();
+        const el = searchInputRef.current;
+        if (el) {
+          el.focus?.();
+          el.select?.();
+          if (el.input?.select) el.input.select();
+        }
+      } else if (e.key === 'Escape' && globalSearch) {
+        setGlobalSearch('');
+        setSearchResult(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [globalSearch]);
+
+  // Enter in the search box: jump to the first matching frame in the log tab.
+  const handleGlobalSearchSubmit = useCallback(() => {
+    const q = globalSearch.trim();
+    if (!q) return;
+    const result = searchResult;
+    if (result && result.firstIndex != null) {
+      setActiveTab('log');
+      window.electronAPI?.setSettings?.({ lastTab: 'log' });
+      setLocate({ index: result.firstIndex, nonce: Date.now() });
+      return;
+    }
+    if (result && result.nameMatches?.length > 0) {
+      message.info(`DBC 结构命中 ${result.nameMatches.length} 条，但当前日志没有对应报文`);
+      return;
+    }
+    if (result) message.warning(`未找到与「${q}」匹配的报文`);
+  }, [globalSearch, searchResult]);
 
   // Load CRC algorithms on mount
   useEffect(() => {
@@ -565,6 +683,12 @@ function App() {
     setParseErrors([]);
     setParseErrorCount(0);
     setParseErrorDrawerOpen(false);
+    // R11: drop the search results / locate target / shared time window too.
+    setGlobalSearch('');
+    setSearchResult(null);
+    setLocate({ index: null, nonce: 0 });
+    setTimeline(null);
+    setTimeWindow(null);
     message.success('已清空所有数据，可以重新加载文件');
   }, []);
 
@@ -797,6 +921,9 @@ function App() {
             ascFile={ascFile}
             blfFile={blfFile}
             loading={loading}
+            timeline={timeline}
+            timeWindow={timeWindow}
+            onTimeWindowChange={setTimeWindow}
           />
         </div>
       )
@@ -819,7 +946,27 @@ function App() {
       ),
       children: (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-          <MessageTable messages={loadedMessages} loading={loading} dbcMessages={dbcMessages} />
+          <MessageTable
+            messages={loadedMessages}
+            loading={loading}
+            dbcMessages={dbcMessages}
+            highlightIds={searchResult?.matchedIds || []}
+            locateIndex={locate.index}
+            locateNonce={locate.nonce}
+            timeWindow={timeWindow}
+          />
+          {/* R11: timeline overview — same shared window as the curve view. */}
+          {timeline?.buckets?.length > 0 && (
+            <div style={{ marginTop: 8, flexShrink: 0 }}>
+              <TimelineOverview
+                timeline={timeline}
+                window={timeWindow}
+                onWindowChange={setTimeWindow}
+                dbcMessages={dbcMessages}
+                testId="timeline-overview-log"
+              />
+            </div>
+          )}
           <div style={{ marginTop: 8, flexShrink: 0 }}>
             <ExportPanel
               onExport={handleExportASC}
@@ -961,17 +1108,18 @@ function App() {
           </Text>
         </div>
 
-        {/* Search row - lives under the top toolbar (under "加载 DBC") so it
-            doesn't squeeze the file-loader buttons. Filters the DBC message
-            list inside the left panel. */}
+        {/* R11 global search row - single entry under the top toolbar. Drives
+            both the left DBC tree filter and the main-process frame index. */}
         <div style={{ marginBottom: 10, flexShrink: 0 }}>
-          <Input
-            prefix={<SearchOutlined style={{ color: 'var(--text-hint)' }} />}
-            placeholder="检索消息名 / ID / 信号名"
-            value={dbcSearch}
-            onChange={e => setDbcSearch(e.target.value)}
-            allowClear
-            size="small"
+          <GlobalSearchBar
+            value={globalSearch}
+            onChange={setGlobalSearch}
+            onSubmit={handleGlobalSearchSubmit}
+            result={searchResult}
+            scope={searchScope}
+            onScopeChange={setSearchScope}
+            inputRef={searchInputRef}
+            searching={searching}
           />
         </div>
 
@@ -1024,8 +1172,8 @@ function App() {
                 onLoadDBC={handleLoadDBC}
                 onViewRaw={() => setRawModalOpen(true)}
                 dbcLoaded={dbcMessages.length > 0}
-                search={dbcSearch}
-                onSearchChange={setDbcSearch}
+                search={globalSearch}
+                onSearchChange={setGlobalSearch}
                 expandedMsgs={dbcExpanded}
                 onExpandedMsgsChange={handleDbcExpandedChange}
               />

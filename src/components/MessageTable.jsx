@@ -4,10 +4,26 @@ import { FileTextOutlined, SearchOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
-function MessageTable({ messages, loading, dbcMessages = [] }) {
+function MessageTable({
+  messages,
+  loading,
+  dbcMessages = [],
+  highlightIds = [],
+  locateIndex = null,
+  locateNonce = 0,
+  timeWindow = null
+}) {
   const [searchText, setSearchText] = useState('');
   const containerRef = useRef(null);
   const [tableHeight, setTableHeight] = useState(400);
+  // R11: controlled pagination so a global-search hit can jump to its page.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const pendingLocateRef = useRef(null);
+  const highlightSet = React.useMemo(
+    () => new Set((highlightIds || []).map(Number)),
+    [highlightIds]
+  );
 
   // id -> message name map from DBC
   const msgNameMap = React.useMemo(() => {
@@ -58,17 +74,81 @@ function MessageTable({ messages, loading, dbcMessages = [] }) {
     };
   }, [messages.length]);
 
-  // Filter messages based on search (ID or message name)
-  const filteredMessages = messages.filter(msg => {
-    if (!searchText) return true;
-    const search = searchText.toLowerCase();
-    const msgName = (msgNameMap[msg.id] || '').toLowerCase();
-    return (
-      msg.id.toString(16).toLowerCase().includes(search) ||
-      msg.id.toString().includes(search) ||
-      msgName.includes(search)
-    );
-  });
+  // Filter messages by the local quick filter and the shared R11 time window.
+  // `sourceIdxs` keeps the absolute index of every surviving frame so a
+  // global-search locate target maps onto the current page/filter state.
+  const { filteredMessages, sourceIdxs } = React.useMemo(() => {
+    const search = searchText.trim().toLowerCase();
+    const out = [];
+    const idxs = [];
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      if (timeWindow) {
+        const t = Number(msg.timestamp) || 0;
+        if (t < timeWindow.start || t > timeWindow.end) continue;
+      }
+      if (search) {
+        const msgName = (msgNameMap[msg.id] || '').toLowerCase();
+        if (
+          !msg.id.toString(16).toLowerCase().includes(search) &&
+          !msg.id.toString().includes(search) &&
+          !msgName.includes(search)
+        ) continue;
+      }
+      idxs.push(i);
+      out.push(msg);
+    }
+    return { filteredMessages: out, sourceIdxs: idxs };
+  }, [messages, searchText, msgNameMap, timeWindow]);
+
+  // R11: locate target -> page + scroll. locateNonce lets a repeated Enter on
+  // the same hit re-scroll instead of being a no-op.
+  const locatePos = React.useMemo(() => {
+    if (locateIndex == null) return -1;
+    const exact = sourceIdxs.indexOf(locateIndex);
+    if (exact >= 0) return exact;
+    // Target filtered out: fall back to the first frame at/after it.
+    let lo = 0;
+    let hi = sourceIdxs.length - 1;
+    let best = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (sourceIdxs[mid] >= locateIndex) { best = mid; hi = mid - 1; } else { lo = mid + 1; }
+    }
+    return best;
+  }, [locateIndex, sourceIdxs]);
+
+  React.useEffect(() => {
+    if (locateIndex == null || locatePos < 0) return;
+    pendingLocateRef.current = locatePos;
+    setPage(Math.floor(locatePos / pageSize) + 1);
+  }, [locateNonce, locateIndex, locatePos, pageSize]);
+
+  React.useEffect(() => {
+    const pos = pendingLocateRef.current;
+    if (pos == null) return undefined;
+    const timer = setTimeout(() => {
+      const body = containerRef.current?.querySelector('.ant-table-tbody');
+      const rows = body ? body.querySelectorAll('tr.ant-table-row') : [];
+      const el = rows[pos % pageSize] || body?.querySelector('.search-hit-row');
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ block: 'center' });
+      }
+      pendingLocateRef.current = null;
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [page, pageSize, locateNonce]);
+
+  // A different corpus or quick filter starts from the first page again.
+  // Skipped on mount so it never overrides the locate effect above.
+  const pageResetReadyRef = useRef(false);
+  React.useEffect(() => {
+    if (!pageResetReadyRef.current) {
+      pageResetReadyRef.current = true;
+      return;
+    }
+    setPage(1);
+  }, [messages, searchText]);
 
   const columns = [
     {
@@ -198,6 +278,11 @@ function MessageTable({ messages, loading, dbcMessages = [] }) {
       }}
       extra={
         <Space>
+          {highlightSet.size > 0 && (
+            <Tag color="blue" style={{ fontSize: 11 }} data-testid="message-table-hit-ids">
+              命中 {highlightSet.size} 个 ID
+            </Tag>
+          )}
           <Input
             placeholder="搜索 ID / 消息名..."
             prefix={<SearchOutlined />}
@@ -219,10 +304,16 @@ function MessageTable({ messages, loading, dbcMessages = [] }) {
         dataSource={filteredMessages}
         columns={columns}
         rowKey={(record, index) => `${record.timestamp}-${index}`}
+        rowClassName={(record) => (highlightSet.has(Number(record.id)) ? 'search-hit-row' : '')}
         size="small"
         loading={loading}
         pagination={{
-          pageSize: 100,
+          current: Math.min(page, Math.max(1, Math.ceil(filteredMessages.length / pageSize))),
+          pageSize,
+          onChange: (p, ps) => {
+            setPage(p);
+            if (ps && ps !== pageSize) setPageSize(ps);
+          },
           size: 'small',
           showSizeChanger: true,
           showQuickJumper: false,

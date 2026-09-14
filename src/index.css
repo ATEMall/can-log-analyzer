@@ -121,6 +121,62 @@ body {
   background-color: var(--bg-selected) !important;
 }
 
+/* ---- R11: global-search hit rows --------------------------------------
+   antd Table runs in `virtual` mode here, so rows and cells are rendered as
+   divs (.ant-table-row / .ant-table-cell); the `td` selectors cover the
+   non-virtual fallback. */
+.search-hit-row,
+.search-hit-row > td,
+.search-hit-row > .ant-table-cell {
+  background-color: var(--bg-selected) !important;
+}
+.search-hit-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--brand);
+}
+
+/* ---- R11: timeline overview (minimap) --------------------------------- */
+.timeline-overview {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg-panel);
+  user-select: none;
+}
+.timeline-overview:focus-visible {
+  outline: 2px solid var(--border-selected);
+  outline-offset: 1px;
+}
+.timeline-canvas {
+  display: block;
+}
+.timeline-dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--bg-strip);
+  opacity: 0.62;
+  pointer-events: none;
+}
+.timeline-brush {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--border-selected);
+  border-radius: 2px;
+  background: var(--bg-selected);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* Prevent antd Tabs content from overflowing in flex layout.
    The full height chain must carry through: Tabs(flex column)
    -> content-holder(flex:1) -> content(flex column) -> tabpane(flex:1),

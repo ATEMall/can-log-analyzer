@@ -2,6 +2,26 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-09-14（v2.2 W2 批次：R11 全局搜索 + 时间轴总览）
+
+> v2.2「体验与健壮」W2 批次首项：R11 全局搜索 + 时间轴总览（#16）。
+
+### 新增
+
+- **全局搜索（R11 / UI-002）**：顶部单一搜索入口统一检索**消息名 / 信号名 / CAN ID（十进制 + `0x` 十六进制）/ DID**；`Ctrl+F` 唤起、`Esc` 清除，`Enter` 定位首个命中帧；命中以品牌红浅底（`.search-hit-row`）高亮并给出计数（`12 hits`）；搜索范围可选「全部视图（报文帧 + DBC 结构）/ 当前视图（仅 DBC 结构）」
+  - 索引在主进程：`electron/searchIndex.js` 单遍 O(n) 扫描落成 `ID -> {count, firstIndex, firstTimestamp}` 稀疏索引，按日志文件路径缓存（`storeMessages` 时失效 + `setImmediate` 预热），1M 帧首建后每次查询为 Map 查找；IPC 只传 `filePath + query`，不回传帧数据
+  - 数字类查询同时给出十进制/十六进制两种解释（`291` → `0x123`）；文本类大小写不敏感匹配消息名与信号名，因此 `F190` 可命中 `DID_F190`
+- **时间轴总览 minimap（R11 / FR-VIS-002）**：报文日志与曲线视图底部共享缩放条，`electron/timelineBuckets.js` 在主进程 O(n) 单遍聚合为 **~2000 桶**（`bucketCount` 按帧数收敛），IPC 只传桶数组；画布按 top-6 ID 堆叠渲染密度热条（其余 ID 以淡色兜底）
+  - 交互：拖拽平移、滚轮 / 双击以光标为中心缩放（最小视窗 1/5000 跨度）、「重置」恢复全览；视窗变化经 `onWindowChange` 冒泡，报文表按时间窗过滤、信号曲线/表格按同一时间窗切片，**两视图共享 `timeWindow` 状态**
+  - `MessageTable` 改为受控分页以支持定位跳页：命中 ID 高亮 + 定位帧所在页自动翻页并 `scrollIntoView`（`locateIndex` / `locateNonce`）
+
+### 测试
+
+- 新增 `electron/__tests__/searchIndex.test.js`（ID 解析 / 索引聚集 / 名称+信号+DID 匹配 / scope 切换，15 例）、`electron/__tests__/timelineBuckets.test.js`（桶数收敛 / 总量守恒 / 时间跨度 / per-ID 密度与真实分布一致 / 空语料，6 例）
+- 新增 `src/components/__tests__/TimelineOverview.test.jsx`（刷选定位 / 滚轮与双击缩放 / 拖拽平移 / 重置 / 热条标签，8 例）、`GlobalSearchBar.test.jsx`（计数标签 / 定位提示 / 无匹配 / 输入与回车，4 例）
+- `MessageTable.test.jsx` 增 R11 用例（命中高亮 / 定位翻页 / 时间窗过滤，4 例）、`App.test.jsx` 增 R11 用例（`Ctrl+F` + 回车定位切页签、`Esc` 清除，2 例）
+- 全量回归 **236/236** 通过（18 文件），较 W1 基线 197/197 净增 39 例、0 回退
+
 ## [Unreleased] - 2026-09-11（v2.2 W1 批次 + 复核返工）
 
 > v2.2「体验与健壮」W1 批次：R9 深色模式（#13）、R10 可折叠布局与状态记忆（#14）、R13 多 Y 轴曲线（#15）。09-11 依 PM 复核完成 #15 降采样返工（补齐 min/max 保真降采样）与 #19 品牌强调色对齐。
