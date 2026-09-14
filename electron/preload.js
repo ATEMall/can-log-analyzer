@@ -72,6 +72,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportSignalCSV: (filePath, signalData, selectedSignals) =>
     ipcRenderer.invoke('signal:exportCSV', filePath, signalData, selectedSignals),
 
+  // R11: global search (main-process index) + timeline bucket aggregation.
+  searchQuery: (payload) => ipcRenderer.invoke('search:query', payload),
+  timelineBuckets: (payload) => ipcRenderer.invoke('timeline:buckets', payload),
+
   // R5: project save / restore (.claproj)
   saveProject: (filePath, projectData) => ipcRenderer.invoke('project:save', filePath, projectData),
   openProject: (filePath) => ipcRenderer.invoke('project:open', filePath),

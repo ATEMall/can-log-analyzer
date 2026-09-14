@@ -8,6 +8,8 @@ const { buildBLFBuffer, parseBLFBuffer, parseBLFBufferDetailed } = require('./bl
 const { isNonDataLine, parseASCDataLine, generateASC } = require('./asc');
 const { parseDBC, decodeSignalFrame, getEnumLabel } = require('./dbc');
 const { buildDecodeContext, decodeFramesChunk, decodeAll } = require('./signalDecode');
+const { buildFrameIndex, searchFrames } = require('./searchIndex');
+const { buildTimelineBuckets } = require('./timelineBuckets');
 
 const APP_VERSION = app.getVersion();
 const OFFICIAL_SITE = 'https://atemall-ai.com';
@@ -23,13 +25,44 @@ const messageStore = new Map();
 // boundaries so a cancel takes effect within one chunk (<= ~500k frames).
 let decodeCancelled = false;
 
+// R11: global-search frame index, cached per source file. The index is a
+// sparse Map (id -> count/first frame) built in one O(n) pass; it is
+// invalidated whenever the resident corpus changes, so incremental loads
+// never search a stale index.
+const searchIndexCache = new Map();
+
+function getFrameIndex(filePath, frames) {
+  if (!Array.isArray(frames) || frames.length === 0) return null;
+  if (!filePath) return buildFrameIndex(frames);
+  let idx = searchIndexCache.get(filePath);
+  if (!idx) {
+    idx = buildFrameIndex(frames);
+    searchIndexCache.set(filePath, idx);
+  }
+  return idx;
+}
+
+// Build the index right after a load so the first Ctrl+F is instant on 1M logs.
+function prewarmSearchIndex(filePath, frames) {
+  setImmediate(() => {
+    try {
+      getFrameIndex(filePath, frames);
+    } catch {
+      /* index build is best-effort; search falls back to building on demand */
+    }
+  });
+}
+
 function storeMessages(filePath, messages) {
   if (!filePath || !messages) return;
   messageStore.set(filePath, messages);
+  searchIndexCache.delete(filePath);
+  prewarmSearchIndex(filePath, messages);
 }
 
 function clearMessageStore() {
   messageStore.clear();
+  searchIndexCache.clear();
   decodeCancelled = false;
 }
 
@@ -1751,4 +1784,38 @@ ipcMain.handle('signal:exportCSV', async (event, filePath, signalData, selectedS
       resolve({ success: false, error: error.message });
     }
   });
+});
+
+// ==================== R11: global search + timeline overview ====================
+// render -> main: search:query { filePath, messages?, dbcMessages, query, scope }
+//   The renderer never ships 1M frames back: filePath hits the resident corpus.
+//   messages is only used as a fallback (CSV -> ASC conversions).
+ipcMain.handle('search:query', async (event, payload) => {
+  const { filePath, messages, dbcMessages = [], query = '', scope = 'all' } = payload || {};
+  try {
+    let frames = filePath ? messageStore.get(filePath) : null;
+    if (!frames) frames = messages || [];
+    const index = getFrameIndex(filePath, frames);
+    return { success: true, result: searchFrames(index, dbcMessages, query, { scope }) };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// render -> main: timeline:buckets { filePath, messages?, bucketCount?, topN? }
+//   Returns ~2000 density buckets + per-ID densities (top N ids) for the
+//   minimap. Aggregation is a single O(n) pass in the main process; only the
+//   bucket arrays cross the IPC boundary.
+ipcMain.handle('timeline:buckets', async (event, payload) => {
+  const { filePath, messages, bucketCount = 2000, topN = 6 } = payload || {};
+  try {
+    let frames = filePath ? messageStore.get(filePath) : null;
+    if (!frames) frames = messages || [];
+    if (!Array.isArray(frames) || frames.length === 0) {
+      return { success: false, error: '没有可统计的报文：请先加载日志文件' };
+    }
+    return { success: true, ...buildTimelineBuckets(frames, { bucketCount, topN }) };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });

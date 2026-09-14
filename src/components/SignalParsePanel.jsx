@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import SignalTable from './SignalTable';
 import SignalChart from './SignalChart';
+import TimelineOverview from './TimelineOverview';
 
 const { Text, Title } = Typography;
 
@@ -21,7 +22,10 @@ function SignalParsePanel({
   loading,
   onDecodeSignals,
   onExportSignalCSV,
-  onSaveSignalCSV
+  onSaveSignalCSV,
+  timeline = null,
+  timeWindow = null,
+  onTimeWindowChange
 }) {
   const [activeView, setActiveView] = useState('table');
   const [signalData, setSignalData] = useState(null);
@@ -69,6 +73,18 @@ function SignalParsePanel({
       );
     });
   }, [selectedSignals, dbcMessages, searchText]);
+
+  // R11: the shared timeline window slices the decoded rows for both the data
+  // table and the curve view, so minimap zoom stays in sync across views.
+  const windowedSignalData = useMemo(() => {
+    if (!signalData) return signalData;
+    if (!timeWindow) return signalData;
+    const { start, end } = timeWindow;
+    return signalData.filter(r => {
+      const t = Number(r.t) || 0;
+      return t >= start && t <= end;
+    });
+  }, [signalData, timeWindow]);
 
   // Handle decode button click. R2: prefers the chunked protocol so 1M-frame
   // logs stream through the main process without freezing the UI; falls back
@@ -365,14 +381,14 @@ function SignalParsePanel({
                 <>
                   {activeView === 'table' && (
                     <SignalTable
-                      signalData={signalData}
+                      signalData={windowedSignalData}
                       selectedSignals={filteredSignals}
                       dbcMessages={dbcMessages}
                     />
                   )}
                   {activeView === 'chart' && (
                     <SignalChart
-                      signalData={signalData}
+                      signalData={windowedSignalData}
                       selectedSignals={filteredSignals}
                       dbcMessages={dbcMessages}
                     />
@@ -383,6 +399,18 @@ function SignalParsePanel({
           </Card>
         )}
       </div>
+
+      {/* R11: shared timeline overview — same time window state as the log tab. */}
+      {timeline?.buckets?.length > 0 && (
+        <TimelineOverview
+          timeline={timeline}
+          window={timeWindow}
+          onWindowChange={onTimeWindowChange}
+          dbcMessages={dbcMessages}
+          height={48}
+          testId="timeline-overview-signal"
+        />
+      )}
     </div>
   );
 }
