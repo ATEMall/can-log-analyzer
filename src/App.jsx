@@ -7,7 +7,7 @@ import {
   DatabaseOutlined,
   TableOutlined, SyncOutlined, ThunderboltOutlined,
   WarningOutlined, DownloadOutlined,
-  LeftOutlined, RightOutlined, BarChartOutlined
+  LeftOutlined, RightOutlined, BarChartOutlined, CopyOutlined, FolderOpenOutlined
 } from '@ant-design/icons';
 import DBCPanel from './components/DBCPanel';
 import MessageTable from './components/MessageTable';
@@ -21,6 +21,54 @@ import StatsPanel from './components/StatsPanel';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
+
+// ======= R14: renderer → diagnostic log =======
+// window.onerror / unhandledrejection are forwarded to the main process so
+// they land in the same daily log as main-process events. Never throws: a
+// failing diagnostic report must not break the UI that reported it.
+function reportDiagnostic(level, name, detail) {
+  try {
+    const api = typeof window !== 'undefined' ? window.electronAPI && window.electronAPI.logDiagnostic : null;
+    const pending = typeof api === 'function' ? api({ level, event: name, detail }) : null;
+    if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+  } catch {
+    /* diagnostics are best-effort */
+  }
+}
+
+function copyTextToClipboard(text) {
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      return navigator.clipboard.writeText(text).then(() => true).catch(() => fallbackCopy(text));
+    }
+  } catch {
+    /* fall through to the legacy path */
+  }
+  return Promise.resolve(fallbackCopy(text));
+}
+
+// document.execCommand fallback for environments without the async clipboard
+// API (older WebView / non-secure contexts).
+function fallbackCopy(text) {
+  try {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(area);
+    return !!ok;
+  } catch {
+    return false;
+  }
+}
+
+function baseNameOf(filePath) {
+  if (!filePath) return '未加载';
+  return String(filePath).split(/[\\/]/).pop() || String(filePath);
+}
 
 function App() {
   // ======= State =======
@@ -95,6 +143,37 @@ function App() {
   const [parseErrors, setParseErrors] = useState([]);
   const [parseErrorCount, setParseErrorCount] = useState(0);
   const [parseErrorDrawerOpen, setParseErrorDrawerOpen] = useState(false);
+
+  // R14: session start — feeds the "运行时长" line of the diagnostics blurb.
+  const sessionStartRef = useRef(Date.now());
+
+  // ======= R14: renderer crash reporting → main-process diagnostic log =======
+  // window.onerror / unhandledrejection are the two hooks that catch UI-level
+  // failures; both are forwarded (fire and forget) to the daily log file.
+  useEffect(() => {
+    const onError = (evt) => {
+      reportDiagnostic('error', 'window.onerror', {
+        message: String((evt && evt.message) || ''),
+        source: evt && evt.filename,
+        lineno: evt && evt.lineno,
+        colno: evt && evt.colno,
+        stack: evt && evt.error ? evt.error.stack : undefined
+      });
+    };
+    const onRejection = (evt) => {
+      const reason = evt && evt.reason;
+      reportDiagnostic('error', 'unhandledrejection', {
+        message: reason && reason.message ? String(reason.message) : String(reason ?? ''),
+        stack: reason && reason.stack ? reason.stack : undefined
+      });
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
+  }, []);
 
   // ======= R11: global search (main-process index) =======
   // Debounced so typing on a 1M-frame log does not fire an IPC round trip per
@@ -771,6 +850,67 @@ function App() {
     }
   }, [parseErrors, parseErrorCount]);
 
+  // ======= R14: one-click diagnostics copy (version / session / error summary) =======
+  // Deliberately free of CAN payloads: counts + reason strings only, so the
+  // blurb can be pasted into an issue verbatim.
+  const handleCopyDiagnostics = useCallback(async () => {
+    let info = null;
+    try {
+      const res = await window.electronAPI?.getDiagnosticInfo?.();
+      if (res && res.success) info = res.info;
+    } catch {
+      /* diagnostics unavailable — fall back to renderer-only facts */
+    }
+
+    const reasonCounts = new Map();
+    for (const err of parseErrors) {
+      const reason = String((err && err.reason) || '未知原因');
+      reasonCounts.set(reason, (reasonCounts.get(reason) || 0) + 1);
+    }
+    const topReasons = [...reasonCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([reason, count]) => `  - ${reason} ×${count}`);
+
+    const uptimeSec = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    const errStats = busStats?.errors || null;
+    const lines = [
+      'CAN Log Analyzer Pro 诊断信息',
+      `生成时间: ${new Date().toISOString()}`,
+      `应用版本: ${info && info.version ? `v${info.version}` : '未知'}`,
+      `平台: ${info?.platform || '-'} / ${info?.arch || '-'}`,
+      `运行时: Electron ${info?.electron || '-'} / Node ${info?.node || '-'}`,
+      `会话开始: ${info?.sessionStart || new Date(sessionStartRef.current).toISOString()}`,
+      `运行时长: ${uptimeSec}s`,
+      `日志目录: ${info?.logDir || '不可用'}`,
+      `当日日志: ${info?.logPath || '不可用'}`,
+      `日志保留: ${info?.retentionDays ?? 7} 天`,
+      `日志源: ${baseNameOf((ascFile || blfFile)?.path)}（${loadedMessages.length} 帧）`,
+      `解析错误: ${parseErrorCount} 条`,
+      topReasons.length ? `错误原因 Top${topReasons.length}:` : null,
+      ...topReasons,
+      `总线错误帧: ${errStats ? errStats.total : 0}（Bus Off ${errStats ? errStats.busOffCount : 0}）`,
+      '',
+      '说明: 诊断日志仅记录计数与错误原因，不含 CAN 报文数据内容。'
+    ].filter((line) => line !== null);
+
+    const text = lines.join('\n');
+    const ok = await copyTextToClipboard(text);
+    if (ok) message.success('诊断信息已复制到剪贴板');
+    else message.error('复制失败，请手动打开诊断日志目录');
+    reportDiagnostic('info', 'diagnostics.copied', { length: text.length, ok });
+  }, [parseErrors, parseErrorCount, busStats, loadedMessages, ascFile, blfFile]);
+
+  // ======= R14: reveal the daily diagnostic log folder =======
+  const handleOpenDiagnosticLog = useCallback(async () => {
+    try {
+      const res = await window.electronAPI?.openDiagnosticLog?.();
+      if (res && res.success === false) message.error('打开诊断日志失败: ' + (res.error || '未知错误'));
+    } catch (err) {
+      message.error('打开诊断日志失败: ' + err.message);
+    }
+  }, []);
+
   // ======= Clear All =======
   const handleClearAll = useCallback(() => {
     setAscFile(null);
@@ -1446,7 +1586,7 @@ function App() {
                 )}
               />
             </div>
-            <div style={{ flexShrink: 0, display: 'flex', gap: 8 }}>
+            <div style={{ flexShrink: 0, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Button
                 type="primary"
                 size="small"
@@ -1455,6 +1595,22 @@ function App() {
                 data-testid="export-parse-errors"
               >
                 导出错误列表 (txt)
+              </Button>
+              <Button
+                size="small"
+                icon={<CopyOutlined />}
+                onClick={handleCopyDiagnostics}
+                data-testid="copy-diagnostics"
+              >
+                一键复制诊断信息
+              </Button>
+              <Button
+                size="small"
+                icon={<FolderOpenOutlined />}
+                onClick={handleOpenDiagnosticLog}
+                data-testid="open-diagnostic-log"
+              >
+                打开诊断日志
               </Button>
               <Button size="small" onClick={() => setParseErrorDrawerOpen(false)}>关闭</Button>
             </div>

@@ -81,6 +81,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   busStats: (payload) => ipcRenderer.invoke('stats:busStats', payload),
   exportStatsCSV: (filePath, stats) => ipcRenderer.invoke('stats:exportCSV', filePath, stats),
 
+  // R14: renderer-side diagnostics (window.onerror / unhandledrejection) are
+  // forwarded to the same daily log; diag:open reveals it in the file manager.
+  logDiagnostic: (entry) => ipcRenderer.invoke('diag:log', entry),
+  openDiagnosticLog: () => ipcRenderer.invoke('diag:open'),
+  getDiagnosticInfo: () => ipcRenderer.invoke('diag:info'),
+
   // R5: project save / restore (.claproj)
   saveProject: (filePath, projectData) => ipcRenderer.invoke('project:save', filePath, projectData),
   openProject: (filePath) => ipcRenderer.invoke('project:open', filePath),

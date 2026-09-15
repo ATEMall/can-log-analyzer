@@ -11,6 +11,7 @@ const { buildDecodeContext, decodeFramesChunk, decodeAll } = require('./signalDe
 const { buildFrameIndex, searchFrames } = require('./searchIndex');
 const { buildTimelineBuckets } = require('./timelineBuckets');
 const { buildBusLoad, buildCycleStats, buildErrorStats } = require('./busStats');
+const { createDiagnosticLogger } = require('./diagLog');
 
 const APP_VERSION = app.getVersion();
 const OFFICIAL_SITE = 'https://atemall-ai.com';
@@ -67,9 +68,83 @@ function clearMessageStore() {
   decodeCancelled = false;
 }
 
+// ==================== R14: diagnostic log ====================
+// One `app-YYYY-MM-DD.log` per day under userData/logs, 7-day retention and
+// async appends so logging never blocks the UI. Nothing that could carry CAN
+// payloads or file content is written (see diagLog.sanitizeDetail).
+let diag = null;
+
+function initDiagnostics() {
+  if (diag) return diag;
+  try {
+    diag = createDiagnosticLogger({
+      dir: path.join(app.getPath('userData'), 'logs'),
+      version: APP_VERSION
+    });
+    const pruned = diag.prune();
+    diag.info('app.start', {
+      version: APP_VERSION,
+      platform: process.platform,
+      arch: process.arch,
+      electron: process.versions.electron,
+      node: process.versions.node,
+      retentionDays: diag.retentionDays,
+      prunedLogs: pruned.removed.length,
+      keptLogs: pruned.kept.length
+    });
+  } catch (err) {
+    // Diagnostics must never break startup.
+    console.error('[diag] init failed:', err && err.message ? err.message : err);
+    diag = null;
+  }
+  return diag;
+}
+
+/** Null-safe log helper — every call site stays a one-liner. */
+function logDiag(level, event, detail, scope) {
+  try {
+    if (diag) diag.log(level, event, detail, scope);
+  } catch {
+    /* never let logging break the caller */
+  }
+}
+
 function sendToRenderer(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send(channel, payload);
+  }
+}
+
+/**
+ * R14: 「帮助 → 打开诊断日志」/ IPC `diag:open`. Flushes pending entries, then
+ * reveals today's log in the OS file manager (falls back to the log folder).
+ */
+async function openDiagnosticLog() {
+  if (!diag) initDiagnostics();
+  logDiag('info', 'diag.open', { requested: true });
+  if (!diag) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: '诊断日志',
+      message: '诊断日志目录不可用',
+      detail: '无法创建日志目录（userData/logs），诊断功能未启用。',
+      buttons: ['关闭']
+    }).catch(() => {});
+    return { success: false, error: '诊断日志目录不可用' };
+  }
+  try {
+    await diag.flush();
+    await diag.ensureDir();
+    const file = diag.currentFilePath();
+    if (fs.existsSync(file)) {
+      shell.showItemInFolder(file);
+      return { success: true, path: file, dir: diag.dir };
+    }
+    const err = await shell.openPath(diag.dir);
+    return err ? { success: false, error: err, dir: diag.dir } : { success: true, dir: diag.dir };
+  } catch (err) {
+    logDiag('error', 'diag.open-failed', err, 'main');
+    return { success: false, error: err && err.message ? err.message : String(err) };
   }
 }
 
@@ -162,6 +237,14 @@ function createWindow() {
     mainWindow.show();
   });
 
+  // R14: renderer crash / load failures land in the diagnostic log.
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    logDiag('error', 'renderer.process-gone', { reason: details && details.reason, exitCode: details && details.exitCode }, 'main');
+  });
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    logDiag('error', 'renderer.did-fail-load', { errorCode, errorDescription }, 'main');
+  });
+
   // R6: persist window bounds on move/resize (debounced).
   let boundsTimer = null;
   const saveBounds = () => {
@@ -228,6 +311,7 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     loadSettings();
+    initDiagnostics(); // R14: start the daily diagnostic log + retention sweep
     buildApplicationMenu();
     createWindow();
     // Open a .claproj passed on the command line (file association).
@@ -242,7 +326,21 @@ if (!gotLock) {
   });
 }
 app.on('window-all-closed', () => {
+  logDiag('info', 'app.window-all-closed', { platform: process.platform });
   if (process.platform !== 'darwin') app.quit();
+});
+
+// R14: last-resort error capture in the main process. Both handlers log and
+// swallow — crashing on a logging error would defeat the purpose.
+process.on('uncaughtException', (err) => {
+  logDiag('error', 'main.uncaughtException', err, 'main');
+});
+process.on('unhandledRejection', (reason) => {
+  logDiag('error', 'main.unhandledRejection', reason instanceof Error ? reason : { reason: String(reason) }, 'main');
+});
+app.on('before-quit', () => {
+  logDiag('info', 'app.quit', { uptimeSec: Math.round(process.uptime()) });
+  if (diag) diag.flush().catch(() => {});
 });
 
 // ==================== Application Menu ====================
@@ -446,6 +544,12 @@ function buildApplicationMenu() {
         accelerator: 'F1',
         click: () => sendMenuAction('help:open')
       },
+      // R14: jump straight to the daily diagnostic log (userData/logs).
+      {
+        label: '打开诊断日志',
+        click: () => { openDiagnosticLog(); }
+      },
+      { type: 'separator' },
       {
         label: '访问官网',
         click: () => shell.openExternal(OFFICIAL_SITE)
@@ -1278,8 +1382,10 @@ ipcMain.handle('file:loadDBC', async (event, filePath) => {
     const content = await fs.promises.readFile(filePath, 'utf-8');
     const messages = parseDBC(content);
     addRecent('dbc', filePath); // R6
+    logDiag('info', 'dbc.load', { file: path.basename(filePath || ''), messages: messages.length });
     return { success: true, messages, rawContent: content };
   } catch (error) {
+    logDiag('error', 'dbc.load-failed', { file: path.basename(filePath || ''), error: error.message });
     return { success: false, error: error.message };
   }
 });
@@ -1352,6 +1458,14 @@ ipcMain.handle('file:loadASC', async (event, filePath, selectedIds) => {
       }
     } catch (_) {}
 
+    // R14: counts only — never the frame payloads or the damaged lines.
+    logDiag('info', 'log.load', {
+      kind: 'asc',
+      file: path.basename(filePath || ''),
+      frames: result.messages.length,
+      parseErrors: result.parseErrorCount || 0,
+      errorFrames: (result.errorFrames || []).length
+    });
     return {
       success: true, ...result,
       parseErrors: result.parseErrors || [],
@@ -1359,6 +1473,7 @@ ipcMain.handle('file:loadASC', async (event, filePath, selectedIds) => {
       totalCount: result.messages.length
     };
   } catch (error) {
+    logDiag('error', 'log.load-failed', { kind: 'asc', file: path.basename(filePath || ''), error: error.message });
     return { success: false, error: error.message };
   }
 });
@@ -1370,6 +1485,13 @@ ipcMain.handle('file:loadBLF', async (event, filePath, selectedIds) => {
     // R2: keep parsed frames resident in the main process.
     storeMessages(filePath, result.messages);
     addRecent('log', filePath); // R6
+    logDiag('info', 'log.load', {
+      kind: 'blf',
+      file: path.basename(filePath || ''),
+      frames: result.messages.length,
+      parseErrors: result.parseErrorCount || 0,
+      errorFrames: (result.errorFrames || []).length
+    });
     return {
       success: true, ...result,
       parseErrors: result.parseErrors || [],
@@ -1377,8 +1499,43 @@ ipcMain.handle('file:loadBLF', async (event, filePath, selectedIds) => {
       totalCount: result.messages.length
     };
   } catch (error) {
+    logDiag('error', 'log.load-failed', { kind: 'blf', file: path.basename(filePath || ''), error: error.message });
     return { success: false, error: error.message };
   }
+});
+
+// ==================== R14: diagnostics IPC ====================
+// `diag:log` carries renderer-side failures (window.onerror /
+// unhandledrejection) into the same daily file as main-process events.
+ipcMain.handle('diag:log', async (event, entry) => {
+  try {
+    const { level = 'error', event: name = 'renderer.event', detail = null } = entry || {};
+    // Only a fixed set of levels/scopes is accepted; the renderer is not
+    // trusted to inject arbitrary text into the log stream.
+    const safeLevel = ['debug', 'info', 'warn', 'error'].includes(level) ? level : 'error';
+    logDiag(safeLevel, String(name).slice(0, 120), detail, 'renderer');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('diag:open', async () => openDiagnosticLog());
+
+// Facts behind 「一键复制诊断信息」: version + paths + session window.
+ipcMain.handle('diag:info', async () => {
+  if (!diag) initDiagnostics();
+  if (!diag) return { success: false, error: '诊断日志不可用' };
+  return {
+    success: true,
+    info: diag.describe({
+      platform: process.platform,
+      arch: process.arch,
+      electron: process.versions.electron,
+      node: process.versions.node,
+      uptimeSec: Math.round(process.uptime())
+    })
+  };
 });
 
 // R4: export a text report (e.g. parse error list) to a user-chosen file.
