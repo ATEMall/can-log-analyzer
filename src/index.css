@@ -177,6 +177,15 @@ body {
   pointer-events: none;
 }
 
+/* ---- R12: statistics panel -------------------------------------------- */
+.stats-cycle-row {
+  cursor: pointer;
+}
+.stats-cycle-row:hover > td,
+.stats-cycle-row:hover > .ant-table-cell {
+  background: var(--bg-selected) !important;
+}
+
 /* Prevent antd Tabs content from overflowing in flex layout.
    The full height chain must carry through: Tabs(flex column)
    -> content-holder(flex:1) -> content(flex column) -> tabpane(flex:1),

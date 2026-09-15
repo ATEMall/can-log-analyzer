@@ -7,7 +7,7 @@ import {
   DatabaseOutlined,
   TableOutlined, SyncOutlined, ThunderboltOutlined,
   WarningOutlined, DownloadOutlined,
-  LeftOutlined, RightOutlined
+  LeftOutlined, RightOutlined, BarChartOutlined
 } from '@ant-design/icons';
 import DBCPanel from './components/DBCPanel';
 import MessageTable from './components/MessageTable';
@@ -17,6 +17,7 @@ import SignalParsePanel from './components/SignalParsePanel';
 import HelpModal from './components/HelpModal';
 import GlobalSearchBar from './components/GlobalSearchBar';
 import TimelineOverview from './components/TimelineOverview';
+import StatsPanel from './components/StatsPanel';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -79,6 +80,15 @@ function App() {
   // R11: shared timeline overview data + window (absolute seconds; null = full).
   const [timeline, setTimeline] = useState(null);
   const [timeWindow, setTimeWindow] = useState(null);
+
+  // R12: bus statistics aggregated in the main process (load / cycle jitter /
+  // error frames) + the error events captured while parsing the log.
+  const [busStats, setBusStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [errorFrames, setErrorFrames] = useState([]);
+  const [bitrate, setBitrate] = useState(500000);
+  // R12: ID highlighted in the message table after a cycle-row click.
+  const [cycleFilterId, setCycleFilterId] = useState(null);
 
   // R4: parse error reporting (ASC data lines / BLF bad blocks that were
   // skipped without aborting the load).
@@ -152,7 +162,42 @@ function App() {
   useEffect(() => {
     setLocate({ index: null, nonce: 0 });
     setTimeWindow(null);
+    setCycleFilterId(null);
   }, [loadedMessages]);
+
+  // ======= R12: bus statistics (main-process aggregation) =======
+  // Recomputed whenever the corpus, the DBC (cycle times) or the assumed
+  // bitrate changes. Only the aggregated series/table crosses the IPC boundary.
+  useEffect(() => {
+    const api = window.electronAPI?.busStats;
+    if (typeof api !== 'function') return undefined;
+    if (!loadedMessages.length) {
+      setBusStats(null);
+      setStatsLoading(false);
+      return undefined;
+    }
+    const filePath = (ascFile || blfFile)?.path || null;
+    let cancelled = false;
+    setStatsLoading(true);
+    (async () => {
+      try {
+        const res = await api({
+          filePath,
+          messages: filePath ? undefined : loadedMessages,
+          dbcMessages,
+          errorFrames,
+          bitrate,
+          tolerancePct: 10
+        });
+        if (!cancelled) setBusStats(res?.success ? res : null);
+      } catch (_) {
+        /* statistics are non-fatal */
+      } finally {
+        if (!cancelled) setStatsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [loadedMessages, dbcMessages, errorFrames, bitrate, ascFile, blfFile]);
 
   // R11: Ctrl+F focuses the global search, Esc clears it (PRD UI-002).
   useEffect(() => {
@@ -191,6 +236,66 @@ function App() {
     }
     if (result) message.warning(`未找到与「${q}」匹配的报文`);
   }, [globalSearch, searchResult]);
+
+  // ======= R12: jump helpers shared by the statistics panel =======
+  // Binary-search the first frame at/after a timestamp (logs are time ordered).
+  const locateByTimestamp = useCallback((target) => {
+    if (loadedMessages.length === 0) return null;
+    let lo = 0;
+    let hi = loadedMessages.length - 1;
+    let best = 0;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      const t = Number(loadedMessages[mid].timestamp) || 0;
+      if (t >= target) { best = mid; hi = mid - 1; } else { lo = mid + 1; }
+    }
+    return best;
+  }, [loadedMessages]);
+
+  // R12: clicking an error frame jumps to the matching moment in the log table.
+  const handleJumpToTime = useCallback((t) => {
+    const idx = locateByTimestamp(t);
+    if (idx == null) return;
+    setCycleFilterId(null);
+    setActiveTab('log');
+    window.electronAPI?.setSettings?.({ lastTab: 'log' });
+    setLocate({ index: idx, nonce: Date.now() });
+  }, [locateByTimestamp]);
+
+  // R12: clicking a cycle row filters/locates that ID in the log table.
+  const handleCycleFilter = useCallback((id, firstIndex) => {
+    const idx = (firstIndex != null && loadedMessages[firstIndex]) ? firstIndex : locateByTimestamp(0);
+    setCycleFilterId(Number(id));
+    setActiveTab('log');
+    window.electronAPI?.setSettings?.({ lastTab: 'log' });
+    setLocate({ index: idx, nonce: Date.now() });
+  }, [loadedMessages, locateByTimestamp]);
+
+  // R12: export the aggregated statistics as CSV (main process owns the write).
+  const handleExportStatsCSV = useCallback(async () => {
+    if (!busStats) {
+      message.warning('暂无统计结果可导出');
+      return;
+    }
+    const src = ascFile || blfFile;
+    const base = (src?.path || 'log').split(/[\\/]/).pop().replace(/\.[^.]+$/, '') || 'log';
+    const defaultName = `${base}_stats_${Date.now()}.csv`;
+    const filePath = await window.electronAPI.saveFile(defaultName, [
+      { name: 'CSV Files', extensions: ['csv'] }
+    ]);
+    if (!filePath) return;
+    try {
+      const res = await window.electronAPI.exportStatsCSV(filePath, {
+        load: busStats.load,
+        cycles: busStats.cycles,
+        errors: busStats.errors
+      });
+      if (res?.success) message.success('统计结果已导出 CSV');
+      else message.error('导出失败: ' + (res?.error || '未知错误'));
+    } catch (err) {
+      message.error('导出失败: ' + err.message);
+    }
+  }, [busStats, ascFile, blfFile]);
 
   // Load CRC algorithms on mount
   useEffect(() => {
@@ -312,6 +417,8 @@ function App() {
         setHeaderLines(result.headerLines);
         setParseErrors(result.parseErrors || []);
         setParseErrorCount(result.parseErrorCount || 0);
+        // R12: error frames / bus-state events reported by the parser.
+        setErrorFrames(result.errorFrames || []);
         if ((result.parseErrorCount || 0) > 0) {
           message.warning(type === 'blf'
             ? `加载完成：${result.totalCount} 条消息，${result.parseErrorCount} 个损坏对象块已跳过`
@@ -689,6 +796,10 @@ function App() {
     setLocate({ index: null, nonce: 0 });
     setTimeline(null);
     setTimeWindow(null);
+    // R12: statistics belong to the corpus that was just cleared.
+    setBusStats(null);
+    setErrorFrames([]);
+    setCycleFilterId(null);
     message.success('已清空所有数据，可以重新加载文件');
   }, []);
 
@@ -871,7 +982,7 @@ function App() {
     if (typeof getSettings === 'function') {
       getSettings().then(s => {
         if (s) {
-          if (s.lastTab && ['signal', 'log', 'csv'].includes(s.lastTab)) {
+          if (s.lastTab && ['signal', 'log', 'csv', 'stats'].includes(s.lastTab)) {
             setActiveTab(s.lastTab);
           }
           // R10: width restored inside the new 15%–45% drag range (default 25%).
@@ -950,7 +1061,7 @@ function App() {
             messages={loadedMessages}
             loading={loading}
             dbcMessages={dbcMessages}
-            highlightIds={searchResult?.matchedIds || []}
+            highlightIds={cycleFilterId != null ? [cycleFilterId] : (searchResult?.matchedIds || [])}
             locateIndex={locate.index}
             locateNonce={locate.nonce}
             timeWindow={timeWindow}
@@ -977,6 +1088,36 @@ function App() {
               onExportProgress={window.electronAPI?.onExportProgress}
             />
           </div>
+        </div>
+      )
+    },
+    {
+      key: 'stats',
+      label: (
+        <span>
+          <BarChartOutlined />
+          总线统计
+          {(busStats?.errors?.total || 0) > 0 && (
+            <span style={{
+              marginLeft: 6, fontSize: 10, background: 'var(--danger-red)',
+              color: 'var(--text-inverse)', padding: '0 5px', borderRadius: 10
+            }}>
+              {busStats.errors.total}
+            </span>
+          )}
+        </span>
+      ),
+      children: (
+        <div style={{ height: '100%', overflow: 'hidden' }}>
+          <StatsPanel
+            stats={busStats}
+            loading={statsLoading}
+            bitrate={bitrate}
+            onBitrateChange={setBitrate}
+            onJumpToTime={handleJumpToTime}
+            onFilterId={handleCycleFilter}
+            onExportCSV={handleExportStatsCSV}
+          />
         </div>
       )
     },

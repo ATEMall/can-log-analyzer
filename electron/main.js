@@ -5,11 +5,12 @@ const zlib = require('zlib');
 const { spawn } = require('child_process');
 const readline = require('readline');
 const { buildBLFBuffer, parseBLFBuffer, parseBLFBufferDetailed } = require('./blf');
-const { isNonDataLine, parseASCDataLine, generateASC } = require('./asc');
+const { isNonDataLine, parseASCDataLine, parseASCErrorLine, generateASC } = require('./asc');
 const { parseDBC, decodeSignalFrame, getEnumLabel } = require('./dbc');
 const { buildDecodeContext, decodeFramesChunk, decodeAll } = require('./signalDecode');
 const { buildFrameIndex, searchFrames } = require('./searchIndex');
 const { buildTimelineBuckets } = require('./timelineBuckets');
+const { buildBusLoad, buildCycleStats, buildErrorStats } = require('./busStats');
 
 const APP_VERSION = app.getVersion();
 const OFFICIAL_SITE = 'https://atemall-ai.com';
@@ -954,6 +955,11 @@ async function loadASCFile(filePath, selectedIds) {
     const headerLines = [];
     const messages = [];
     const parseErrors = [];
+    // R12: error frames / bus-state events are not data frames. They are kept
+    // in a separate (small) list so the statistics panel can classify them and
+    // jump to the matching moment, and so they stop inflating parse errors.
+    const errorFrames = [];
+    const ERROR_EVENT_CAP = 200000;
     let parseErrorCount = 0;
     let lineNum = 0;
 
@@ -965,6 +971,18 @@ async function loadASCFile(filePath, selectedIds) {
     rl.on('line', (line) => {
       lineNum++;
       if (messages.length >= 1000000) return;
+
+      // R12: probe for an error frame / bus-state event first — those lines
+      // never carry payload, and `isNonDataLine` would otherwise file them
+      // under the header (or, worse, as a parse error).
+      const lowerLine = line.toLowerCase();
+      if (lowerLine.includes('error') || lowerLine.includes('bus') || lowerLine.includes('overload')) {
+        const errEvent = parseASCErrorLine(line);
+        if (errEvent) {
+          if (errorFrames.length < ERROR_EVENT_CAP) errorFrames.push(errEvent);
+          return;
+        }
+      }
 
       if (isNonDataLine(line)) {
         if (line.trim()) headerLines.push(line);
@@ -991,8 +1009,8 @@ async function loadASCFile(filePath, selectedIds) {
     });
 
     rl.on('close', () => {
-      console.log(`ASC parse complete: ${messages.length} frames, ${parseErrorCount} parse errors`);
-      resolve({ headerLines, messages, parseErrors, parseErrorCount });
+      console.log(`ASC parse complete: ${messages.length} frames, ${parseErrorCount} parse errors, ${errorFrames.length} error events`);
+      resolve({ headerLines, messages, parseErrors, parseErrorCount, errorFrames });
     });
 
     rl.on('error', reject);
@@ -1036,8 +1054,23 @@ id_filter = [int(x) for x in sys.argv[2].split(',')] if len(sys.argv) > 2 and sy
 try:
     reader = BLFReader(blf_path)
     msgs = []
+    errs = []
     
     for msg in reader:
+        # R12: error frames carry no payload - keep them out of the frame
+        # corpus and report them through the statistics panel instead.
+        if getattr(msg, 'is_error_frame', False):
+            try:
+                errs.append({
+                    "timestamp": round(float(msg.timestamp), 6),
+                    "channel": 1,
+                    "kind": "error-frame",
+                    "category": "other",
+                    "text": "ErrorFrame"
+                })
+            except Exception:
+                pass
+            continue
         if id_filter and msg.arbitration_id not in id_filter:
             continue
         
@@ -1091,6 +1124,7 @@ try:
         "success": True,
         "count": len(msgs),
         "messages": msgs,
+        "errorFrames": errs,
         "headerLines": [
             "base hex  timestamps absolute",
             "internal events logged"
@@ -1141,7 +1175,10 @@ except Exception as e:
         } else {
           resolve({
             headerLines: result.headerLines || [],
-            messages: result.messages || []
+            messages: result.messages || [],
+            // R12: python-can surface only; the offline BLF fallback parser has
+            // no error-frame objects, so the list may be empty.
+            errorFrames: result.errorFrames || []
           });
         }
       } catch (parseErr) {
@@ -1167,7 +1204,8 @@ async function loadBLFFallback(filePath, selectedIds) {
     headerLines: [`date ${dateStr}`, 'base hex  timestamps absolute', 'internal events logged'],
     messages: detailed.messages,
     parseErrors: detailed.errors,
-    parseErrorCount: detailed.errorCount
+    parseErrorCount: detailed.errorCount,
+    errorFrames: []
   };
 }
 
@@ -1815,6 +1853,95 @@ ipcMain.handle('timeline:buckets', async (event, payload) => {
       return { success: false, error: '没有可统计的报文：请先加载日志文件' };
     }
     return { success: true, ...buildTimelineBuckets(frames, { bucketCount, topN }) };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ==================== R12: bus load / cycle jitter / error frames ====================
+// render -> main: stats:busStats { filePath, messages?, dbcMessages, errorFrames,
+//                                   bitrate, tolerancePct }
+//   All aggregation runs in the main process over the resident corpus (O(n));
+//   only the aggregated series / tables cross the IPC boundary.
+ipcMain.handle('stats:busStats', async (event, payload) => {
+  const {
+    filePath, messages, dbcMessages = [], errorFrames = [], bitrate, tolerancePct
+  } = payload || {};
+  try {
+    let frames = filePath ? messageStore.get(filePath) : null;
+    if (!frames) frames = messages || [];
+    if (!Array.isArray(frames) || frames.length === 0) {
+      return { success: false, error: '没有可统计的报文：请先加载日志文件' };
+    }
+    const load = buildBusLoad(frames, { bitrate });
+    const cycles = buildCycleStats(frames, dbcMessages, { tolerancePct });
+    const errors = buildErrorStats(errorFrames);
+    return { success: true, load, cycles, errors, totalFrames: frames.length };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// render -> main: stats:exportCSV { filePath, stats }
+//   Same write channel as R7 (main process owns the file stream); the payload
+//   is the already-aggregated statistics object, never the raw frames.
+ipcMain.handle('stats:exportCSV', async (event, filePath, stats) => {
+  try {
+    if (!filePath) return { success: false, error: '未选择导出路径' };
+    const s = stats || {};
+    const lines = ['# CAN Log Analyzer 总线统计导出'];
+    lines.push(`# 生成时间: ${new Date().toLocaleString()}`);
+
+    const load = s.load || {};
+    lines.push('');
+    lines.push('[总线负载]');
+    lines.push(`比特率,${load.bitrate || ''}`);
+    lines.push(`采样间隔(s),${load.interval || ''}`);
+    lines.push(`平均负载(%),${Number(load.avg || 0).toFixed(3)}`);
+    lines.push(`峰值负载(%),${Number(load.peak || 0).toFixed(3)}`);
+    lines.push(`峰值时刻(s),${Number(load.peakTime || 0).toFixed(6)}`);
+    lines.push('time(s),load(%),frames');
+    for (const p of load.points || []) {
+      lines.push(`${Number(p.t).toFixed(6)},${Number(p.load).toFixed(3)},${p.frames}`);
+    }
+
+    const cycles = s.cycles || {};
+    lines.push('');
+    lines.push('[周期与抖动]');
+    lines.push(`超差阈值(%),${cycles.tolerancePct || ''}`);
+    lines.push('id(hex),name,frames,dbcCycle(ms),avgPeriod(ms),minPeriod(ms),maxPeriod(ms),maxJitter(ms),avgJitter(ms),overCount,overRatio(%)');
+    for (const r of cycles.rows || []) {
+      lines.push([
+        `0x${Number(r.id).toString(16).toUpperCase()}`,
+        r.name || '',
+        r.count,
+        r.expected == null ? '' : Number(r.expected).toFixed(3),
+        Number(r.avgPeriod || 0).toFixed(3),
+        Number(r.minPeriod || 0).toFixed(3),
+        Number(r.maxPeriod || 0).toFixed(3),
+        Number(r.maxJitter || 0).toFixed(3),
+        Number(r.avgJitter || 0).toFixed(3),
+        r.overCount,
+        Number(r.overRatio || 0).toFixed(3)
+      ].join(','));
+    }
+
+    const errors = s.errors || {};
+    lines.push('');
+    lines.push('[错误帧统计]');
+    lines.push(`错误帧总数,${errors.total || 0}`);
+    lines.push(`Bus Off 次数,${errors.busOffCount || 0}`);
+    lines.push('category,count');
+    for (const k of errors.byKind || []) lines.push(`${k.kind},${k.count}`);
+    lines.push('time(s),state');
+    for (const st of errors.states || []) lines.push(`${Number(st.timestamp).toFixed(6)},${st.state}`);
+    lines.push('time(s),category,channel');
+    for (const e of errors.events || []) {
+      lines.push(`${Number(e.timestamp).toFixed(6)},${e.category || 'other'},${e.channel ?? ''}`);
+    }
+
+    await fs.promises.writeFile(filePath, lines.join('\r\n'), 'utf8');
+    return { success: true, lines: lines.length };
   } catch (error) {
     return { success: false, error: error.message };
   }

@@ -76,6 +76,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchQuery: (payload) => ipcRenderer.invoke('search:query', payload),
   timelineBuckets: (payload) => ipcRenderer.invoke('timeline:buckets', payload),
 
+  // R12: bus statistics (main-process aggregation) + CSV export of the already
+  // aggregated results (the raw frames never leave the main process).
+  busStats: (payload) => ipcRenderer.invoke('stats:busStats', payload),
+  exportStatsCSV: (filePath, stats) => ipcRenderer.invoke('stats:exportCSV', filePath, stats),
+
   // R5: project save / restore (.claproj)
   saveProject: (filePath, projectData) => ipcRenderer.invoke('project:save', filePath, projectData),
   openProject: (filePath) => ipcRenderer.invoke('project:open', filePath),
