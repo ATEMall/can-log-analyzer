@@ -50,7 +50,10 @@ const mockElectronAPI = {
     success: true,
     result: { kind: 'none', matchCount: 0, matchedIds: [], firstIndex: null, nameMatches: [] }
   }),
-  timelineBuckets: vi.fn().mockResolvedValue({ success: false })
+  timelineBuckets: vi.fn().mockResolvedValue({ success: false }),
+  // R12: main-process bus statistics + aggregated CSV export.
+  busStats: vi.fn().mockResolvedValue({ success: false }),
+  exportStatsCSV: vi.fn().mockResolvedValue({ success: true })
 };
 
 beforeEach(() => {
@@ -62,6 +65,10 @@ beforeEach(() => {
   vi.spyOn(message, 'success').mockImplementation(() => {});
   vi.spyOn(message, 'error').mockImplementation(() => {});
   vi.spyOn(message, 'warning').mockImplementation(() => {});
+  // R12: these two spies are asserted by call count, and the shared
+  // mockElectronAPI object keeps its history across tests — reset them here.
+  mockElectronAPI.busStats.mockClear();
+  mockElectronAPI.exportStatsCSV.mockClear();
   // antd message calls in jsdom warn loudly; silence by stubbing the API.
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -419,5 +426,105 @@ describe('R10 collapsible DBC layout + state persistence', () => {
     });
     const call = mockElectronAPI.setSettings.mock.calls.at(-1)[0];
     expect(call.dbcExpanded).toEqual({ 256: false });
+  });
+});
+
+describe('R12 bus statistics wiring', () => {
+  // A tiny two-frame log plus the aggregated statistics the main process would
+  // return for it (load curve / cycle table / error frames).
+  async function loadLogWithStats() {
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/logs/a.asc');
+    mockElectronAPI.loadASC.mockResolvedValueOnce({
+      success: true,
+      messages: [
+        { timestamp: 0.0, id: 0x100, direction: 'Rx', dlc: 8, data: [0, 0, 0, 0, 0, 0, 0, 0] },
+        { timestamp: 0.01, id: 0x100, direction: 'Rx', dlc: 8, data: [1, 0, 0, 0, 0, 0, 0, 0] }
+      ],
+      headerLines: [],
+      parseErrors: [],
+      parseErrorCount: 0,
+      errorFrames: [{ timestamp: 1.5, channel: 1, kind: 'error-frame', category: 'stuff' }],
+      totalCount: 2
+    });
+    mockElectronAPI.getStats.mockResolvedValueOnce({ size: 2048 });
+    mockElectronAPI.busStats.mockResolvedValueOnce({
+      success: true,
+      totalFrames: 2,
+      load: {
+        bitrate: 500000, tStart: 0, tEnd: 1, interval: 1, duration: 1,
+        avg: 12.34, peak: 45.6, peakTime: 0,
+        points: [{ t: 0, load: 45.6, frames: 2 }]
+      },
+      cycles: {
+        tolerancePct: 10,
+        totalIds: 1,
+        rows: [{
+          id: 0x100, name: 'MsgA', count: 2, firstIndex: 1,
+          expected: 10, avgPeriod: 10, minPeriod: 10, maxPeriod: 10,
+          maxJitter: 0, avgJitter: 0, overCount: 0, overRatio: 0
+        }]
+      },
+      errors: {
+        total: 1,
+        busOffCount: 0,
+        byKind: [{ kind: 'stuff', count: 1 }],
+        events: [{ timestamp: 1.5, channel: 1, kind: 'error-frame', category: 'stuff' }],
+        states: []
+      }
+    });
+
+    render(<App />);
+    await act(async () => { fireEvent.click(screen.getByText('加载 ASC')); });
+    await waitFor(() => expect(mockElectronAPI.busStats).toHaveBeenCalledTimes(1));
+  }
+
+  it('asks the main process for statistics and renders them in the 总线统计 tab', async () => {
+    await loadLogWithStats();
+
+    const payload = mockElectronAPI.busStats.mock.calls[0][0];
+    expect(payload.bitrate).toBe(500000);
+    expect(payload.tolerancePct).toBe(10);
+    expect(payload.errorFrames).toHaveLength(1);
+    expect(payload.filePath).toBe('C:/logs/a.asc');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: /总线统计/ }));
+    });
+    expect(screen.getByTestId('stats-load-avg').textContent).toBe('12.3%');
+    expect(screen.getByTestId('stats-panel-error-total').textContent).toBe('1');
+  });
+
+  it('clicking a cycle row switches to the log tab and locates the first frame', async () => {
+    await loadLogWithStats();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: /总线统计/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('stats-cycle-row-256'));
+    });
+
+    // The log tab is active again (its export buttons are on screen) and the
+    // tab choice is persisted for the next launch.
+    expect(await screen.findByText('导出为 CSV')).toBeTruthy();
+    expect(mockElectronAPI.setSettings).toHaveBeenCalledWith({ lastTab: 'log' });
+  });
+
+  it('exports the aggregated statistics as CSV', async () => {
+    await loadLogWithStats();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('tab', { name: /总线统计/ }));
+    });
+
+    mockElectronAPI.saveFile.mockResolvedValueOnce('C:/logs/a_stats.csv');
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('stats-export-csv'));
+    });
+
+    expect(mockElectronAPI.exportStatsCSV).toHaveBeenCalledTimes(1);
+    const [path, stats] = mockElectronAPI.exportStatsCSV.mock.calls[0];
+    expect(path).toBe('C:/logs/a_stats.csv');
+    expect(stats.load.peak).toBeCloseTo(45.6, 6);
+    expect(stats.cycles.rows[0].id).toBe(0x100);
   });
 });

@@ -169,6 +169,68 @@ function parseASCDataLine(line) {
   return null;
 }
 
+// R12: error frames / bus-state event lines (never data frames).
+//   Vector classic:  0.123456 1 ErrorFrame
+//   Vector / CANoe:  0.123456 CAN ErrorFrame / 0.123456 CAN Bus Off
+//   Chip state:      0.123456 Chip State: busoff
+const ERROR_FRAME_RE =
+  /^(\d+(?:\.\d+)?)\s+(?:(?:CAN|CANFD|Li)\s+)?(?:(\d+)\s+)?(?:[0-9A-Fa-f]+x?\s+)?(Error\s?Frame|Overload\s?Frame)\b(.*)$/i;
+const BUS_STATE_RE =
+  /^(\d+(?:\.\d+)?)\s+(?:(?:CAN|CANFD|Li)\s+)?(?:(\d+)\s+)?(?:Chip\s*State\s*:?\s*)?(Bus\s*Off|Error\s*Passive|Error\s*Active)\b(.*)$/i;
+
+// Error-frame sub-classification from the trailing text (Vector writes e.g.
+// "ErrorFrame  Stuff Error" / "ErrorFrame  Form Error").
+function classifyErrorCategory(text, isOverload) {
+  if (isOverload) return 'overload';
+  const s = String(text || '');
+  if (/stuff/i.test(s)) return 'stuff';
+  if (/form/i.test(s)) return 'form';
+  if (/ack/i.test(s)) return 'ack';
+  if (/crc/i.test(s)) return 'crc';
+  if (/bit\s*1/i.test(s)) return 'bit1';
+  if (/bit\s*0/i.test(s)) return 'bit0';
+  return 'other';
+}
+
+/**
+ * R12: parse an ASC error-frame / bus-state event line.
+ * Returns null for anything that is not such an event, so callers can probe
+ * cheaply before falling back to the data-frame parser.
+ */
+function parseASCErrorLine(line) {
+  const t = String(line == null ? '' : line).trim();
+  if (!t) return null;
+
+  const err = t.match(ERROR_FRAME_RE);
+  if (err) {
+    const isOverload = /^overload/i.test(err[3]);
+    const rest = (err[4] || '').trim();
+    return {
+      timestamp: parseFloat(err[1]),
+      channel: err[2] !== undefined ? parseInt(err[2], 10) : 1,
+      kind: 'error-frame',
+      category: classifyErrorCategory(rest, isOverload),
+      text: rest || err[3]
+    };
+  }
+
+  const st = t.match(BUS_STATE_RE);
+  if (st) {
+    const token = st[3].toLowerCase();
+    const state = /passive/.test(token) ? 'error-passive'
+      : (/off/.test(token) ? 'bus-off' : 'error-active');
+    return {
+      timestamp: parseFloat(st[1]),
+      channel: st[2] !== undefined ? parseInt(st[2], 10) : 1,
+      kind: 'bus-state',
+      state,
+      text: (st[4] || '').trim() || st[3]
+    };
+  }
+
+  return null;
+}
+
 /**
  * Re-serialize messages back into ASC text.
  * CAN FD messages are written in the Vector/python-can CANFD line format so
@@ -199,6 +261,8 @@ module.exports = {
   HEADER_PATTERNS,
   isNonDataLine,
   parseASCDataLine,
+  parseASCErrorLine,
+  classifyErrorCategory,
   generateASC,
   dlc2len,
   len2dlc
