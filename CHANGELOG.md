@@ -2,6 +2,26 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-09-15（v2.2 W2 批次：R14 错误上报与诊断日志）
+
+> v2.2 W2 批次第三项：R14 错误上报与诊断日志（#18）。
+
+### 新增
+
+- **按天滚动诊断日志（R14 / TD-7）**：新增 `electron/diagLog.js`，日志落在 `userData/logs/app-YYYY-MM-DD.log`（Windows 即 `%APPDATA%/can-log-analyzer/logs/`），`info/warn/error` 三级，**异步追加不阻塞 UI**，跨天自动切新文件
+  - 记录关键事件：应用启动（版本 / 平台 / Electron / Node）、日志与 DBC 加载（帧数 + 解析错误数 + 错误帧数，**只记计数与原因**）、加载失败、渲染进程崩溃（`render-process-gone`）、页面加载失败、主进程 `uncaughtException` / `unhandledRejection`、退出
+  - **7 天自动清理**：启动与跨天时按文件名日期清理过期日志（保留今天 + 7 天，可用假日期单测验证）
+  - **脱敏**：`sanitizeDetail()` 对 `data / frames / messages / line / payload` 等内容类键统一替换为 `<redacted>`，字符串截断 200 字、数组截断 5 项、嵌套限深 3 层，日志与诊断信息均不含 CAN 报文内容
+- **渲染进程错误上报（R14）**：`App.jsx` 挂载 `window.onerror` 与 `unhandledrejection`，经 `diag:log` IPC 汇总到同一份日志（级别只允许 debug/info/warn/error，事件名截断 120 字）
+- **「帮助 → 打开诊断日志」（R14）**：一键 flush 后在文件管理器中定位当日日志；错误报告抽屉同步新增「打开诊断日志」按钮
+- **「一键复制诊断信息」（R14）**：错误报告抽屉新增按钮，复制**版本 / 平台 / 运行时 / 会话开始与运行时长 / 日志目录与当日日志路径 / 日志源与帧数 / 解析错误条数与 Top3 原因 / 总线错误帧与 Bus Off 计数**，可直接粘贴进 Issue 定位问题；`navigator.clipboard` 不可用时回退 `execCommand('copy')`
+
+### 测试
+
+- 新增 `electron/__tests__/diagLog.test.js`（文件命名与日期解析、脱敏裁剪与 Error 摘要、行格式、**7 天清理（假日期 -10…+3 天文件）**、跨天滚动触发清理、目录缺失容错、级别过滤、无目录时静默、队列上限丢弃，11 例）
+- `src/components/__tests__/App.test.jsx` 增 R14 用例（`window.onerror` / `unhandledrejection` 上报、复制脱敏诊断信息（断言**不含**坏行原文与报文内容）、打开诊断日志，4 例）
+- 全量回归 **288/288** 通过（22 文件），较 R12 基线 273/273 净增 15 例、0 回退
+
 ## [Unreleased] - 2026-09-14（v2.2 W2 批次：R12 总线负载与错误帧统计）
 
 > v2.2 W2 批次第二项：R12 总线负载与错误帧统计（#17）。

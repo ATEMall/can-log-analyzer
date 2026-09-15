@@ -53,7 +53,26 @@ const mockElectronAPI = {
   timelineBuckets: vi.fn().mockResolvedValue({ success: false }),
   // R12: main-process bus statistics + aggregated CSV export.
   busStats: vi.fn().mockResolvedValue({ success: false }),
-  exportStatsCSV: vi.fn().mockResolvedValue({ success: true })
+  exportStatsCSV: vi.fn().mockResolvedValue({ success: true }),
+  // R14: diagnostics — renderer failures go to the daily log, and the error
+  // drawer can copy a sanitized blurb / reveal the log folder.
+  logDiagnostic: vi.fn().mockResolvedValue({ success: true }),
+  openDiagnosticLog: vi.fn().mockResolvedValue({ success: true, dir: 'C:/diag/logs' }),
+  getDiagnosticInfo: vi.fn().mockResolvedValue({
+    success: true,
+    info: {
+      version: '2.2.0',
+      platform: 'win32',
+      arch: 'x64',
+      electron: '31.0.0',
+      node: '20.11.0',
+      logDir: 'C:/Users/me/AppData/Roaming/can-log-analyzer/logs',
+      logPath: 'C:/Users/me/AppData/Roaming/can-log-analyzer/logs/app-2026-09-15.log',
+      retentionDays: 7,
+      sessionStart: '2026-09-15T02:00:00.000Z',
+      uptimeSec: 42
+    }
+  })
 };
 
 beforeEach(() => {
@@ -69,6 +88,10 @@ beforeEach(() => {
   // mockElectronAPI object keeps its history across tests — reset them here.
   mockElectronAPI.busStats.mockClear();
   mockElectronAPI.exportStatsCSV.mockClear();
+  // R14: same shared-object caveat — clear the diagnostics spies per test.
+  mockElectronAPI.logDiagnostic.mockClear();
+  mockElectronAPI.openDiagnosticLog.mockClear();
+  mockElectronAPI.getDiagnosticInfo.mockClear();
   // antd message calls in jsdom warn loudly; silence by stubbing the API.
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -528,3 +551,98 @@ describe('R12 bus statistics wiring', () => {
     expect(stats.cycles.rows[0].id).toBe(0x100);
   });
 });
+
+describe('R14 diagnostics wiring', () => {
+  it('forwards window.onerror to the main-process diagnostic log', async () => {
+    render(<App />);
+    await act(async () => {
+      window.dispatchEvent(new ErrorEvent('error', {
+        message: 'boom in renderer', filename: 'app.js', lineno: 12, colno: 3
+      }));
+    });
+
+    expect(mockElectronAPI.logDiagnostic).toHaveBeenCalledTimes(1);
+    const entry = mockElectronAPI.logDiagnostic.mock.calls[0][0];
+    expect(entry.level).toBe('error');
+    expect(entry.event).toBe('window.onerror');
+    expect(entry.detail.message).toBe('boom in renderer');
+    expect(entry.detail.lineno).toBe(12);
+  });
+
+  it('forwards unhandledrejection to the main-process diagnostic log', async () => {
+    render(<App />);
+    const evt = new Event('unhandledrejection');
+    evt.reason = new Error('async boom');
+    await act(async () => {
+      window.dispatchEvent(evt);
+    });
+
+    expect(mockElectronAPI.logDiagnostic).toHaveBeenCalledTimes(1);
+    const entry = mockElectronAPI.logDiagnostic.mock.calls[0][0];
+    expect(entry.event).toBe('unhandledrejection');
+    expect(entry.detail.message).toBe('async boom');
+    expect(entry.detail.stack).toContain('async boom');
+  });
+
+  it('copies a sanitized diagnostics blurb (counts only, no payloads)', async () => {
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/logs/with-errors.asc');
+    mockElectronAPI.loadASC.mockResolvedValueOnce({
+      success: true,
+      messages: [{ timestamp: 0, id: 0x123, direction: 'Rx', dlc: 8, data: [1, 2, 3, 4, 5, 6, 7, 8] }],
+      headerLines: [],
+      parseErrors: [
+        { lineNumber: 12, line: '0.001000 1 789 Rx d 8 ZZ YY XX', reason: '无法解析的数据行（格式不识别或数据损坏）' },
+        { lineNumber: 13, line: '0.002000 1 790 Rx d 8 ??', reason: '无法解析的数据行（格式不识别或数据损坏）' }
+      ],
+      parseErrorCount: 2,
+      totalCount: 1
+    });
+    mockElectronAPI.getStats.mockResolvedValueOnce({ size: 4096, lines: 20 });
+
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+    render(<App />);
+    await act(async () => { fireEvent.click(screen.getByText('加载 ASC')); });
+    const badge = await screen.findByTestId('parse-error-badge');
+    await act(async () => { fireEvent.click(badge); });
+
+    await act(async () => { fireEvent.click(screen.getByTestId('copy-diagnostics')); });
+
+    expect(mockElectronAPI.getDiagnosticInfo).toHaveBeenCalledTimes(1);
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const text = writeText.mock.calls[0][0];
+    expect(text).toContain('CAN Log Analyzer Pro 诊断信息');
+    expect(text).toContain('应用版本: v2.2.0');
+    expect(text).toContain('日志保留: 7 天');
+    expect(text).toContain('日志源: with-errors.asc（1 帧）');
+    expect(text).toContain('解析错误: 2 条');
+    expect(text).toContain('无法解析的数据行（格式不识别或数据损坏） ×2');
+    // Desensitized: neither the damaged line text nor the frame payload leaks.
+    expect(text).not.toContain('ZZ YY XX');
+    expect(text).not.toContain('日志源: C:/logs');
+    expect(message.success).toHaveBeenCalledWith('诊断信息已复制到剪贴板');
+  });
+
+  it('opens the diagnostic log folder from the error drawer', async () => {
+    mockElectronAPI.openFile.mockResolvedValueOnce('C:/logs/with-errors.asc');
+    mockElectronAPI.loadASC.mockResolvedValueOnce({
+      success: true,
+      messages: [{ timestamp: 0, id: 0x123, direction: 'Rx', dlc: 8, data: [0, 0, 0, 0, 0, 0, 0, 0] }],
+      headerLines: [],
+      parseErrors: [{ lineNumber: 3, line: 'bad', reason: '无法解析的数据行' }],
+      parseErrorCount: 1,
+      totalCount: 1
+    });
+    mockElectronAPI.getStats.mockResolvedValueOnce({ size: 4096, lines: 20 });
+
+    render(<App />);
+    await act(async () => { fireEvent.click(screen.getByText('加载 ASC')); });
+    const badge = await screen.findByTestId('parse-error-badge');
+    await act(async () => { fireEvent.click(badge); });
+    await act(async () => { fireEvent.click(screen.getByTestId('open-diagnostic-log')); });
+
+    expect(mockElectronAPI.openDiagnosticLog).toHaveBeenCalledTimes(1);
+  });
+});
+
