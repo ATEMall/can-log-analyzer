@@ -2,6 +2,25 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-09-19（验收工具链：cantools 43.0.2 环境固化 + 严格模式 #22）
+
+> 解决「对拍通过实为未执行」的假绿通道（#12 / #7 的历史成因）。
+
+### 新增
+
+- **对拍环境固化**：新增 `requirements.txt`，锁定 `cantools==43.0.2` + `python-can`，README 写明环境准备步骤（`python -m venv` → `pip install -r requirements.txt` → `npm run compare`）
+- **统一对拍入口**：新增 `scripts/compare-all.js`，遍历 `TestExample/**/compare.js` 并透传参数，汇总 PASS/FAIL；npm 脚本 `npm run compare` / `npm run compare:strict`
+- **严格模式**：`--strict`、`CI=1` 或 `CANTOOLS_STRICT=1` 下，Python/cantools 不可用（或 `import cantools` 失败）**直接非零退出（exit 4）**并打印 FATAL；普通模式保留 skip 行为，但输出 `NOT executed` 显著提示与修复指引
+  - 判定与文案抽为纯模块 `scripts/compareEnv.js`（`isStrictMode` / `handleMissingEnv` / `skipNotice` / `strictFailure`），两个 compare.js 共用，避免两处策略漂移
+  - 退出码语义化：0 通过 / 1 解码不一致 / 2 import 失败 / 3 DBC 加载失败 / 4 环境缺失
+- **（stretch）CI**：新增 `.github/workflows/verify.yml`，push/PR 时跑 `npm test` + `pip install -r requirements.txt` + `npm run compare -- --strict`
+
+### 测试
+
+- 新增 `scripts/__tests__/compareEnv.test.js`（严格模式判定、普通模式 skip + exit 0、严格模式 FATAL + exit 4、argv/env 推断、文案与退出码语义，**9 例**）
+- 实测：本机无 cantools 时 `npm run compare` → 2/2 skip + 显著提示（exit 0）；`npm run compare -- --strict` → 2/2 FAIL（exit 4，聚合 exit 1）
+- 全量回归 **324/324** 通过（23 文件），较 #21 基线 315/315 净增 9 例、0 回退
+
 ## [Unreleased] - 2026-09-19（v2.2 R12 修复：Vector 统计行 / ErrorFrame 编码位 / 样例日志 #21）
 
 > PM 09-19 复核 #17（R12）提出的 P1 缺口，修复分支 `feature/v2.2-r12-fix`。**未触碰 `signalDecode.js` 解码路径**。
