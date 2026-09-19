@@ -2,9 +2,19 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased] - 2026-09-19（v2.2.0 版本号一致性 #23）
+## [2.2.0] - 2026-09-19
 
-### 修复
+> v2.2「体验与健壮」正式发布（目标 tag `v2.2.0`）。范围：R9–R14 六项需求 + PM 复核返工（#19 / #21）+ 验收工具链与发版收口（#22 / #23）+ 前置 Issue #8–#12 批次。
+>
+> - **全量回归 329/329**（24 文件），相对 v2.1.1 基线 162/162 净增 167 例，**0 回退**
+> - **cantools 43.0.2 对拍保持 0 不一致**；R12 相关改动**未触碰** `electron/signalDecode.js` 解码路径
+> - **产物**（`npm run build` → `release/`）：`CAN Log Analyzer Pro Setup 2.2.0.exe`（NSIS 安装版）+ `CAN Log Analyzer Pro-Portable-2.2.0.exe`（便携版），`ProductVersion = 2.2.0`
+> - **版本单一来源**：`package.json` → `app.getVersion()` → About 对话框 / 诊断信息 / 打包产物三处一致（#23）
+> - **转 v2.3 立项池**（09-19 用户确认 v2.2 不做）：S1 信号表格虚拟滚动（UI-003）、S2 `SIG_GROUP_` 展示（FR-DB-005）、S3 信号值差异对比（FR-VIS-005）
+
+### 发版收口：v2.2.0 版本号一致性（#23）
+
+#### 修复
 
 - **`package.json` version 2.1.1 → 2.2.0**（v2.2.0 发版基线）
 - **断言不再依赖硬编码字面量（#23）**：`src/components/__tests__/App.test.jsx` 的「一键复制诊断信息」用例改为 `import pkg from '../../../package.json'`，mock 注入 `version: pkg.version`、断言 `应用版本: v${pkg.version}`；此前面板显示真实版本、断言却写死 `v2.2.0`，真实值漂移时测试仍恒绿
@@ -16,16 +26,17 @@
   - 诊断信息单测断言引用 `pkg.version`，而非字面量
 - 产物侧：「帮助 → 打开诊断日志」「关于」「一键复制诊断信息」均取 `app.getVersion()`，随 `package.json` 一同变为 2.2.0
 
-### 测试
+#### 测试
 
 - 新增 `src/test/version.test.js`（5 例，见上）
 - `src/components/__tests__/App.test.jsx` 的 R14 诊断信息用例改为引用 `pkg.version`（断言随发版号自动跟随，不再恒绿）
 - 全量回归 **329/329** 通过（24 文件），较 #22 基线 324/324 净增 5 例、0 回退
-## [Unreleased] - 2026-09-19（验收工具链：cantools 43.0.2 环境固化 + 严格模式 #22）
+
+### 验收工具链：cantools 43.0.2 环境固化 + 严格模式（#22）
 
 > 解决「对拍通过实为未执行」的假绿通道（#12 / #7 的历史成因）。
 
-### 新增
+#### 新增
 
 - **对拍环境固化**：新增 `requirements.txt`，锁定 `cantools==43.0.2` + `python-can`，README 写明环境准备步骤（`python -m venv` → `pip install -r requirements.txt` → `npm run compare`）
 - **统一对拍入口**：新增 `scripts/compare-all.js`，遍历 `TestExample/**/compare.js` 并透传参数，汇总 PASS/FAIL；npm 脚本 `npm run compare` / `npm run compare:strict`
@@ -34,17 +45,17 @@
   - 退出码语义化：0 通过 / 1 解码不一致 / 2 import 失败 / 3 DBC 加载失败 / 4 环境缺失
 - **（stretch）CI**：新增 `.github/workflows/verify.yml`，push/PR 时跑 `npm test` + `pip install -r requirements.txt` + `npm run compare -- --strict`
 
-### 测试
+#### 测试
 
 - 新增 `scripts/__tests__/compareEnv.test.js`（严格模式判定、普通模式 skip + exit 0、严格模式 FATAL + exit 4、argv/env 推断、文案与退出码语义，**9 例**）
 - 实测：本机无 cantools 时 `npm run compare` → 2/2 skip + 显著提示（exit 0）；`npm run compare -- --strict` → 2/2 FAIL（exit 4，聚合 exit 1）
 - 全量回归 **324/324** 通过（23 文件），较 #21 基线 315/315 净增 9 例、0 回退
 
-## [Unreleased] - 2026-09-19（v2.2 R12 修复：Vector 统计行 / ErrorFrame 编码位 / 样例日志 #21）
+### R12 修复：Vector 统计行 / ErrorFrame 编码位 / 样例日志（#21）
 
 > PM 09-19 复核 #17（R12）提出的 P1 缺口，修复分支 `feature/v2.2-r12-fix`。**未触碰 `signalDecode.js` 解码路径**。
 
-### 修复
+#### 修复
 
 - **识别 Vector `Statistic:` 统计行（#21 ①）**：`1.000000 1  Statistic: D 12 R 0 XD 1 XR 0 E 5 O 0 BusLoad 8.2 %` 原先返回 `null`（落入 headerLines），现解析为 `kind: 'statistic'` 事件，带出 `D/R/XD/XR/E/O` 计数与 `BusLoad`
   - 统计行**不计入**逐行错误帧总数与分类；`buildErrorStats` 新增 `declared`（累计错误/过载计数、BusLoad 均值与峰值、`diff = 声明 − 解析`）与 `statistics` 列表
@@ -53,22 +64,22 @@
 - **CANoe `Status:chip status <state>` 事件（#21）**：识别 `error active / warning level / error passive / busoff` 四种芯片状态（新增 `warning` 状态色），既有 `CAN 1 Bus Off` / `Chip State:` 写法保持兼容
 - **事件行判定单一来源**：ASC 读取的预筛条件抽为 `asc.js` 的 `isErrorEventCandidate(line)`（error / bus / overload / statistic / status / warning），主进程与单测共用，杜绝「chip status 行被当成坏行计入解析错误」
 
-### 样例
+#### 样例
 
 - 新增 `TestExample/error_frames/`：`error_frames.asc`（100 数据帧 + 7 × Code 编码 ErrorFrame + 文本 ErrorFrame + 过载帧 + chip status 迁移 + Bus Off + 2 条 Statistic 行）+ `generate.js`（确定性生成，可重复产出）
 
-### 测试
+#### 测试
 
 - `electron/__tests__/ascErrorFrame.test.js` 增至 **26 例**：Statistic 行解析与缺失字段容错、Code 编码位 7 种映射、CodeExt 回落、文本优先、字段明细解析、chip status 四态、`isErrorEventCandidate`、**样例日志端到端解析**（9 错误帧 / 2 BusOff / 2 Statistic / 声明 12 > 解析 9）
 - `electron/__tests__/busStats.test.js` 增 5 例（统计行不污染分类、declared 汇总与 diff、无统计行时 `declared === null`、warning 不计 BusOff）
 - `src/components/__tests__/StatsPanel.test.jsx` 增 4 例（声明标签、自带 BusLoad、差异提示、一致时不提示）
 - 全量回归 **315/315** 通过（22 文件），较 R14 基线 288/288 净增 27 例、0 回退；`vite build` 通过
 
-## [Unreleased] - 2026-09-15（v2.2 W2 批次：R14 错误上报与诊断日志）
+### W2 批次：R14 错误上报与诊断日志（#18）
 
 > v2.2 W2 批次第三项：R14 错误上报与诊断日志（#18）。
 
-### 新增
+#### 新增
 
 - **按天滚动诊断日志（R14 / TD-7）**：新增 `electron/diagLog.js`，日志落在 `userData/logs/app-YYYY-MM-DD.log`（Windows 即 `%APPDATA%/can-log-analyzer/logs/`），`info/warn/error` 三级，**异步追加不阻塞 UI**，跨天自动切新文件
   - 记录关键事件：应用启动（版本 / 平台 / Electron / Node）、日志与 DBC 加载（帧数 + 解析错误数 + 错误帧数，**只记计数与原因**）、加载失败、渲染进程崩溃（`render-process-gone`）、页面加载失败、主进程 `uncaughtException` / `unhandledRejection`、退出
@@ -78,17 +89,17 @@
 - **「帮助 → 打开诊断日志」（R14）**：一键 flush 后在文件管理器中定位当日日志；错误报告抽屉同步新增「打开诊断日志」按钮
 - **「一键复制诊断信息」（R14）**：错误报告抽屉新增按钮，复制**版本 / 平台 / 运行时 / 会话开始与运行时长 / 日志目录与当日日志路径 / 日志源与帧数 / 解析错误条数与 Top3 原因 / 总线错误帧与 Bus Off 计数**，可直接粘贴进 Issue 定位问题；`navigator.clipboard` 不可用时回退 `execCommand('copy')`
 
-### 测试
+#### 测试
 
 - 新增 `electron/__tests__/diagLog.test.js`（文件命名与日期解析、脱敏裁剪与 Error 摘要、行格式、**7 天清理（假日期 -10…+3 天文件）**、跨天滚动触发清理、目录缺失容错、级别过滤、无目录时静默、队列上限丢弃，11 例）
 - `src/components/__tests__/App.test.jsx` 增 R14 用例（`window.onerror` / `unhandledrejection` 上报、复制脱敏诊断信息（断言**不含**坏行原文与报文内容）、打开诊断日志，4 例）
 - 全量回归 **288/288** 通过（22 文件），较 R12 基线 273/273 净增 15 例、0 回退
 
-## [Unreleased] - 2026-09-14（v2.2 W2 批次：R12 总线负载与错误帧统计）
+### W2 批次：R12 总线负载与错误帧统计（#17）
 
 > v2.2 W2 批次第二项：R12 总线负载与错误帧统计（#17）。
 
-### 新增
+#### 新增
 
 - **逐秒总线负载（R12 / FR-VIS-003）**：统计面板新增「总线负载」卡片，展示**逐秒负载率曲线（%）**、平均负载、峰值负载与峰值时刻；比特率可在 125k / 250k / 500k / 1M 间切换并即时重算
   - 聚合在主进程：`electron/busStats.js` 单遍 O(n) 桶聚合，桶间隔自适应（`ceil(span / 2000)` 秒）保证曲线点数 ≤2000；帧位长按标准帧 `44 + 8×len` / 扩展帧 `64 + 8×len` / CAN FD `67 + 8×len` 估算，IPC 只回传点数级序列
@@ -99,18 +110,18 @@
   - 错误事件上限 20 万条保护内存；仅记录时间与分类，不含报文内容
 - **统计 CSV 导出（R12）**：沿用 R7 主进程写文件通道新增 `stats:exportCSV`，导出负载序列（time/load/frames）、周期抖动表与错误帧/状态明细
 
-### 测试
+#### 测试
 
 - 新增 `electron/__tests__/busStats.test.js`（位长估算/逐秒聚合与自适应间隔/自定义比特率/周期均值与 DBC 抖动/超差占比/首帧下标/行数上限/错误分类与 Bus Off/时间线裁剪，18 例）、`electron/__tests__/ascErrorFrame.test.js`（Vector / CAN / Chip State 三种写法 + 分类 + 数据行不误判，8 例）
 - 新增 `src/components/__tests__/StatsPanel.test.jsx`（空态/负载与错误计数/曲线渲染/错误跳转/周期行定位/仅看超差/状态时间线/CSV 导出，8 例）；`App.test.jsx` 增 R12 用例（统计 IPC 参数与渲染、周期行跳转切页签、统计 CSV 导出，3 例）
 - 全量回归 **273/273** 通过（21 文件），较 R11 基线 236/236 净增 37 例、0 回退
 - 验收对拍：用 `TestExample/powertrain.asc` / `body_chassis.asc` 各取 3 个消息与独立朴素算法交叉核对周期均值与最大抖动，**Δ ≤ 8.6e-14 ms（0 不一致）**；1M 帧统计（负载 + 周期）实测 **120 ms**（验收③ ≤2s）
 
-## [Unreleased] - 2026-09-14（v2.2 W2 批次：R11 全局搜索 + 时间轴总览）
+### W2 批次：R11 全局搜索 + 时间轴总览（#16）
 
 > v2.2「体验与健壮」W2 批次首项：R11 全局搜索 + 时间轴总览（#16）。
 
-### 新增
+#### 新增
 
 - **全局搜索（R11 / UI-002）**：顶部单一搜索入口统一检索**消息名 / 信号名 / CAN ID（十进制 + `0x` 十六进制）/ DID**；`Ctrl+F` 唤起、`Esc` 清除，`Enter` 定位首个命中帧；命中以品牌红浅底（`.search-hit-row`）高亮并给出计数（`12 hits`）；搜索范围可选「全部视图（报文帧 + DBC 结构）/ 当前视图（仅 DBC 结构）」
   - 索引在主进程：`electron/searchIndex.js` 单遍 O(n) 扫描落成 `ID -> {count, firstIndex, firstTimestamp}` 稀疏索引，按日志文件路径缓存（`storeMessages` 时失效 + `setImmediate` 预热），1M 帧首建后每次查询为 Map 查找；IPC 只传 `filePath + query`，不回传帧数据
@@ -119,41 +130,41 @@
   - 交互：拖拽平移、滚轮 / 双击以光标为中心缩放（最小视窗 1/5000 跨度）、「重置」恢复全览；视窗变化经 `onWindowChange` 冒泡，报文表按时间窗过滤、信号曲线/表格按同一时间窗切片，**两视图共享 `timeWindow` 状态**
   - `MessageTable` 改为受控分页以支持定位跳页：命中 ID 高亮 + 定位帧所在页自动翻页并 `scrollIntoView`（`locateIndex` / `locateNonce`）
 
-### 测试
+#### 测试
 
 - 新增 `electron/__tests__/searchIndex.test.js`（ID 解析 / 索引聚集 / 名称+信号+DID 匹配 / scope 切换，15 例）、`electron/__tests__/timelineBuckets.test.js`（桶数收敛 / 总量守恒 / 时间跨度 / per-ID 密度与真实分布一致 / 空语料，6 例）
 - 新增 `src/components/__tests__/TimelineOverview.test.jsx`（刷选定位 / 滚轮与双击缩放 / 拖拽平移 / 重置 / 热条标签，8 例）、`GlobalSearchBar.test.jsx`（计数标签 / 定位提示 / 无匹配 / 输入与回车，4 例）
 - `MessageTable.test.jsx` 增 R11 用例（命中高亮 / 定位翻页 / 时间窗过滤，4 例）、`App.test.jsx` 增 R11 用例（`Ctrl+F` + 回车定位切页签、`Esc` 清除，2 例）
 - 全量回归 **236/236** 通过（18 文件），较 W1 基线 197/197 净增 39 例、0 回退
 
-## [Unreleased] - 2026-09-11（v2.2 W1 批次 + 复核返工）
+### W1 批次：R9 深色模式 + R10 可折叠布局 + R13 多 Y 轴（#13 / #14 / #15，含 #19 返工）
 
 > v2.2「体验与健壮」W1 批次：R9 深色模式（#13）、R10 可折叠布局与状态记忆（#14）、R13 多 Y 轴曲线（#15）。09-11 依 PM 复核完成 #15 降采样返工（补齐 min/max 保真降采样）与 #19 品牌强调色对齐。
 
-### 新增
+#### 新增
 
 - **深色模式（R9 / #13）**：浅色/深色两套 CSS 变量设计令牌（`:root` + `[data-theme='dark']`），跟随系统（`prefers-color-scheme`）+ 主菜单手动切换（`theme:set`）即时生效、无需刷新；选择持久化 `settings.json` 启动恢复；全部组件硬编码色迁移为令牌（`--bg-*`/`--text-*`/`--border-*`/`--chart-grid` 等），antd 经 `ConfigProvider` 切换 `darkAlgorithm`，recharts 轴/网格/提示经 `useThemeTokens` 随主题实时重绘；信号曲线/位布局色板跨主题保持同一语义
 - **可折叠布局与状态记忆（R10 / #14）**：左侧 DBC 面板可折叠为一列窄条 rail（默认展开宽 25%；拖拽区间 15%–45%、最小步进 4px 量化）；`panelWidth` / `panelCollapsed` / `dbcExpanded` / `lastTab` 全部写入 `settings.json` 并在启动时校验恢复；DBCPanel 展开状态改为受控 prop + 内部回退
 - **多 Y 轴曲线 + min/max 保真降采样（R13 / #15）**：曲线视图支持左/右双 Y 轴——按信号量纲（DBC `unit`）自动分组，同单位共享一轴，最大分组占左轴、其余归右轴；每个信号可经下拉手动切换左/右轴；各轴独立自适应量程（含常量曲线防塌陷 padding）；轴色取该轴首个信号的曲线颜色保持一致；**新增 min/max 分桶保真降采样**——超过渲染预算（`MAX_RENDER_POINTS = 5000`）时按 `buckets = clamp(floor(maxPoints / (2 × 信号数)), 1, n)` 分桶，每桶每信号保留 argmin/argmax 极值点（替换原等步长抽样，任何瞬时尖峰/毛刺不再被抽样丢弃），并提示「已按 min/max 分桶保真降采样至 N 点（保留峰值）」；图例逐信号显隐不变
 - **品牌强调色对齐（R9-fix / #19）**：品牌红 `#C62828` 经 antd `ConfigProvider` `colorPrimary`（`theme.js` `BRAND_PRIMARY` 单一来源）与 CSS 令牌 `--brand` 落地，替代 antd 默认蓝；选择态强调（`--bg-selected`/`--border-selected`/`--text-accent`）随品牌红对齐；深色底使用品牌红提亮变体（`--brand: #e5484d`，对比度 ≥4.5:1）；曲线/位布局调色板仍由 `palette.js` 独立持有，不受影响
 
-### 测试
+#### 测试
 
 - 新增 `src/test/theme.test.jsx`（主题核心 + ThemedApp 宿主 + #19 品牌色，14 例）、`App.test.jsx` R10 布局持久化用例（4 例）、`src/test/chartDownsample.test.mjs`（min/max 分桶降采样 10 例：单点尖峰 / 负向极值 / 多信号独立 / 预算上限 / 升序去重 / 非有限值忽略，含等步长对照回归证明旧算法丢尖峰）、`SignalChart.test.jsx` R13 多 Y 轴 + 降采样用例（6 例：多轴分组 / 轴色 / 单轴 / 手动切轴 + 渲染预算内降采样提示 + 尖峰端到端保留）
 - 新增 `TestExample/bench/r13-render.mjs` → `docs/BENCHMARK-R13.md`：1M 点 × 双轴渲染路径本机 headless 实测 **0.68 s**（min/max 降采样 1,000,000 → 4,801 点 + chartData 构建 + recharts 双轴挂载），满足验收② ≤2 s
 - 全量回归 **197/197** 通过（14 文件）
 
-## [Unreleased] - 2026-09-06（Issue #8–#12 批次）
+### 前置批次：Issue #8–#12（R2 收敛 / BLF 超时 / 1M UI 基准 / 压缩缓存进度 / 对拍脚本）
 
 > open Issues 清零批次：#8 R2 双路径收敛断言、#9 BLF 超时参数化、#10 R2 UI 基准、#11 大文件压缩缓存进度提示、#12 对拍脚本 cantools NamedSignalValue 序列化崩溃。
 
-### 修复
+#### 修复
 
 - **对拍脚本 cantools 43.0.2 崩溃（#12）**：`TestExample/motorola_matrix/compare.js` 与 `TestExample/dbc_full/compare.js` 内嵌 pyScript 新增 `_norm(v)`（`getattr(v, 'value', v)` 解包枚举信号 `NamedSignalValue`）+ `json.dumps(..., default=str)` 兜底，含 cantools 环境不再抛序列化异常；收紧策略保留（import 失败 skip exit 0、DBC 加载失败 FATAL exit 1）。无 cantools 环境 skip exit 0、全量 `npm test` 163/163 通过
 - **BLF 解析超时误杀（#9）**：`electron/main.js` BLF python-can 子进程超时由硬编码 600000ms 改为按文件大小自适应（2 min 基准 + 6 s/MB，上限 60 min），并支持 settings.json `blfParseTimeoutMs` 覆盖（每次加载即时生效、无需重启）；超时错误信息包含当前超时值与调参路径
 - **大文件压缩缓存无反馈（#11）**：`file:loadASC` 对 >100MB 文件生成 `.gz` 缓存前通过 `cache:compress-progress` 事件通知渲染进程（start/done/error 三阶段），二次加载直接命中缓存跳过压缩；preload 暴露 `onCacheCompressProgress`，App 以 keyed toast 提示「正在为大文件生成压缩缓存…」
 
-### 新增
+#### 新增
 
 - **R2 双路径收敛断言（#8）**：`signalDecode.test.js` 新增单测断言 `decodeAll` 与整批 `decodeFramesChunk` 位级一致（decodeAll 已收敛为薄封装）
 - **R2 UI 端到端基准（#10）**：`TestExample/bench/r2-ui.cjs`（确定性 1M 帧 × 3 DBC，驱动主进程同款解析/压缩/分块解码+IPC 序列化路径）→ `docs/BENCHMARK-R2-UI.md`：本机主进程解析 1M 帧 2.0s、.gz 压缩 1.5s、分块解码 ~1.8s/DBC、峰值堆 735MB；渲染层人工观测步骤与回填表（待 PM 真机实测）
