@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-09-19（v2.2.0 版本号一致性 #23）
+
+### 修复
+
+- **`package.json` version 2.1.1 → 2.2.0**（v2.2.0 发版基线）
+- **断言不再依赖硬编码字面量（#23）**：`src/components/__tests__/App.test.jsx` 的「一键复制诊断信息」用例改为 `import pkg from '../../../package.json'`，mock 注入 `version: pkg.version`、断言 `应用版本: v${pkg.version}`；此前面板显示真实版本、断言却写死 `v2.2.0`，真实值漂移时测试仍恒绿
+- **新增 `src/test/version.test.js`（5 例）**，把版本单一来源钉死在源码层面：
+  - `package.json` 版本号为合法 semver 且 ≥ 2.2.0
+  - 主进程 `APP_VERSION` 只能来自 `app.getVersion()`（禁止 `APP_VERSION = '2.2.0'` 这类字面量赋值）
+  - 诊断日志初始化与 About 对话框都复用 `APP_VERSION`
+  - 渲染进程 `src/App.jsx` 不硬编码版本号（诊断文案取 IPC 回传值）
+  - 诊断信息单测断言引用 `pkg.version`，而非字面量
+- 产物侧：「帮助 → 打开诊断日志」「关于」「一键复制诊断信息」均取 `app.getVersion()`，随 `package.json` 一同变为 2.2.0
+
 ## [Unreleased] - 2026-09-19（v2.2 R12 修复：Vector 统计行 / ErrorFrame 编码位 / 样例日志 #21）
 
 > PM 09-19 复核 #17（R12）提出的 P1 缺口，修复分支 `feature/v2.2-r12-fix`。**未触碰 `signalDecode.js` 解码路径**。
