@@ -174,6 +174,7 @@ npm run electron:build
 - **CAN FD 64 字节只显示 8 个字节？** 确认 DBC 中该消息为 `BO_ ID NAME: 64 SENDER`（DLC=64），布局视图才会渲染 B0–B63。
 - **数据量大卡顿？** 表格与曲线自动抽样；减少勾选信号或增大抽样步长。
 - **如何将 CSV 物理量转成报文？** 「物理量 CSV」页签 → 加载 CSV → 选择 CRC → 转换为 ASC。
+- **双击 exe 后进程一闪即退、没有窗口？** 检查系统/终端是否设置了 `ELECTRON_RUN_AS_NODE=1`（该变量会让 Electron 以 Node 模式启动，任何 Electron 应用都会「即退无窗口」），清除后重新启动。
 
 ---
 
