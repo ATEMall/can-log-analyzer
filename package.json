@@ -9,7 +9,9 @@
         "preview": "vite preview",
         "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
         "electron:build": "vite build && electron-builder",
-        "test": "vitest run"
+        "test": "vitest run",
+        "compare": "node scripts/compare-all.js",
+        "compare:strict": "node scripts/compare-all.js --strict"
     },
     "dependencies": {
         "@ant-design/icons": "^5.2.6",

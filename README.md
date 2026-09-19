@@ -218,6 +218,8 @@ npm run electron:build
 │       └── __tests__/         # 组件单元测试
 ├── public/                    # 静态资源（logo 等）
 ├── TestExample/               # 示例日志 / DBC / 生成脚本
+├── scripts/                   # 工程脚本：compare-all.js（cantools 对拍入口）
+├── requirements.txt           # 对拍环境（cantools==43.0.2 + python-can）
 ├── package.json               # 构建配置（build.directories.output 指向 release/）
 ├── vite.config.js
 └── vitest.config.js
@@ -235,7 +237,32 @@ npm test
 
 - `electron/__tests__/`：ASC / BLF 解析与生成、DBC 解析（BA_ 属性 / 扩展帧标志位 / mux / SIG_VALTYPE_ 浮点）、信号解码（含 CAN FD 64 字节丰富场景）、Motorola 位序回归矩阵（start≡7 专项 + 生成 ≥60 布局交叉验证，锯齿语义）、解析容错（坏行/坏块跳过并报告）、R2 分块与一次性解码双路径收敛（随机 20000 帧 × 4 种 chunk 尺寸，位级一致）
 - `src/components/__tests__/`：DBC 面板（搜索/清空/滚动、周期/Ext/mux 徽标）、信号表格（浮点 6 位有效数字）、曲线图、布局视图、报文表（扩展帧匹配）、使用手册弹窗、解析错误报告 UI、工程保存/恢复与最近文件（R5）、CSV 导出（R7）、全局搜索（R11）、总线统计面板（R12，含 Vector 统计行与 ErrorFrame 编码位）、诊断日志与错误上报（R14）
-- 全量 **315/315** 通过（22 个测试文件）；另有 `TestExample/*/generate.js` 样例自校验与 `compare.js`（cantools 对拍，缺失时跳过、加载失败必报错）
+- 全量 **324/324** 通过（23 个测试文件）；另有 `TestExample/*/generate.js` 样例自校验与 `compare.js`（cantools 对拍，见下节）
+
+### cantools 对拍（验收基线）
+
+解码正确性以 **cantools 43.0.2** 为参照，环境已固化在 `requirements.txt`：
+
+```bash
+# 1) 准备对拍环境（版本必须与验收基线一致）
+python -m venv .venv
+.\.venv\Scripts\activate          # Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt   # cantools==43.0.2 + python-can
+
+# 2) 跑对拍（普通模式：无环境时跳过并显著提示）
+npm run compare
+
+# 3) 严格模式（CI / 验收用）：无环境直接非零退出，禁止静默假绿
+npm run compare -- --strict
+npm run compare:strict
+```
+
+| 模式 | cantools 缺失 | cantools 可用但 DBC 加载失败 | 解码不一致 |
+|---|---|---|---|
+| 普通 | 跳过 + `NOT executed` 显著提示，exit 0 | exit 3 | exit 1 |
+| 严格（`--strict` / `CI=1` / `CANTOOLS_STRICT=1`） | **exit 4（失败）** | exit 3 | exit 1 |
+
+`scripts/compare-all.js` 会遍历 `TestExample/**/compare.js` 并汇总结果；`.github/workflows/verify.yml` 在 push/PR 时执行 `npm test` + 严格模式对拍。
 
 ---
 

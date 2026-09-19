@@ -1,0 +1,12 @@
+# cantools 对拍（验收基线）环境
+#
+# 用法：
+#   python -m venv .venv
+#   .\.venv\Scripts\activate        (Linux/macOS: source .venv/bin/activate)
+#   pip install -r requirements.txt
+#   npm run compare                 # 普通模式：无环境时跳过（带显著提示）
+#   npm run compare -- --strict     # 严格模式：无环境直接非零退出（CI 用）
+#
+# cantools 版本必须与验收基线一致（43.0.2），否则解码结果不可比对。
+cantools==43.0.2
+python-can
