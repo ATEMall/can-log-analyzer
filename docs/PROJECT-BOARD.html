@@ -252,6 +252,12 @@
       <div class="d">✅ 全部完成：① #15 返工（min/max 分桶保真降采样 + 1M 双轴基准 0.843s PM 实证 + CHANGELOG 措辞）；② #19 品牌红落地（深色 #e5484d 对比度 4.70:1）；③ W1 合入 main 并推送（5c512a7）；④ #14/#15/#19 全部关闭；⑤ 回归 197/197 PM 独立复跑。遗留：#13 浅/深 × ≥5 视图截图走查 → 并入 v2.2.0 终验。</div>
     </div></div>
 
+  <div class="todo"><div class="mark p1">5</div>
+    <div class="body">
+      <div class="t">✅ v2.2 W2 复核 + v2.1 终验补做 + Issue 批量入库（09-19 用户授权执行）<span class="tag">PM · 09-18 周报 · 09-19 执行</span></div>
+      <div class="d">✅ 完成：① W2 三项 PM 代码复核（#16/#18 通过关闭，#17 代码合格但验收② 缺口保持 OPEN）；② PM 独立实证：回归 288/288、对拍 23/23+12/12（cantools 43.0.2 @ envs/default）、R11 索引 14.2ms / R12 统计 78.7ms @1M 帧、周期抖动 Δ≤8.5e-14ms、R14 七天清理独立复现；③ v2.1 终验补做 → <a href="ACCEPTANCE-v2.1.md">ACCEPTANCE-v2.1.md</a>（DoD 6/6，双形态启动冒烟截图存证；初测无窗为自动化环境 ELECTRON_RUN_AS_NODE=1 所致，与产物无关）；④ 新建 Issue：#20 流程 P0（合 main 前须复核，写入 PLAN DoD）/ #21 R12 缺陷（统计行不识别 + 缺样例日志）/ #22 对拍环境固化 / #23 版本号一致性 / #24 补终验（随即关闭）。⏳ R12 修复（#21）后再打 v2.2.0 tag；stretch S1–S3 确认全部转 v2.3。</div>
+    </div></div>
+
   <div class="todo"><div class="mark pm">N</div>
     <div class="body">
       <div class="t">🆕 v2.2 开发计划已下发（体验与健壮，Issues #13-#18）<span class="tag">PM · 09-09 计划 · 排期 09-10 ~ 09-23</span></div>
@@ -259,7 +265,7 @@
     </div></div>
 
   <div class="confirm" data-page-node-id="4MoWZ3X9Z8etFq8O7nfWuv">
-    ⏳ <b data-page-node-id="xXLswrpDCuOaOgEt0DR1eR">待办（09-13 更新）：</b>✅ W1 全闭环（#13 有条件通过 / #14、#15、#19 已关闭）。⏳ <b>下一步：</b>① <b>v2.2 W2 批开工</b>（R11 全局搜索+时间轴总览 #16 / R12 总线负载+错误帧统计 #17 / R14 诊断日志 #18，deadline 09-22）；② 浅/深 × ≥5 视图截图走查（PM，与终验合并）；③ v2.2.0 终验发版（目标 <b>09-23</b>：双形态打包 + 冒烟 + 截图走查 + ACCEPTANCE-v2.2.md）；④ PM 对 v2.1.1 产物补终验 → docs/ACCEPTANCE-v2.1.md（目标 09-19）；⑤ v2.1 收口后规划 v3.0 LIN（roadmap_v3x 素材已入库，含 12 个 LDF）。
+    ⏳ <b data-page-node-id="xXLswrpDCuOaOgEt0DR1eR">待办（09-19 更新）：</b>✅ W1 全闭环；W2 复核完成（#16/#18 关闭，#17 待 #21 修复）；v2.1 终验已补做（DoD 6/6）。⏳ <b>下一步：</b>① <b>R12 缺口修复</b>（#21：Vector 统计行解析 + 错误帧样例日志入库，分支 feature/v2.2-r12-fix）；② 修复合入后 <b>v2.2.0 终验发版</b>（目标 09-23：版本 bump 2.2.0 + CHANGELOG 归档 + 双形态打包 + 浅/深截图走查（#13 收口）+ ACCEPTANCE-v2.2.md + tag）；③ 开发补 W2 三项 UI 截图（#20）；④ 对拍环境固化（#22：requirements.txt + compare.js --strict）；⑤ v2.2.0 收口后规划 v3.0 LIN（roadmap_v3x 素材已入库，含 12 个 LDF；stretch S1–S3 已确认转 v2.3）。
   </div>
 
   <div class="legend" data-page-node-id="G2DXBHJEfPQLSfcScsQrql">
