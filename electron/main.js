@@ -5,7 +5,7 @@ const zlib = require('zlib');
 const { spawn } = require('child_process');
 const readline = require('readline');
 const { buildBLFBuffer, parseBLFBuffer, parseBLFBufferDetailed } = require('./blf');
-const { isNonDataLine, parseASCDataLine, parseASCErrorLine, generateASC } = require('./asc');
+const { isNonDataLine, parseASCDataLine, parseASCErrorLine, isErrorEventCandidate, generateASC } = require('./asc');
 const { parseDBC, decodeSignalFrame, getEnumLabel } = require('./dbc');
 const { buildDecodeContext, decodeFramesChunk, decodeAll } = require('./signalDecode');
 const { buildFrameIndex, searchFrames } = require('./searchIndex');
@@ -1079,8 +1079,9 @@ async function loadASCFile(filePath, selectedIds) {
       // R12: probe for an error frame / bus-state event first — those lines
       // never carry payload, and `isNonDataLine` would otherwise file them
       // under the header (or, worse, as a parse error).
-      const lowerLine = line.toLowerCase();
-      if (lowerLine.includes('error') || lowerLine.includes('bus') || lowerLine.includes('overload')) {
+      // #21: "Statistic: ... BusLoad ..." rows carry the log-declared error
+      // counters; probe them here too so they never land in headerLines.
+      if (isErrorEventCandidate(line)) {
         const errEvent = parseASCErrorLine(line);
         if (errEvent) {
           if (errorFrames.length < ERROR_EVENT_CAP) errorFrames.push(errEvent);

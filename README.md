@@ -126,7 +126,9 @@ npm run electron:build
 
 - **逐秒负载曲线**：按比特时间估算每帧位长（标准帧 `44+8×len`、扩展帧 `64+8×len`、CAN FD `67+8×len`），以自适应桶间隔（默认 ≤2000 点）聚合出逐秒负载率曲线；卡片显示**平均负载 / 峰值负载（含峰值时刻）**。顶部可切换比特率 `125k / 250k / 500k / 1M`，切换即时重算。
 - **周期与抖动**：按消息 ID 统计帧数、实测平均/最小/最大周期与**平均/最大抖动**；参考周期优先取 DBC `GenMsgCycleTime`，缺失时退化为实测均值；偏差超过 `max(参考周期 × 10%, 0.05ms)` 记为超差，展示**超差次数与占比**。可勾选「仅看超差」快速筛出周期不稳的报文；点击任意行会切回「CAN 报文日志」页签并定位到该 ID 的首帧，同时高亮该 ID。
-- **错误帧与状态时间线**：识别 `ErrorFrame / OverloadFrame / Bus Off / Error Passive / Error Active / Chip State` 等记录，按 stuff / form / ack / crc / bit1 / bit0 / overload / other 分类计数，并按时间绘制 Error Active / Passive / Bus Off 状态标记；点击错误条目或状态标记可跳转报文表对应时刻。
+- **错误帧与状态时间线**：识别 `ErrorFrame / OverloadFrame / Bus Off / Error Passive / Error Active / Chip State` 等记录，按 stuff / form / ack / crc / bit / bit1 / bit0 / overload / other 分类计数，并按时间绘制 Error Active / Warning / Passive / Bus Off 状态标记；点击错误条目或状态标记可跳转报文表对应时刻。
+  - Vector `ErrorFrame Flags = … Code = … CodeExt = …` 编码位按 ECC 语义解码（`0 Bit / 1 Form / 2 Stuff / 3 Other / 4 CRC / 5 Ack-Del / 7 Ack`），CANoe `CAN 1 Status:chip status <state>`（`error active / warning level / error passive / busoff`）同样识别
+- **日志自带统计行（Statistic）**：`1.000000 1  Statistic: D 12 R 0 XD 1 XR 0 E 5 O 0 BusLoad 8.2 %` 被解析为声明计数，面板展示「日志声明: 错误帧 N / 过载帧 M」与**日志自带 BusLoad**（可与本机估算负载交叉校验）；声明数与逐行解析数不一致时提示「错误计数以日志声明为准」（Vector 并不把每个错误帧都写成行）
 - **统计 CSV 导出**：点「导出统计 CSV」把**负载序列 / 周期抖动表 / 错误帧与状态明细**三段写入一个 CSV（默认命名 `<源>_stats_<时间戳>.csv`）。
 
 ### 五、物理量 CSV 页签
@@ -180,6 +182,7 @@ npm run electron:build
 | 目录 | 内容 |
 |---|---|
 | `canfd_rich/` | **CAN FD 丰富场景**：`vehicle_canfd.asc` + `vehicle_canfd.blf`（30 帧，15 帧 64 字节 VCU 报文 + 15 帧 32 字节 BMS 报文）、`vehicle_canfd.dbc`（2 条消息 64 个信号，信号覆盖 B0–B63）、`generate.js`（数据生成脚本） |
+| `error_frames/` | **错误帧 / 总线状态样例**：`error_frames.asc`（100 数据帧 + 7 × `ErrorFrame Flags/Code` 编码位 + 文本 ErrorFrame + 过载帧 + `Status:chip status` 状态迁移 + `Bus Off` + 2 条 `Statistic:` 统计行）、`generate.js`（确定性生成，重复运行产出一致） |
 | 其他目录 | 普通 CAN 的 ASC / BLF / DBC 样例 |
 
 > `canfd_rich/generate.js` 演示了如何调用 `electron/asc.js`、`electron/blf.js`、`electron/dbc.js` 生成日志并解码验证，可作为二次开发参考。
@@ -192,7 +195,7 @@ npm run electron:build
 ├── electron/                  # Electron 主进程
 │   ├── main.js                # 窗口、应用菜单、IPC、文件对话框
 │   ├── preload.js             # 安全桥接 API（contextBridge）
-│   ├── asc.js                 # ASC 解析 / 生成（含错误帧行解析）
+│   ├── asc.js                 # ASC 解析 / 生成（错误帧、总线状态、Statistic 统计行）
 │   ├── blf.js                 # BLF 解析 / 生成
 │   ├── dbc.js                 # DBC 解析 / 信号编码解码
 │   ├── busStats.js            # 总线负载 / 周期抖动 / 错误帧统计（R12）
@@ -231,8 +234,8 @@ npm test
 覆盖范围：
 
 - `electron/__tests__/`：ASC / BLF 解析与生成、DBC 解析（BA_ 属性 / 扩展帧标志位 / mux / SIG_VALTYPE_ 浮点）、信号解码（含 CAN FD 64 字节丰富场景）、Motorola 位序回归矩阵（start≡7 专项 + 生成 ≥60 布局交叉验证，锯齿语义）、解析容错（坏行/坏块跳过并报告）、R2 分块与一次性解码双路径收敛（随机 20000 帧 × 4 种 chunk 尺寸，位级一致）
-- `src/components/__tests__/`：DBC 面板（搜索/清空/滚动、周期/Ext/mux 徽标）、信号表格（浮点 6 位有效数字）、曲线图、布局视图、报文表（扩展帧匹配）、使用手册弹窗、解析错误报告 UI、工程保存/恢复与最近文件（R5）、CSV 导出（R7）、全局搜索（R11）、总线统计面板（R12）、诊断日志与错误上报（R14）
-- 全量 **288/288** 通过（22 个测试文件）；另有 `TestExample/*/generate.js` 样例自校验与 `compare.js`（cantools 对拍，缺失时跳过、加载失败必报错）
+- `src/components/__tests__/`：DBC 面板（搜索/清空/滚动、周期/Ext/mux 徽标）、信号表格（浮点 6 位有效数字）、曲线图、布局视图、报文表（扩展帧匹配）、使用手册弹窗、解析错误报告 UI、工程保存/恢复与最近文件（R5）、CSV 导出（R7）、全局搜索（R11）、总线统计面板（R12，含 Vector 统计行与 ErrorFrame 编码位）、诊断日志与错误上报（R14）
+- 全量 **315/315** 通过（22 个测试文件）；另有 `TestExample/*/generate.js` 样例自校验与 `compare.js`（cantools 对拍，缺失时跳过、加载失败必报错）
 
 ---
 

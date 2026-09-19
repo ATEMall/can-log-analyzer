@@ -225,3 +225,75 @@ describe('R12 buildErrorStats', () => {
     expect(stats.events).toHaveLength(100);
   });
 });
+
+// =====================================================================
+// #21 — Vector "Statistic:" 行的累计计数聚合（不得污染逐行错误帧统计）
+// =====================================================================
+describe('#21 buildErrorStats — 日志声明计数（Statistic 行）', () => {
+  function statRow(ts, errorCount, overloadCount, busLoad) {
+    return {
+      timestamp: ts, channel: 1, kind: 'statistic',
+      counts: { d: 100, r: 0, xd: 0, xr: 0, errorCount, overloadCount },
+      errorCount, overloadCount, busLoad
+    };
+  }
+
+  it('统计行不计入逐行错误帧总数与分类', () => {
+    const events = [
+      { timestamp: 0.1, kind: 'error-frame', category: 'stuff', channel: 1 },
+      { timestamp: 0.2, kind: 'error-frame', category: 'crc', channel: 1 },
+      statRow(0.5, 6, 1, 6.4),
+      statRow(1.0, 12, 1, 8.2)
+    ];
+    const stats = buildErrorStats(events);
+    expect(stats.total).toBe(2);
+    expect(stats.byKind).toEqual([{ kind: 'stuff', count: 1 }, { kind: 'crc', count: 1 }]);
+    expect(stats.statistics).toHaveLength(2);
+  });
+
+  it('declared 汇总累计错误/过载计数与 BusLoad（峰值 + 均值）', () => {
+    const stats = buildErrorStats([
+      { timestamp: 0.1, kind: 'error-frame', category: 'stuff', channel: 1 },
+      statRow(0.5, 6, 1, 6.4),
+      statRow(1.0, 12, 1, 8.2)
+    ]);
+    expect(stats.declared).toBeTruthy();
+    expect(stats.declared.rows).toBe(2);
+    expect(stats.declared.errorCount).toBe(12);   // 累计取最大
+    expect(stats.declared.overloadCount).toBe(1);
+    expect(stats.declared.busLoadPeak).toBeCloseTo(8.2, 6);
+    expect(stats.declared.busLoadAvg).toBeCloseTo(7.3, 6);
+  });
+
+  it('declared.diff 暴露「日志声明 vs 逐行解析」的差值', () => {
+    const stats = buildErrorStats([
+      { timestamp: 0.1, kind: 'error-frame', category: 'stuff', channel: 1 },
+      { timestamp: 0.2, kind: 'error-frame', category: 'crc', channel: 1 },
+      statRow(1.0, 12, 0, 8.2)
+    ]);
+    expect(stats.declared.diff).toBe(10);         // 声明 12 - 解析到 2
+
+    const same = buildErrorStats([
+      { timestamp: 0.1, kind: 'error-frame', category: 'stuff', channel: 1 },
+      statRow(1.0, 1, 0, 8.2)
+    ]);
+    expect(same.declared.diff).toBe(0);
+  });
+
+  it('无统计行时 declared 为 null（既有行为不回退）', () => {
+    const stats = buildErrorStats([
+      { timestamp: 0.1, kind: 'error-frame', category: 'stuff', channel: 1 }
+    ]);
+    expect(stats.declared).toBeNull();
+    expect(stats.statistics).toEqual([]);
+  });
+
+  it('chip status 的 warning 状态不影响 BusOff 计数', () => {
+    const stats = buildErrorStats([
+      { timestamp: 0.1, kind: 'bus-state', state: 'warning', channel: 1 },
+      { timestamp: 0.2, kind: 'bus-state', state: 'bus-off', channel: 1 }
+    ]);
+    expect(stats.busOffCount).toBe(1);
+    expect(stats.states).toHaveLength(2);
+  });
+});

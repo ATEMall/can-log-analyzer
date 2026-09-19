@@ -250,14 +250,19 @@ function buildErrorStats(events, options) {
 
   const frames = [];
   const states = [];
+  const stats = [];
   for (const e of list) {
     if (!e) continue;
+    // #21: "Statistic:" rows are log-declared counters, not error frames —
+    // they must never inflate the per-row category counts.
+    if (e.kind === 'statistic') { stats.push(e); continue; }
     if (e.state) states.push(e);
     else frames.push(e);
   }
   const byTime = (a, b) => toTimestamp(a) - toTimestamp(b);
   frames.sort(byTime);
   states.sort(byTime);
+  stats.sort(byTime);
 
   const kindCounts = new Map();
   for (const e of frames) {
@@ -270,11 +275,48 @@ function buildErrorStats(events, options) {
 
   const busOff = states.filter(s => s.state === 'bus-off');
 
+  // #21: counters the log itself declares in its "Statistic:" rows. Vector
+  // writes them cumulatively, so the row with the highest counter is the
+  // session total (also correct for non-cumulative per-interval rows).
+  let declared = null;
+  if (stats.length > 0) {
+    let errorCount = 0;
+    let overloadCount = 0;
+    let busLoadSum = 0;
+    let busLoadPeak = 0;
+    let busLoadN = 0;
+    for (const s of stats) {
+      const e = Number(s.errorCount);
+      const o = Number(s.overloadCount);
+      if (Number.isFinite(e) && e > errorCount) errorCount = e;
+      if (Number.isFinite(o) && o > overloadCount) overloadCount = o;
+      const bl = Number(s.busLoad);
+      if (Number.isFinite(bl)) {
+        busLoadSum += bl;
+        busLoadN += 1;
+        if (bl > busLoadPeak) busLoadPeak = bl;
+      }
+    }
+    declared = {
+      rows: stats.length,
+      errorCount,
+      overloadCount,
+      busLoadAvg: busLoadN > 0 ? busLoadSum / busLoadN : null,
+      busLoadPeak: busLoadN > 0 ? busLoadPeak : null,
+      // Difference against the error rows actually parsed out of the log.
+      // Non-zero means the log declares more errors than its rows expose
+      // (Vector does not always log every error frame as a row).
+      diff: errorCount - frames.length
+    };
+  }
+
   return {
     total: frames.length,
     byKind,
     events: frames.slice(0, maxEvents),
     states: states.slice(0, maxEvents),
+    statistics: stats.slice(0, maxEvents),
+    declared,
     busOffCount: busOff.length,
     firstError: frames.length > 0 ? frames[0] : null,
     lastState: states.length > 0 ? states[states.length - 1] : null

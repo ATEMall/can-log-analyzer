@@ -2,6 +2,30 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-09-19（v2.2 R12 修复：Vector 统计行 / ErrorFrame 编码位 / 样例日志 #21）
+
+> PM 09-19 复核 #17（R12）提出的 P1 缺口，修复分支 `feature/v2.2-r12-fix`。**未触碰 `signalDecode.js` 解码路径**。
+
+### 修复
+
+- **识别 Vector `Statistic:` 统计行（#21 ①）**：`1.000000 1  Statistic: D 12 R 0 XD 1 XR 0 E 5 O 0 BusLoad 8.2 %` 原先返回 `null`（落入 headerLines），现解析为 `kind: 'statistic'` 事件，带出 `D/R/XD/XR/E/O` 计数与 `BusLoad`
+  - 统计行**不计入**逐行错误帧总数与分类；`buildErrorStats` 新增 `declared`（累计错误/过载计数、BusLoad 均值与峰值、`diff = 声明 − 解析`）与 `statistics` 列表
+  - 统计面板新增「日志声明: 错误帧 N / 过载帧 M」标签与**日志自带 BusLoad**（与本机估算的负载交叉校验）；声明数与解析数不一致时提示「**错误计数以日志声明为准**」
+- **ErrorFrame Flags / Code 编码位解析（#21 ②）**：`0.123456 CAN 1 ErrorFrame Flags = 0x0001`（原一律 `other`）现解析 `Flags / Code / CodeExt / ID / DLC / Position / Length`，并按 Vector/SJA1000 ECC 编码分类：`0 Bit / 1 Form / 2 Stuff / 3 Other / 4 CRC / 5 Ack-Del / 7 Ack`；无 `Code` 时回落 `CodeExt`（bits 6-11）。行尾文本描述优先，既有分类行为不回退
+- **CANoe `Status:chip status <state>` 事件（#21）**：识别 `error active / warning level / error passive / busoff` 四种芯片状态（新增 `warning` 状态色），既有 `CAN 1 Bus Off` / `Chip State:` 写法保持兼容
+- **事件行判定单一来源**：ASC 读取的预筛条件抽为 `asc.js` 的 `isErrorEventCandidate(line)`（error / bus / overload / statistic / status / warning），主进程与单测共用，杜绝「chip status 行被当成坏行计入解析错误」
+
+### 样例
+
+- 新增 `TestExample/error_frames/`：`error_frames.asc`（100 数据帧 + 7 × Code 编码 ErrorFrame + 文本 ErrorFrame + 过载帧 + chip status 迁移 + Bus Off + 2 条 Statistic 行）+ `generate.js`（确定性生成，可重复产出）
+
+### 测试
+
+- `electron/__tests__/ascErrorFrame.test.js` 增至 **26 例**：Statistic 行解析与缺失字段容错、Code 编码位 7 种映射、CodeExt 回落、文本优先、字段明细解析、chip status 四态、`isErrorEventCandidate`、**样例日志端到端解析**（9 错误帧 / 2 BusOff / 2 Statistic / 声明 12 > 解析 9）
+- `electron/__tests__/busStats.test.js` 增 5 例（统计行不污染分类、declared 汇总与 diff、无统计行时 `declared === null`、warning 不计 BusOff）
+- `src/components/__tests__/StatsPanel.test.jsx` 增 4 例（声明标签、自带 BusLoad、差异提示、一致时不提示）
+- 全量回归 **315/315** 通过（22 文件），较 R14 基线 288/288 净增 27 例、0 回退；`vite build` 通过
+
 ## [Unreleased] - 2026-09-15（v2.2 W2 批次：R14 错误上报与诊断日志）
 
 > v2.2 W2 批次第三项：R14 错误上报与诊断日志（#18）。

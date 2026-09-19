@@ -114,3 +114,49 @@ describe('R12 StatsPanel', () => {
     expect(onExportCSV).toHaveBeenCalledTimes(1);
   });
 });
+
+// =====================================================================
+// #21 — 日志自带 Statistic 行的声明计数展示与交叉校验提示
+// =====================================================================
+describe('#21 StatsPanel — 日志声明计数', () => {
+  function withDeclared(declared) {
+    return makeStats({
+      errors: {
+        total: 2,
+        busOffCount: 1,
+        byKind: [{ kind: 'stuff', count: 2 }],
+        events: [{ timestamp: 1.5, channel: 1, kind: 'error-frame', category: 'stuff' }],
+        states: [{ timestamp: 6.0, kind: 'bus-state', state: 'bus-off', channel: 1 }],
+        declared
+      }
+    });
+  }
+
+  it('无 Statistic 行时不展示声明区，保持既有文案', () => {
+    render(<StatsPanel stats={makeStats()} />);
+    expect(screen.queryByTestId('stats-panel-declared')).toBeNull();
+    expect(screen.queryByTestId('stats-panel-declared-busload')).toBeNull();
+  });
+
+  it('展示日志声明的错误/过载计数与自带 BusLoad', () => {
+    render(<StatsPanel stats={withDeclared({ rows: 2, errorCount: 12, overloadCount: 1, busLoadAvg: 7.3, busLoadPeak: 8.2, diff: 10 })} />);
+    const tag = screen.getByTestId('stats-panel-declared');
+    expect(tag.textContent).toContain('日志声明');
+    expect(tag.textContent).toContain('错误帧 12');
+    expect(tag.textContent).toContain('过载帧 1');
+    expect(screen.getByTestId('stats-panel-declared-busload').textContent).toBe('7.3%');
+  });
+
+  it('声明数与逐行解析数不一致时提示「错误计数以日志声明为准」', () => {
+    render(<StatsPanel stats={withDeclared({ rows: 1, errorCount: 12, overloadCount: 0, busLoadAvg: 8.2, busLoadPeak: 8.2, diff: 10 })} />);
+    const hint = screen.getByTestId('stats-panel-declared-diff');
+    expect(hint.textContent).toContain('错误计数以日志声明为准');
+    expect(hint.textContent).toContain('12');
+    expect(hint.textContent).toContain('2');
+  });
+
+  it('声明数与解析数一致时不显示差异提示', () => {
+    render(<StatsPanel stats={withDeclared({ rows: 1, errorCount: 2, overloadCount: 0, busLoadAvg: 8.2, busLoadPeak: 8.2, diff: 0 })} />);
+    expect(screen.queryByTestId('stats-panel-declared-diff')).toBeNull();
+  });
+});
