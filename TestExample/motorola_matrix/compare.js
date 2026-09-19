@@ -1,11 +1,15 @@
 // Cross-check against cantools — the authoritative reference decoder.
 //
-// Skip policy (PM Issue #1 acceptance): exits 0 ONLY when `import cantools`
-// fails (Python/cantools absent). When cantools IS importable but the DBC
-// fails to load, or any signal mismatches, the script exits non-zero —
-// a silent fake-green is never produced. Usage:
+// Skip policy (PM Issue #1 acceptance, tightened by #22): in normal mode the
+// script exits 0 ONLY when `import cantools` fails (Python/cantools absent),
+// and prints a loud "NOT executed" notice. When cantools IS importable but the
+// DBC fails to load, or any signal mismatches, the script exits non-zero.
+// In strict mode (`--strict`, CI=1 or CANTOOLS_STRICT=1) a missing cantools
+// environment is a FAILURE (exit 4) — a silent fake-green is never produced.
+// Usage:
 //
 //   node TestExample/motorola_matrix/compare.js
+//   node TestExample/motorola_matrix/compare.js --strict   # 无 cantools 时非零退出
 //
 // Expected output on a machine with cantools:
 //   cantools cross-check: N/N signals match (cantools X.Y.Z)
@@ -14,6 +18,10 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { parseDBC, decodeSignalFrame } = require('../../electron/dbc');
+// #22: 严格模式（--strict / CI=1 / CANTOOLS_STRICT=1）下环境缺失 = 失败，不再假绿。
+const { isStrictMode, handleMissingEnv, EXIT_CODES } = require('../../scripts/compareEnv');
+
+const STRICT = isStrictMode(process.argv, process.env);
 
 const OUT = __dirname;
 const dbcFile = path.join(OUT, 'motorola_matrix.dbc');
@@ -28,8 +36,7 @@ for (const cand of ['python', 'python3']) {
   } catch { /* not available */ }
 }
 if (!py) {
-  console.log('cantools not available on PATH - external cross-check skipped');
-  process.exit(0);
+  handleMissingEnv('python with cantools not found on PATH', { strict: STRICT });
 }
 
 // 2. One-shot python: decode every message with the fixed payload.
@@ -71,17 +78,17 @@ try {
   const msg = String(err.stderr || err.message);
   if (msg.includes('CANTOOLS_DBC_LOAD_FAILED')) {
     console.error('FATAL: cantools could not load ' + dbcFile + '\n  ' + msg.trim());
-    process.exit(1);
+    process.exit(EXIT_CODES.DBC_LOAD_FAILED);
   }
   throw err;
 }
 if (stdout.includes('CANTOOLS_IMPORT_FAILED')) {
-  console.log('cantools import failed inside python - treating as unavailable (skipped)');
-  process.exit(0);
+  // cantools 存在但 import 失败：严格模式下同样是「未做对拍」，必须失败。
+  handleMissingEnv('import cantools failed inside python', { strict: STRICT });
 }
 if (!stdout.includes('CANTOOLS_OK')) {
   console.error('FATAL: unexpected cantools output');
-  process.exit(1);
+  process.exit(EXIT_CODES.MISMATCH);
 }
 const cantoolsResult = JSON.parse(stdout.split(/CANTOOLS_OK\r?\n/)[1].trim());
 
@@ -110,4 +117,4 @@ for (const msg of parsed) {
 console.log(`cantools cross-check: ${total - fails}/${total} signals match (cantools ${(function () {
   try { return require('child_process').execFileSync(py, ['-c', 'import cantools; print(cantools.__version__)'], { stdio: 'pipe' }).toString().trim(); } catch { return '?'; }
 })()})`);
-process.exit(fails ? 1 : 0);
+process.exit(fails ? EXIT_CODES.MISMATCH : EXIT_CODES.OK);
