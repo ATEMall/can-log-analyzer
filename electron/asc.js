@@ -169,18 +169,95 @@ function parseASCDataLine(line) {
   return null;
 }
 
-// R12: error frames / bus-state event lines (never data frames).
+// R12 (v2.2) — error frames / bus-state event lines (never data frames).
 //   Vector classic:  0.123456 1 ErrorFrame
 //   Vector / CANoe:  0.123456 CAN ErrorFrame / 0.123456 CAN Bus Off
 //   Chip state:      0.123456 Chip State: busoff
+//   CANoe event:     0.123456 CAN 1 Status:chip status error passive
 const ERROR_FRAME_RE =
   /^(\d+(?:\.\d+)?)\s+(?:(?:CAN|CANFD|Li)\s+)?(?:(\d+)\s+)?(?:[0-9A-Fa-f]+x?\s+)?(Error\s?Frame|Overload\s?Frame)\b(.*)$/i;
 const BUS_STATE_RE =
-  /^(\d+(?:\.\d+)?)\s+(?:(?:CAN|CANFD|Li)\s+)?(?:(\d+)\s+)?(?:Chip\s*State\s*:?\s*)?(Bus\s*Off|Error\s*Passive|Error\s*Active)\b(.*)$/i;
+  /^(\d+(?:\.\d+)?)\s+(?:(?:CAN|CANFD|Li)\s+)?(?:(\d+)\s+)?(?:Chip\s*State\s*:?\s*|Status\s*:\s*chip\s*status\s*)?(Bus\s*Off|Error\s*Passive|Error\s*Active|Warning\s*Level)\b(.*)$/i;
 
-// Error-frame sub-classification from the trailing text (Vector writes e.g.
-// "ErrorFrame  Stuff Error" / "ErrorFrame  Form Error").
-function classifyErrorCategory(text, isOverload) {
+// R12-fix (#21): Vector statistic rows are written by CANoe/CANalyzer
+// (periodically and at the end of a measurement) and carry the error counters
+// the log itself declares:
+//   1.000000 1  Statistic: D 12 R 0 XD 1 XR 0 E 5 O 0 BusLoad 8.2 %
+//   D = data frames, R = remote, XD/XR = FD variants, E = error frames,
+//   O = overload frames, BusLoad = bus load in percent.
+const STATISTIC_RE =
+  /^(\d+(?:\.\d+)?)\s+(?:(?:CAN|CANFD|Li)\s+)?(?:(\d+)\s+)?Statistic\s*:\s*(.*)$/i;
+
+// Vector ErrorFrame detail fields (classic CAN, SJA1000 ECC style):
+//   ErrorFrame Flags = 0x0001 CodeExt = 0x0000 Code = 0x0002 ID = 0x0 DLC = 0 ...
+const ERROR_FIELD_RE = /\b(Code|CodeExt|Flags|ID|DLC|Position|Length)\s*=\s*(0[xX][0-9A-Fa-f]+|\d+)/gi;
+const ERROR_FIELD_KEYS = {
+  code: 'code', codeext: 'codeExt', flags: 'flags',
+  id: 'id', dlc: 'dlc', position: 'position', length: 'length'
+};
+
+// Error-code table for Vector `Code` bits 0-5 (and `CodeExt` bits 6-11):
+//   0 Bit Error | 1 Form Error | 2 Stuff Error | 3 Other | 4 CRC Error
+//   5 Ack-Del Error | 6 reserved | 7 Ack Error
+const VECTOR_ERROR_CODES = ['bit', 'form', 'stuff', 'other', 'crc', 'ack', 'other', 'ack'];
+
+function decodeVectorErrorCode(value) {
+  if (!Number.isFinite(value)) return 'other';
+  return VECTOR_ERROR_CODES[(value | 0) & 0x3f] || 'other';
+}
+
+/** Parse "Flags = 0x0001 Code = 0x0002 ..." into { flags, code, codeExt, ... }. */
+function parseErrorFields(text) {
+  const fields = {};
+  const s = String(text || '');
+  if (!s) return fields;
+  ERROR_FIELD_RE.lastIndex = 0;
+  let m;
+  while ((m = ERROR_FIELD_RE.exec(s)) !== null) {
+    const key = ERROR_FIELD_KEYS[m[1].toLowerCase()];
+    const raw = m[2];
+    const val = /^0[xX]/.test(raw) ? parseInt(raw.slice(2), 16) : parseInt(raw, 10);
+    if (key && Number.isFinite(val)) fields[key] = val;
+  }
+  return fields;
+}
+
+/** #21: derive the error category from the Vector Code / CodeExt fields. */
+function classifyErrorFields(fields) {
+  if (!fields) return null;
+  if (fields.code !== undefined) return decodeVectorErrorCode(fields.code);
+  if (fields.codeExt !== undefined) return decodeVectorErrorCode((fields.codeExt >> 6) & 0x3f);
+  return null;
+}
+
+/**
+ * #21: parse the body of a "Statistic:" row into counters + bus load.
+ * Vector writes cumulative counters, so the last row of a measurement is the
+ * session total; callers aggregate accordingly.
+ */
+function parseStatisticBody(text) {
+  const counts = { d: 0, r: 0, xd: 0, xr: 0, errorCount: 0, overloadCount: 0 };
+  let busLoad = null;
+  const s = String(text || '');
+  const re = /\b(D|R|XD|XR|E|O|BusLoad)\s+(-?\d+(?:\.\d+)?)/gi;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    const key = m[1].toLowerCase();
+    const val = parseFloat(m[2]);
+    if (!Number.isFinite(val)) continue;
+    if (key === 'busload') { busLoad = val; continue; }
+    if (key === 'e') counts.errorCount = val;
+    else if (key === 'o') counts.overloadCount = val;
+    else counts[key] = val;
+  }
+  return { counts, busLoad };
+}
+
+// Error-frame sub-classification. The trailing human-readable text
+// (Vector writes e.g. "ErrorFrame  Stuff Error" / "ErrorFrame  Form Error")
+// wins; when the row carries no text but the Vector Flags/Code fields, the
+// code bits are decoded instead.
+function classifyErrorCategory(text, isOverload, fields) {
   if (isOverload) return 'overload';
   const s = String(text || '');
   if (/stuff/i.test(s)) return 'stuff';
@@ -189,11 +266,27 @@ function classifyErrorCategory(text, isOverload) {
   if (/crc/i.test(s)) return 'crc';
   if (/bit\s*1/i.test(s)) return 'bit1';
   if (/bit\s*0/i.test(s)) return 'bit0';
-  return 'other';
+  return classifyErrorFields(fields) || 'other';
 }
 
 /**
- * R12: parse an ASC error-frame / bus-state event line.
+ * #21: cheap pre-filter used by the ASC reader before the data-frame parser.
+ * Shared with the main process so the "is this an event row?" decision has a
+ * single definition (a row that declares a chip status carries no payload and
+ * must never be counted as an unparsable data line).
+ */
+function isErrorEventCandidate(line) {
+  const s = String(line == null ? '' : line).toLowerCase();
+  return s.includes('error')        // ErrorFrame / Error Passive / Error Active
+    || s.includes('bus')            // Bus Off / BusLoad
+    || s.includes('overload')       // OverloadFrame
+    || s.includes('statistic')      // Statistic: ... rows (#21)
+    || s.includes('status')         // Status:chip status <state> (#21)
+    || s.includes('warning');       // Warning Level (#21)
+}
+
+/**
+ * R12: parse an ASC error-frame / bus-state / statistic event line.
  * Returns null for anything that is not such an event, so callers can probe
  * cheaply before falling back to the data-frame parser.
  */
@@ -201,24 +294,48 @@ function parseASCErrorLine(line) {
   const t = String(line == null ? '' : line).trim();
   if (!t) return null;
 
+  // #21: statistic rows first — they carry the counters the log declares.
+  const stat = t.match(STATISTIC_RE);
+  if (stat) {
+    const body = (stat[3] || '').trim();
+    const { counts, busLoad } = parseStatisticBody(body);
+    return {
+      timestamp: parseFloat(stat[1]),
+      channel: stat[2] !== undefined ? parseInt(stat[2], 10) : 1,
+      kind: 'statistic',
+      counts,
+      errorCount: counts.errorCount,
+      overloadCount: counts.overloadCount,
+      busLoad,
+      text: body || 'Statistic'
+    };
+  }
+
   const err = t.match(ERROR_FRAME_RE);
   if (err) {
     const isOverload = /^overload/i.test(err[3]);
     const rest = (err[4] || '').trim();
-    return {
+    const fields = parseErrorFields(rest);
+    const ev = {
       timestamp: parseFloat(err[1]),
       channel: err[2] !== undefined ? parseInt(err[2], 10) : 1,
       kind: 'error-frame',
-      category: classifyErrorCategory(rest, isOverload),
+      category: classifyErrorCategory(rest, isOverload, fields),
       text: rest || err[3]
     };
+    // Detail fields are optional: only surface what the row actually carried.
+    for (const key of ['flags', 'code', 'codeExt', 'id', 'dlc', 'position', 'length']) {
+      if (fields[key] !== undefined) ev[key] = fields[key];
+    }
+    return ev;
   }
 
   const st = t.match(BUS_STATE_RE);
   if (st) {
     const token = st[3].toLowerCase();
     const state = /passive/.test(token) ? 'error-passive'
-      : (/off/.test(token) ? 'bus-off' : 'error-active');
+      : (/off/.test(token) ? 'bus-off'
+        : (/warn/.test(token) ? 'warning' : 'error-active'));
     return {
       timestamp: parseFloat(st[1]),
       channel: st[2] !== undefined ? parseInt(st[2], 10) : 1,
@@ -262,7 +379,12 @@ module.exports = {
   isNonDataLine,
   parseASCDataLine,
   parseASCErrorLine,
+  isErrorEventCandidate,
   classifyErrorCategory,
+  classifyErrorFields,
+  parseErrorFields,
+  parseStatisticBody,
+  decodeVectorErrorCode,
   generateASC,
   dlc2len,
   len2dlc

@@ -29,6 +29,7 @@ const KIND_LABELS = {
   form: '格式错误',
   ack: '应答错误',
   crc: 'CRC 错误',
+  bit: '位错误',
   bit1: '位错误(显性)',
   bit0: '位错误(隐性)',
   overload: '过载帧',
@@ -37,12 +38,14 @@ const KIND_LABELS = {
 
 const STATE_LABELS = {
   'error-active': 'Error Active',
+  warning: 'Warning Level',
   'error-passive': 'Error Passive',
   'bus-off': 'Bus Off'
 };
 
 const STATE_COLORS = {
   'error-active': 'var(--ok-green)',
+  warning: 'var(--warn-gold)',
   'error-passive': 'var(--warn-gold)',
   'bus-off': 'var(--danger-red)'
 };
@@ -301,6 +304,8 @@ function StatsPanel({
 
   const errorTotal = errors?.total || 0;
   const busOff = errors?.busOffCount || 0;
+  // #21: counters the log itself declares in its "Statistic:" rows (Vector).
+  const declared = errors?.declared || null;
 
   return (
     <div
@@ -336,6 +341,19 @@ function StatsPanel({
           <span>报文总数 <b style={{ color: 'var(--brand)' }}>{stats.totalFrames || 0}</b></span>
           <span>时长 <Text style={{ fontSize: 12 }}>{fmtTime(load?.duration)}</Text></span>
           <span>采样间隔 <Text style={{ fontSize: 12 }}>{load?.interval || 1}s</Text></span>
+          {declared && declared.busLoadAvg != null && (
+            <Tooltip title="日志 Statistic 行自带 BusLoad，可与本机按比特率估算的平均负载交叉校验（估算不含位填充与帧间隔，存在微小差异属正常）">
+              <span>
+                日志自带 BusLoad{' '}
+                <b data-testid={`${testId}-declared-busload`} style={{ color: 'var(--text-accent)' }}>
+                  {fmtPct(declared.busLoadAvg)}
+                </b>
+                {declared.busLoadPeak != null && declared.busLoadPeak !== declared.busLoadAvg && (
+                  <Text type="secondary" style={{ fontSize: 11 }}> （峰值 {fmtPct(declared.busLoadPeak)}）</Text>
+                )}
+              </span>
+            </Tooltip>
+          )}
         </div>
         <LoadChart
           points={load?.points || []}
@@ -403,10 +421,31 @@ function StatsPanel({
               {KIND_LABELS[k.kind] || k.kind}: {k.count}
             </Tag>
           ))}
-          {errorTotal === 0 && busOff === 0 && (
+          {errorTotal === 0 && busOff === 0 && !declared && (
             <Text type="secondary" style={{ fontSize: 11 }}>当前日志未记录错误帧</Text>
           )}
+          {/* #21: log-declared counters (Vector Statistic rows) */}
+          {declared && (
+            <Tooltip title={`日志 Statistic 行声明的累计计数（共 ${declared.rows} 行）`}>
+              <Tag
+                color="gold"
+                style={{ fontSize: 11 }}
+                data-testid={`${testId}-declared`}
+              >
+                日志声明: 错误帧 {declared.errorCount} / 过载帧 {declared.overloadCount}
+              </Tag>
+            </Tooltip>
+          )}
         </div>
+        {declared && declared.diff !== 0 && (
+          <Text
+            type="warning"
+            style={{ fontSize: 11, display: 'block', marginBottom: 6 }}
+            data-testid={`${testId}-declared-diff`}
+          >
+            错误计数以日志声明为准（日志声明 {declared.errorCount} 条，逐行解析到 {errorTotal} 条）
+          </Text>
+        )}
 
         {/* 状态时间线：Error Active / Passive / Bus Off 标记 */}
         <div
