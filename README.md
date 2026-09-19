@@ -237,7 +237,7 @@ npm test
 
 - `electron/__tests__/`：ASC / BLF 解析与生成、DBC 解析（BA_ 属性 / 扩展帧标志位 / mux / SIG_VALTYPE_ 浮点）、信号解码（含 CAN FD 64 字节丰富场景）、Motorola 位序回归矩阵（start≡7 专项 + 生成 ≥60 布局交叉验证，锯齿语义）、解析容错（坏行/坏块跳过并报告）、R2 分块与一次性解码双路径收敛（随机 20000 帧 × 4 种 chunk 尺寸，位级一致）
 - `src/components/__tests__/`：DBC 面板（搜索/清空/滚动、周期/Ext/mux 徽标）、信号表格（浮点 6 位有效数字）、曲线图、布局视图、报文表（扩展帧匹配）、使用手册弹窗、解析错误报告 UI、工程保存/恢复与最近文件（R5）、CSV 导出（R7）、全局搜索（R11）、总线统计面板（R12，含 Vector 统计行与 ErrorFrame 编码位）、诊断日志与错误上报（R14）
-- 全量 **324/324** 通过（23 个测试文件）；另有 `TestExample/*/generate.js` 样例自校验与 `compare.js`（cantools 对拍，见下节）
+- 全量 **329/329** 通过（24 个测试文件）；另有 `TestExample/*/generate.js` 样例自校验与 `compare.js`（cantools 对拍，见下节）
 
 ### cantools 对拍（验收基线）
 

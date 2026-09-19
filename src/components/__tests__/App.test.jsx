@@ -6,6 +6,10 @@ import { render, fireEvent, screen, act, waitFor } from '@testing-library/react'
 // on the message methods instead, so toasts never render and we assert on the
 // call args (which is what the wiring tests actually care about).
 import { message } from 'antd';
+// #23: the version under test must come from package.json — the single source
+// for `app.getVersion()`. A literal here would keep the assertion green while
+// the real product drifts (exactly the failure mode PM flagged in #23).
+import pkg from '../../../package.json';
 import App from '../../App';
 
 // Mock the electronAPI surface that App.jsx actually subscribes to at mount.
@@ -61,7 +65,7 @@ const mockElectronAPI = {
   getDiagnosticInfo: vi.fn().mockResolvedValue({
     success: true,
     info: {
-      version: '2.2.0',
+      version: pkg.version,
       platform: 'win32',
       arch: 'x64',
       electron: '31.0.0',
@@ -613,7 +617,8 @@ describe('R14 diagnostics wiring', () => {
     expect(writeText).toHaveBeenCalledTimes(1);
     const text = writeText.mock.calls[0][0];
     expect(text).toContain('CAN Log Analyzer Pro 诊断信息');
-    expect(text).toContain('应用版本: v2.2.0');
+    // #23: assert against package.json, never a literal.
+    expect(text).toContain(`应用版本: v${pkg.version}`);
     expect(text).toContain('日志保留: 7 天');
     expect(text).toContain('日志源: with-errors.asc（1 帧）');
     expect(text).toContain('解析错误: 2 条');
