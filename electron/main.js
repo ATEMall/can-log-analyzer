@@ -430,6 +430,10 @@ function buildApplicationMenu() {
         click: () => sendMenuAction('file:open-blf')
       },
       {
+        label: 'Open candump (.cap)…',
+        click: () => sendMenuAction('file:open-cap')
+      },
+      {
         label: 'Load DBC…',
         accelerator: 'CmdOrCtrl+D',
         click: () => sendMenuAction('file:load-dbc')
@@ -1122,6 +1126,25 @@ async function loadASCFile(filePath, selectedIds) {
   });
 }
 
+// ==================== candump (.cap) Handler (v4.0 / B1) ====================
+// PLAN-v4.0 §四 坑1 方案①：candump 文本作为与 ASC/BLF 并列的第三日志源，
+// 复用 R2 分块管道。candump 无方向/通道语义，统一标 channel:1 / direction:'Rx'。
+// 解析逻辑全部在 electron/cap.js（parseCandump），此处仅桥接文件读取与返回结构。
+
+const { parseCandump } = require('./cap');
+
+async function loadCandumpFile(filePath, selectedIds) {
+  const fs = require('fs');
+  const text = await fs.promises.readFile(filePath, { encoding: 'utf8' });
+  const result = parseCandump(text);
+  const idSet = new Set(selectedIds || []);
+  // 与 ASC 加载一致：支持按 ID 过滤。
+  if (idSet.size > 0) {
+    result.messages = result.messages.filter((m) => idSet.has(m.id));
+  }
+  return result;
+}
+
 // ==================== BLF Handler (using python-can via subprocess) ====================
 
 // #9 (v2.1.1): BLF parse timeout is adaptive to the source file size and
@@ -1501,6 +1524,32 @@ ipcMain.handle('file:loadBLF', async (event, filePath, selectedIds) => {
     };
   } catch (error) {
     logDiag('error', 'log.load-failed', { kind: 'blf', file: path.basename(filePath || ''), error: error.message });
+    return { success: false, error: error.message };
+  }
+});
+
+// v4.0 / B1: candump (.cap) 加载入口，与 ASC/BLF 并列的第三日志源。
+ipcMain.handle('file:loadCandump', async (event, filePath, selectedIds) => {
+  try {
+    const idSet = new Set(selectedIds || []);
+    const result = await loadCandumpFile(filePath, idSet);
+    storeMessages(filePath, result.messages);
+    addRecent('log', filePath); // R6
+    logDiag('info', 'log.load', {
+      kind: 'candump',
+      file: path.basename(filePath || ''),
+      frames: result.messages.length,
+      parseErrors: result.parseErrorCount || 0,
+      errorFrames: (result.errorFrames || []).length
+    });
+    return {
+      success: true, ...result,
+      parseErrors: result.parseErrors || [],
+      parseErrorCount: result.parseErrorCount || 0,
+      totalCount: result.messages.length
+    };
+  } catch (error) {
+    logDiag('error', 'log.load-failed', { kind: 'candump', file: path.basename(filePath || ''), error: error.message });
     return { success: false, error: error.message };
   }
 });

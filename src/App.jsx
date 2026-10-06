@@ -477,10 +477,12 @@ function App() {
     setLoading(true);
     setProgress(10);
     try {
-      message.info(type === 'blf' ? '正在加载 BLF 文件...' : '正在加载 ASC 文件...');
+      message.info(type === 'blf' ? '正在加载 BLF 文件...' : type === 'cap' ? '正在加载 candump 文件...' : '正在加载 ASC 文件...');
       const result = type === 'blf'
         ? await window.electronAPI.loadBLF(filePath, [])
-        : await window.electronAPI.loadASC(filePath, []);
+        : type === 'cap'
+          ? await window.electronAPI.loadCandump(filePath, [])
+          : await window.electronAPI.loadASC(filePath, []);
       setProgress(type === 'blf' ? 60 : 50);
 
       if (result.success) {
@@ -489,6 +491,7 @@ function App() {
           setBlfFile({ path: filePath, stats });
           setAscFile(null);
         } else {
+          // ASC 与 candump 共用报文表；candump 帧以 source:'candump' 标记。
           setAscFile({ path: filePath, stats });
           setBlfFile(null);
         }
@@ -499,9 +502,8 @@ function App() {
         // R12: error frames / bus-state events reported by the parser.
         setErrorFrames(result.errorFrames || []);
         if ((result.parseErrorCount || 0) > 0) {
-          message.warning(type === 'blf'
-            ? `加载完成：${result.totalCount} 条消息，${result.parseErrorCount} 个损坏对象块已跳过`
-            : `加载完成：${result.totalCount} 条消息，${result.parseErrorCount} 行解析错误已跳过`);
+          const unit = type === 'blf' ? '个损坏对象块已跳过' : '行解析错误已跳过';
+          message.warning(`加载完成：${result.totalCount} 条消息，${result.parseErrorCount} ${unit}`);
         } else {
           message.success(`加载成功，共 ${result.totalCount} 条消息`);
         }
@@ -557,6 +559,15 @@ function App() {
     ]);
     if (!filePath) return;
     await loadLogByPath(filePath, 'blf');
+  }, [loadLogByPath]);
+
+  // ======= candump (.cap) Load (v4.0 / B1) =======
+  const handleLoadCandump = useCallback(async () => {
+    const filePath = await window.electronAPI.openFile([
+      { name: 'candump Files', extensions: ['cap'] }
+    ]);
+    if (!filePath) return;
+    await loadLogByPath(filePath, 'cap');
   }, [loadLogByPath]);
 
   // ======= DBC Load =======
@@ -1084,12 +1095,16 @@ function App() {
           break;
         case 'file:open-asc': handleLoadASC(); break;
         case 'file:open-blf': handleLoadBLF(); break;
+        case 'file:open-cap': handleLoadCandump(); break;
         case 'file:load-dbc': handleLoadDBC(); break;
         case 'file:export-asc': handleExportASC(); break;
         case 'file:open-project': handleOpenProject(); break;
         case 'file:save-project': handleSaveProject(); break;
         case 'file:open-recent-log':
-          if (payload) loadLogByPath(payload, String(payload).toLowerCase().endsWith('.blf') ? 'blf' : 'asc');
+          if (payload) {
+            const lp = String(payload).toLowerCase();
+            loadLogByPath(payload, lp.endsWith('.blf') ? 'blf' : lp.endsWith('.cap') ? 'cap' : 'asc');
+          }
           break;
         case 'file:open-recent-dbc':
           if (payload) loadDBCByPath(payload);
@@ -1103,7 +1118,7 @@ function App() {
     return () => { if (typeof off === 'function') off(); };
   }, [ascFile, blfFile, dbcMessages.length, loadedMessages.length, csvData,
       handleClearAll, handleConvertASCtoBLF, handleLoadCSV, handleLoadASC,
-      handleLoadBLF, handleLoadDBC, handleExportASC, handleOpenProject,
+      handleLoadBLF, handleLoadCandump, handleLoadDBC, handleExportASC, handleOpenProject,
       handleSaveProject, loadLogByPath, loadDBCByPath, openProjectFile]);
 
   // R5: .claproj open requested by the OS — double-click on a project file,

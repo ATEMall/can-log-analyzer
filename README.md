@@ -7,6 +7,8 @@
 ![logo](public/logo.png)
 
 > 当前版本 **2.2.0**（2026-09-19 发布，tag `v2.2.0`）；版本更新记录见 [CHANGELOG.md](CHANGELOG.md)。v2.2「体验与健壮」带来深色模式、可折叠布局、全局搜索与时间轴总览、总线负载与错误帧统计、错误上报与诊断日志、多 Y 轴曲线。
+>
+> **路线图**：v3.0 LIN ｜ **v4.0 高层协议（开发中）UDS 诊断 + A2L 标定量 + XCP DAQ** ｜ v5.0 车载以太网（PCAP/SOME/IP/DoIP）。v4.0 立项与排期见 Issue [#26](https://github.com/ATEMall/can-log-analyzer/issues/26)，计划见 [docs/PLAN-v4.0.md](docs/PLAN-v4.0.md)。
 
 ---
 
@@ -32,6 +34,11 @@
 - **最近文件 + 偏好持久化**：log / dbc / project 三类最近文件（上限 10 条）；窗口与界面偏好自动落盘 `settings.json`，重启自动恢复；双击 `.claproj` 直接打开
 - **物理量 CSV → ASC**：按 DBC factor/offset 反算原始字节打包 CAN 帧，支持 CRC8/CRC16 系列校验自动填充（或保留 CSV 原始值）
 - **内置操作手册**：应用右上角「使用手册」按钮随时查阅
+- **🚧 开发中：v4.0 高层协议**（**当前 2.2.0 版本尚未包含**，随 v4.0 发版启用；跟踪 [Issue #26](https://github.com/ATEMall/can-log-analyzer/issues/26)）
+  - **UDS 诊断解析**：ISO 15765-2（ISO-TP）单帧/首帧/连续帧/流控帧重组；SID 语义化——0x10 会话控制、0x19 DTC、0x22 读 DID、0x27 安全访问、0x2E 写 DID、0x11 ECU 复位；DID 与 DTC（3 字节组 + 故障类型）解析；负响应 0x7f + NRC 单独归类；请求/响应按 ECU 地址（如 `0x7e0` ↔ `0x7e8`）配对视图，支持按 ECU 过滤
+  - **A2L 标定量解析（ASAP2 / ASAM MCD-2）**：MEASUREMENT / CHARACTERISTIC 标定量、COMPU_METHOD 物理值换算（`LINEAR` / `TABLPARM` / `RATIOFUNC` / `TEXTTABLE`）、轴参数（AXIS_PARM / AXIS_DESCR）；支持嵌套 `INCLUDE`、文件 fragment 拼接与未知 BLOCK 容错跳过
+  - **XCP 标定（DAQ 解包）**：A2L 关联 + Event/ODT/DAQ 列表解包 + 标定量曲线（XCP over CAN 优先）
+  - **交付节奏**：UDS 自 2026-10-18 起分批交付，A2L 10-25，XCP 11-08，v4.0 整合发版 11-15（[docs/PLAN-v4.0.md](docs/PLAN-v4.0.md)）
 
 ---
 
@@ -178,6 +185,15 @@ npm run electron:build
 
 ---
 
+## 高层协议（v4.0）：UDS 诊断与 candump 日志
+
+> 4.0 批次逐步引入高层协议解析。当前（B1）已支持：candump 文本日志作为第三日志源、ISO-TP 多帧重组、UDS 服务语义解析。
+
+- **加载 candump 日志**：菜单 `File → Open candump (.cap)…` 选择 `*.cap` 文件（Linux `candump` 文本）。解析为与 ASC/BLF 同构的报文（统一 `channel:1` / `direction:'Rx'`，时间归一化为相对会话起始秒），可直接在报文表查看。
+- **ISO-TP 重组**：对 `0x7e0/0x7e8`（UDS）等帧按 ISO 15765-2 重组单帧 / 首帧 + 连续帧；连续帧间隔 >1s 视为重组中断并记入容错，不静默丢弃。
+- **UDS 服务解析**：识别 `0x10` 会话控制、`0x11` ECU 复位、`0x19` DTC（3 字节组 + 故障类型 + 状态）、`0x22` 读 DID、`0x27` 安全访问（seed/key）、`0x2E` 写 DID 等；正响应（`SID+0x40`）与负响应（`0x7f` + NRC）单独归类。
+- **样例**：`TestExample/roadmap_v3x/uds_xcp/`（BMW MSD80 真实抓包 `uds_msd80_msd80_capture.fail*.cap`、ASAP2 A2L 等），可直接体验 UDS 重组与解析。
+
 ## 示例数据
 
 `TestExample/` 目录包含可直接用于体验的样例：
@@ -186,6 +202,7 @@ npm run electron:build
 |---|---|
 | `canfd_rich/` | **CAN FD 丰富场景**：`vehicle_canfd.asc` + `vehicle_canfd.blf`（30 帧，15 帧 64 字节 VCU 报文 + 15 帧 32 字节 BMS 报文）、`vehicle_canfd.dbc`（2 条消息 64 个信号，信号覆盖 B0–B63）、`generate.js`（数据生成脚本） |
 | `error_frames/` | **错误帧 / 总线状态样例**：`error_frames.asc`（100 数据帧 + 7 × `ErrorFrame Flags/Code` 编码位 + 文本 ErrorFrame + 过载帧 + `Status:chip status` 状态迁移 + `Bus Off` + 2 条 `Statistic:` 统计行）、`generate.js`（确定性生成，重复运行产出一致） |
+| `roadmap_v3x/` | **路线图测试素材**：`uds_xcp/`（4 个 ASAP2 A2L + 3 个 BMW MSD80 真实 UDS/ISO-TP 抓包）、`lin/`（12 个 LDF）、`ethernet/`（6 个 pcap/pcapng，SOME/IP + DoIP），供 v3.0～v5.0 解析器开发验证；详见 [`TestExample/roadmap_v3x/README.md`](TestExample/roadmap_v3x/README.md) |
 | 其他目录 | 普通 CAN 的 ASC / BLF / DBC 样例 |
 
 > `canfd_rich/generate.js` 演示了如何调用 `electron/asc.js`、`electron/blf.js`、`electron/dbc.js` 生成日志并解码验证，可作为二次开发参考。

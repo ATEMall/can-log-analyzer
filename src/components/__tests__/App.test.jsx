@@ -30,6 +30,7 @@ const mockElectronAPI = {
   loadDBC: vi.fn().mockResolvedValue({ success: false }),
   loadASC: vi.fn().mockResolvedValue({ success: false }),
   loadBLF: vi.fn().mockResolvedValue({ success: false }),
+  loadCandump: vi.fn().mockResolvedValue({ success: false }),
   exportASC: vi.fn().mockResolvedValue({ success: false }),
   convertASCtoBLF: vi.fn().mockResolvedValue({ success: false }),
   getStats: vi.fn().mockResolvedValue(null),
