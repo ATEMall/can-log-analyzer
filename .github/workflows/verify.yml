@@ -38,5 +38,5 @@ jobs:
           pip install -r requirements.txt
           python -c "import cantools; print('cantools', cantools.__version__)"
       - run: npm ci
-      - name: Cross-check (strict: a missing environment fails the build)
+      - name: "Cross-check (strict: a missing environment fails the build)"
         run: npm run compare -- --strict

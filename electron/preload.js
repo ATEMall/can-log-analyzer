@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadDBC: (filePath) => ipcRenderer.invoke('file:loadDBC', filePath),
   loadASC: (filePath, selectedIds) => ipcRenderer.invoke('file:loadASC', filePath, selectedIds),
   loadBLF: (filePath, selectedIds) => ipcRenderer.invoke('file:loadBLF', filePath, selectedIds),
+  // v4.0 / B1: candump (.cap) 作为第三日志源
+  loadCandump: (filePath, selectedIds) => ipcRenderer.invoke('file:loadCandump', filePath, selectedIds),
   exportASC: (filePath, headerLines, messages) => ipcRenderer.invoke('file:exportASC', filePath, headerLines, messages),
   convertASCtoBLF: (filePath, messages) => ipcRenderer.invoke('file:convertASCtoBLF', filePath, messages),
   exportLogCSV: (filePath, messages, nameMap) => ipcRenderer.invoke('file:exportLogCSV', filePath, messages, nameMap),

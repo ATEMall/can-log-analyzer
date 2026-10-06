@@ -2,6 +2,42 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-10-04（v4.0 B1：UDS 诊断解析 + candump 日志源）
+
+> v4.0 第一交付批次（PLAN-v4.0 批次 B1，最高优先级）。依据 `docs/PLAN-v4.0.md`，详见 Issue #26；#25（CI 门禁）先于本批次修复。
+
+### 修复
+
+- **CI 门禁从未生效（#25）**：`.github/workflows/verify.yml` 的对拍 step name 含 `: ` 但未加引号（`- name: Cross-check (strict: ...)`），YAML 解析失败 → 9 次触发全部 `startup_failure`，**单测 + 严格模式对拍从未真正跑过**。已为 step name 加双引号，workflow 可被解析（PLAN §八 风险 4 要求 B1 开工前先修）。
+
+### 新增
+
+- **candump 第三日志源（PLAN §四 坑1 方案①）**：新增 `electron/cap.js`，解析 Linux `candump` 文本（`epoch 秒 + 0xCAN ID + 数据 HEX`）为与 ASC/BLF 同构的消息结构，复用 R2 分块管道；时间归一化为相对会话起始秒，KWP2000 帧（`0x6f1`/`0x612`）计入容错统计而非丢弃。
+  - 主进程 `loadCandumpFile` + `file:loadCandump` IPC，preload 暴露 `loadCandump`；渲染进程 `loadLogByPath` 支持 `.cap`、文件菜单新增「Open candump (.cap)…」
+- **ISO-TP 重组（B1-T1 / PLAN §三 T1）**：新增 `electron/isotp.js`，按 ISO 15765-2 重组单帧（SF）/首帧（FF）+ 连续帧（CF，序号回绕）/流控帧（FC）；连续帧间隔 >1s 判重组中断并入 `incomplete` 列表（禁止静默丢弃），重组结果带 CAN ID / 时间 / 总长度 / 耗时元数据；走主进程、渲染进程不持有逐帧数据。
+- **UDS 服务解析（B1-T2 / PLAN §三 T2）**：新增 `electron/uds.js`，识别 0x10 会话控制 / 0x11 ECU 复位 / 0x19 DTC（3 字节组 + 故障类型 + status）/ 0x22 读 DID / 0x27 安全访问（seed/key）/ 0x2E 写 DID / 0x3E / 0x85；正响应 SID+0x40 与负响应 0x7f + NRC 单独归类；KWP2000 不解析（计入容错）。
+
+### 测试
+
+- 新增 `electron/__tests__/cap.test.js`（5 例：三列解析、相对时间、无空格 HEX、空行/注释/坏行容错、空数据）
+- 新增 `electron/__tests__/isotp.test.js`（9 例：SF / FF+CF / 137B 长响应 / 序号回绕 / 序号不匹配 / >1s 超时中断 / FC 忽略 / 按 ID 独立 / EOF 未完成）
+- 新增 `electron/__tests__/uds.test.js`（11 例：SID 识别、0x10/0x11/0x27/0x2E/0x22、0x19 DTC 3+1 结构、0x7f NRC、正响应 SID+0x40、批量跳过非 UDS）
+- 新增 `electron/__tests__/capUdsIntegration.test.js`（4 例）：BMW MSD80 真实抓包 `TestExample/roadmap_v3x/uds_xcp/*.cap` 三样本全解析、真实数据上 ISO-TP 产出 137B 长响应（验收① 必过项）、UDS 服务可识别、KWP2000 帧计入容错
+- 全量回归 **358/358** 通过（28 文件），较 v2.2.0 基线 329/329 净增 29 例、**0 回退**；`npm test` exit 0、`vite build` 通过
+- `vitest.config.js` 限制 fork 并发（`poolOptions.forks.maxForks: 4`）：测试文件增至 28 个后按核数全量并行会触发 `Zone Allocation failed - process out of memory`，限流后本机与 CI 均稳定
+
+## [Unreleased]
+
+> **v4.0「高层协议」开发中（尚未发版，当前稳定版仍为 2.2.0）**。立项 Issue [#26](https://github.com/ATEMall/can-log-analyzer/issues/26)，详细计划见 [`docs/PLAN-v4.0.md`](docs/PLAN-v4.0.md)。
+
+### 开发中（v4.0）
+
+- **UDS 诊断解析（PRD FR-DECODE-002/003/004，P0/P1）**：ISO 15765-2 ISO-TP 单帧/首帧/连续帧/流控帧重组；SID 语义化（0x10 会话控制、0x19 DTC、0x22 读 DID、0x27 安全访问、0x2E 写 DID、0x11 ECU 复位）；DID 与 DTC 解析；负响应 0x7f + NRC 归类；请求/响应按 ECU 地址配对视图
+- **A2L 标定量解析（FR-DB-007，P0）**：ASAP2 / ASAM MCD-2 —— MEASUREMENT / CHARACTERISTIC、COMPU_METHOD 换算、轴参数；支持嵌套 INCLUDE、fragment 拼接、未知 BLOCK 容错
+- **XCP 标定 DAQ 解包（FR-DECODE-005，P1）**：A2L 关联 + Event/ODT/DAQ 解包 + 标定量曲线
+
+**交付节奏**：UDS 2026-10-18 → A2L 10-25 → XCP 11-08 → v4.0 整合发版 11-15。上述能力在对应批次交付并经 PM 验收后，会分别写入正式发版章节。
+
 ## [2.2.0] - 2026-09-19
 
 > v2.2「体验与健壮」正式发布（目标 tag `v2.2.0`）。范围：R9–R14 六项需求 + PM 复核返工（#19 / #21）+ 验收工具链与发版收口（#22 / #23）+ 前置 Issue #8–#12 批次。
