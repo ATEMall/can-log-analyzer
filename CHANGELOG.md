@@ -2,7 +2,7 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased] - 2026-10-04（v4.0 B1：UDS 诊断解析 + candump 日志源）
+## [Unreleased] - 2026-10-06（v4.0：版本号 4.0.0 + UDS 对拍 + B2 A2L + B3 XCP）
 
 > v4.0 第一交付批次（PLAN-v4.0 批次 B1，最高优先级）。依据 `docs/PLAN-v4.0.md`，详见 Issue #26；#25（CI 门禁）先于本批次修复。
 
@@ -37,6 +37,31 @@
 - **XCP 标定 DAQ 解包（FR-DECODE-005，P1）**：A2L 关联 + Event/ODT/DAQ 解包 + 标定量曲线
 
 **交付节奏**：UDS 2026-10-18 → A2L 10-25 → XCP 11-08 → v4.0 整合发版 11-15。上述能力在对应批次交付并经 PM 验收后，会分别写入正式发版章节。
+
+### 版本号（用户 2026-10-06 确认）
+
+- `package.json` version `2.2.0` → **`4.0.0`**（PLAN §九 确认后由开发侧改动；版本链路仍为单一来源 `package.json` → `app.getVersion()` → About / 诊断信息 / 打包产物）。
+
+### 对拍基线（验收③ / 长期挂起的 cantools 项）
+
+- **cantools 对拍首次在本机真实跑通**：安装 Python 3.11.9 + `cantools==43.0.2`（`requirements.txt`），`npm run compare` → **12/12 + 23/23，0 不一致，exit 0**。此前因本机无 Python，该项一直只能给出「skip / FATAL」证据，需 PM 代验。
+- **UDS 对拍新增**（B1 验收③）：`npm run compare:uds`（`scripts/udsCrossCheck.js` + `scripts/uds_crosscheck.py`）。左侧为 `cap.js`/`isotp.js`/`uds.js`，右侧为**独立实现的 Python 复核脚本**，服务名取自第三方库 **udsoncan** 的服务注册表（`request_id`/`response_id`），不手写 SID 表。实测 **242/242 帧、0 不一致**（远超 ≥50 帧要求）；支持 `PYTHON` 环境变量定位解释器，缺 Python/udsoncan 时按 #22 策略显式提示（严格模式失败而非静默跳过）。
+
+### B2：A2L 解析 + PCAN .trc 日志源
+
+- 新增 `electron/a2l.js`：A2L（ASAP2）解析器——`MEASUREMENT` / `CHARACTERISTIC` / `COMPU_METHOD` 抽取、`IF_DATA` 中 ECU 地址（CANAPE_EXT / ETK_XETK 等统一取 `100` 后的数值）、XCP `DAQ_LIST_CAN_ID`（自动去掉 29 位扩展 ID 的 `0x40000000` 标志）、`/include` 路径收集（字段级关键字，在 token 流中扫描）、未识别 BLOCK 计数跳过、`/begin`–`/end` 不配对记录结构错误；修正 `/end <NAME>` 闭合标签残留导致字段错位的问题。实测 16.6MB / 29648 测量量 A2L 解析 **≈0.5s、0 结构错误**。
+- 新增 `electron/trc.js`：PCAN-View `.trc`（CAN / CAN FD）解析器，与 ASC/candump 同构；64 字节 FD 帧、时间 ms→s 归一、状态行 `ST` 单独统计不计为损坏行。
+
+### B3：XCP 帧解码
+
+- 新增 `electron/xcp.js`：CTO 命令解码（含 `SET_DAQ_PTR` / `WRITE_DAQ` / `ALLOC_*` / `START_STOP_DAQ_LIST`，未知命令码显式标出 `UNKNOWN_0xNN`）、响应包 RES/ERR/EV/SERV 识别、从 CTO 流重建 DAQ 配置、`resolvePid` 把 PID 解成 (DAQ list, ODT)、`decodeDaq` 按 ODT entry 布局拆出原始值（未知 PID 计入容错而非静默丢弃）。
+- 集成验证（用户提供的 EIS 样例：PCAN `.trc` + 16.6MB A2L）：93k 帧 0 解析错误；CTO `0x7A0` / 响应 `0x7A1` / DAQ `0x7A4`+`0x7A5`；**trace 的 DAQ CAN ID 与 A2L `DAQ_LIST_CAN_ID` 一致**（两个文件交叉验证）。
+- 已知边界：该样例的 ODT entry 地址由主机运行时写入（trace 内无 `WRITE_DAQ`），故当前仅验证到 PID 提取；ODT entry→信号量取值的完整链路待补齐配置后闭环。
+
+### 测试（本轮净增 26 例）
+
+- `trc.test.js` 5 例、`a2l.test.js` 8 例、`xcp.test.js` 7 例、`xcpEisIntegration.test.js` 6 例（真实素材；素材缺失时**显式跳过并提示**，不静默通过）
+- 全量回归 **384/384（32 文件）**，较 358/358 净增 26 例、**0 回退**；`npm test` exit 0
 
 ## [2.2.0] - 2026-09-19
 

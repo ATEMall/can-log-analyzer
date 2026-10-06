@@ -1,6 +1,6 @@
 {
     "name": "can-log-analyzer-pro",
-    "version": "2.2.0",
+    "version": "4.0.0",
     "description": "CAN Log File Analyzer Pro - Load ASC/BLF files, decode signals with DBC, view signal bit layouts",
     "main": "electron/main.js",
     "scripts": {
@@ -11,7 +11,9 @@
         "electron:build": "vite build && electron-builder",
         "test": "vitest run",
         "compare": "node scripts/compare-all.js",
-        "compare:strict": "node scripts/compare-all.js --strict"
+        "compare:strict": "node scripts/compare-all.js --strict",
+        "compare:uds": "node scripts/udsCrossCheck.js",
+        "compare:uds:strict": "node scripts/udsCrossCheck.js --strict"
     },
     "dependencies": {
         "@ant-design/icons": "^5.2.6",

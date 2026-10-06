@@ -6,7 +6,8 @@
 
 ![logo](public/logo.png)
 
-> 当前版本 **2.2.0**（2026-09-19 发布，tag `v2.2.0`）；版本更新记录见 [CHANGELOG.md](CHANGELOG.md)。v2.2「体验与健壮」带来深色模式、可折叠布局、全局搜索与时间轴总览、总线负载与错误帧统计、错误上报与诊断日志、多 Y 轴曲线。
+> 当前版本 **4.0.0**（v4.0 开发中；v2.2.0 为 2026-09-19 发布的上一稳定版，tag `v2.2.0`）；版本更新记录见 [CHANGELOG.md](CHANGELOG.md)。
+> v4.0 主线：UDS 诊断解析（candump 日志源 + ISO-TP 重组 + UDS 服务）、A2L 解析、XCP 测量与标定。详见 `docs/PLAN-v4.0.md`。
 >
 > **路线图**：v3.0 LIN ｜ **v4.0 高层协议（开发中）UDS 诊断 + A2L 标定量 + XCP DAQ** ｜ v5.0 车载以太网（PCAP/SOME/IP/DoIP）。v4.0 立项与排期见 Issue [#26](https://github.com/ATEMall/can-log-analyzer/issues/26)，计划见 [docs/PLAN-v4.0.md](docs/PLAN-v4.0.md)。
 
@@ -193,6 +194,15 @@ npm run electron:build
 - **ISO-TP 重组**：对 `0x7e0/0x7e8`（UDS）等帧按 ISO 15765-2 重组单帧 / 首帧 + 连续帧；连续帧间隔 >1s 视为重组中断并记入容错，不静默丢弃。
 - **UDS 服务解析**：识别 `0x10` 会话控制、`0x11` ECU 复位、`0x19` DTC（3 字节组 + 故障类型 + 状态）、`0x22` 读 DID、`0x27` 安全访问（seed/key）、`0x2E` 写 DID 等；正响应（`SID+0x40`）与负响应（`0x7f` + NRC）单独归类。
 - **样例**：`TestExample/roadmap_v3x/uds_xcp/`（BMW MSD80 真实抓包 `uds_msd80_msd80_capture.fail*.cap`、ASAP2 A2L 等），可直接体验 UDS 重组与解析。
+
+### A2L 与 XCP（4.0 B2 / B3）
+
+- **A2L（ASAP2）解析**：解析 `MEASUREMENT` / `CHARACTERISTIC` / `COMPU_METHOD` 与 XCP 的 `DAQ_LIST_CAN_ID`（自动去掉 29 位扩展 ID 的 `0x40000000` 标志）；未识别 BLOCK 计数跳过而非静默丢弃；`/begin`–`/end` 不配对会记录结构错误。实测 16.6MB / 29648 测量量的 A2L 解析约 **0.5s**。
+- **PCAN `.trc` 日志源**：支持 PCAN-View 导出的 CAN / CAN FD trace（`N,O,T,I,d,l,D` 列，64 字节 FD 帧），状态行 `ST` 单独统计、不计为损坏行。
+- **XCP**：区分 CTO（命令）/ 响应（RES/ERR/EV/SERV）/ DTO（DAQ，首字节 PID）；从 CTO 流重建 DAQ 配置（ALLOC_DAQ / ALLOC_ODT / ALLOC_ODT_ENTRY / SET_DAQ_PTR / WRITE_DAQ / START_STOP_DAQ_LIST），再把 DTO 的 PID 解成 (DAQ list, ODT) 并拆出各 ODT entry 的原始值。
+- **对拍基线**：UDS 侧 `npm run compare:uds`（需 Python + udsoncan）与独立 Python 复核脚本逐帧对比，当前 **242/242 帧 0 不一致**。
+
+> XCP 素材（`.a2l` + CAN trace）默认读取 `XCP_EIS_DIR` 环境变量指向的目录；实测样例为 PCAN `.trc` + 16.6MB A2L，`0x7A0` 为 CTO、`0x7A1` 为响应、`0x7A4`/`0x7A5` 为 DAQ（与 A2L 的 `DAQ_LIST_CAN_ID` 一致）。素材缺失时集成测试会**显式跳过并提示**（未执行即未验证）。
 
 ## 示例数据
 
