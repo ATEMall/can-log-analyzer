@@ -1,0 +1,14 @@
+/* 三层嵌套 /include 测试夹具（自主编写，无第三方许可约束）。
+ * 结构：root.a2l → level2/level2.a2l → level3/level3.a2l
+ * 展开后 MEASUREMENT 总数应为 1 + 2 + 3 = 6。 */
+ASAP2_VERSION 1 71
+/begin PROJECT NESTED_ROOT "Level 1 root project"
+  /begin HEADER "Nested include fixture" VERSION "V1.0" PROJECT_NO NESTED_ROOT
+  /end HEADER
+  /begin MODULE root_module "Level 1 module"
+    /begin MEASUREMENT m_root "root measurement" UWORD NO_COMPU_METHOD 1 0 0 65535
+      ECU_ADDRESS 0x1000
+    /end MEASUREMENT
+  /end MODULE
+  /include "level2/level2.a2l"
+/end PROJECT

@@ -198,9 +198,14 @@ npm run electron:build
 ### A2L 与 XCP（4.0 B2 / B3）
 
 - **A2L（ASAP2）解析**：解析 `MEASUREMENT` / `CHARACTERISTIC` / `COMPU_METHOD` 与 XCP 的 `DAQ_LIST_CAN_ID`（自动去掉 29 位扩展 ID 的 `0x40000000` 标志）；未识别 BLOCK 计数跳过而非静默丢弃；`/begin`–`/end` 不配对会记录结构错误。实测 16.6MB / 29648 测量量的 A2L 解析约 **0.5s**。
+  - **地址**：同时支持内联字段 `ECU_ADDRESS 0x10090` 与 `IF_DATA`（`CANAPE_EXT` / `ETK_XETK` 等统一取 `100` 后的数值），并解析 `ECU_ADDRESS_EXTENSION` / `PHYS_UNIT`。
+  - **数值换算** `convertToPhysical`：`LINEAR`（`a*raw+b`）、`RAT_FUNC`（有理函数）、`TAB_INTP`（线性插值）/ `TAB_NOINTP`、`NO_COMPU_METHOD`（恒等）；`TAB_*` 的数值对由 `COMPU_TAB_REF` 关联独立 `COMPU_TAB` 块取得；未支持类型（如文本表）返回 `null`，**不伪造数值**。
+  - **嵌套 INCLUDE**：`parseA2LFile` 递归展开并内联拼接，输出 `expandedFiles` / `missingIncludes` / `maxDepth`；防循环；注释里的 `/INCLUDE "..."` 不作指令。
+  - **XCP 传输层** `detectXcpTransport`：识别 `XCP_ON_CAN` / `XCP_ON_TCP_IP` / `XCP_ON_USB` / `XCP_ON_SXI` / `XCP_ON_FLX`，并**排除 A2ML 段**（那是类型声明，会同时列出五种备选）。无显式声明（如 XCPlite 的 autodetect）返回 `explicit: false`，**不会默认当成 CAN**。
 - **PCAN `.trc` 日志源**：支持 PCAN-View 导出的 CAN / CAN FD trace（`N,O,T,I,d,l,D` 列，64 字节 FD 帧），状态行 `ST` 单独统计、不计为损坏行。
 - **XCP**：区分 CTO（命令）/ 响应（RES/ERR/EV/SERV）/ DTO（DAQ，首字节 PID）；从 CTO 流重建 DAQ 配置（ALLOC_DAQ / ALLOC_ODT / ALLOC_ODT_ENTRY / SET_DAQ_PTR / WRITE_DAQ / START_STOP_DAQ_LIST），再把 DTO 的 PID 解成 (DAQ list, ODT) 并拆出各 ODT entry 的原始值。
-- **对拍基线**：UDS 侧 `npm run compare:uds`（需 Python + udsoncan）与独立 Python 复核脚本逐帧对比，当前 **242/242 帧 0 不一致**。
+- **对拍基线**：UDS 侧 `npm run compare:uds`（需 Python + udsoncan）与独立 Python 复核脚本逐帧对比，当前 **242/242 帧 0 不一致**。A2L 无第三方对拍基线（无 cantools 等价物），按 PLAN 走「手工 grep 计数 + 手工换算抽查」自证。
+- **素材来源**：`TestExample/roadmap_v3x/xcp_xcplite/` 取自 Vector **XCPlite**（**MIT**，来源/用途见该目录 `SOURCE.md`）；`christoph2/pyA2L` 的样例虽多但为 **GPL-2.0** 且含真实 ECU 标定数据，未入库（仅作外部参考）。
 
 > XCP 素材（`.a2l` + CAN trace）默认读取 `XCP_EIS_DIR` 环境变量指向的目录；实测样例为 PCAN `.trc` + 16.6MB A2L，`0x7A0` 为 CTO、`0x7A1` 为响应、`0x7A4`/`0x7A5` 为 DAQ（与 A2L 的 `DAQ_LIST_CAN_ID` 一致）。素材缺失时集成测试会**显式跳过并提示**（未执行即未验证）。
 
