@@ -1,0 +1,14 @@
+/* 说明：官方 `TEST_Nested_Includes.a2l` 会 `/INCLUDE "submodules/MODULE_INCLUDES.a2l"`，
+ * 但**子文件未随该素材分发**（pyA2L 等开源仓库亦无此文件）。为让「嵌套 INCLUDE」
+ * 这一专门用例真正可执行，此处按官方注释（"The values used are not meant to make
+ * sense in a practical way. Used for testing nested include mechanism."）自行补写
+ * 最小可解析内容——本文件及其再 include 的下一层均为本项目自撰，无第三方许可问题。 */
+/begin MODULE MODULE_INCLUDES "Level 1 included module"
+  /begin MEASUREMENT m_inc_a "included measurement a" UWORD NO_COMPU_METHOD 1 0 0 65535
+    ECU_ADDRESS 0x2000
+  /end MEASUREMENT
+  /begin MEASUREMENT m_inc_b "included measurement b" UWORD NO_COMPU_METHOD 1 0 0 65535
+    ECU_ADDRESS 0x2002
+  /end MEASUREMENT
+/end MODULE
+/INCLUDE "SUB_MODULE_INCLUDES.a2l"

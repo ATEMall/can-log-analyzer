@@ -52,16 +52,38 @@
 - 新增 `electron/a2l.js`：A2L（ASAP2）解析器——`MEASUREMENT` / `CHARACTERISTIC` / `COMPU_METHOD` 抽取、`IF_DATA` 中 ECU 地址（CANAPE_EXT / ETK_XETK 等统一取 `100` 后的数值）、XCP `DAQ_LIST_CAN_ID`（自动去掉 29 位扩展 ID 的 `0x40000000` 标志）、`/include` 路径收集（字段级关键字，在 token 流中扫描）、未识别 BLOCK 计数跳过、`/begin`–`/end` 不配对记录结构错误；修正 `/end <NAME>` 闭合标签残留导致字段错位的问题。实测 16.6MB / 29648 测量量 A2L 解析 **≈0.5s、0 结构错误**。
 - 新增 `electron/trc.js`：PCAN-View `.trc`（CAN / CAN FD）解析器，与 ASC/candump 同构；64 字节 FD 帧、时间 ms→s 归一、状态行 `ST` 单独统计不计为损坏行。
 
+#### B2-T3 收口：COMPU_TAB 关联、地址与传输层识别、嵌套 INCLUDE（PLAN §六 A2L ①②③）
+
+- **COMPU_METHOD ↔ COMPU_TAB 关联**：`TAB_INTP` / `TAB_NOINTP` 的数值对**不在** COMPU_METHOD 块内，而由 `COMPU_TAB_REF` 指向独立 `COMPU_TAB` 块（此前解析出的 `pairs` 恒为空，插值换算无解）。现已解析 `COMPU_TAB`（声明个数 + 成对 `in/out`，并暴露 `pairCountMismatch`）并按引用名关联；引用缺失显式标 `tabRefMissing`，不静默当空表。
+- **系数按 `COEFFS` 定位**：改为「`COEFFS` 关键字之后取数、遇非数值即停」（LINEAR 取 2 个、RAT_FUNC 取 6 个），修正此前把块内其它数值一并收入导致系数串位的问题。
+- **内联 `ECU_ADDRESS`**：XCPlite 等工具把地址写成字段 `ECU_ADDRESS 0x10090`（而非 `IF_DATA`），此前取不到地址；现同时支持内联与 `IF_DATA`，并附带 `ECU_ADDRESS_EXTENSION` / `ARRAY_SIZE` / `PHYS_UNIT`（字符串，不能用数值解析）。
+- **XCP 传输层识别 `detectXcpTransport`**：区分 `XCP_ON_CAN` / `XCP_ON_TCP_IP` / `XCP_ON_USB` / `XCP_ON_SXI` / `XCP_ON_FLX`：
+  - 传输层关键字在 `IF_DATA` 里是**平铺参数**而非 `/begin` 子块，只按块名查找会漏 → 改为块名 + 字段值一并扫描
+  - **A2ML 段是类型声明**（`taggedstruct` 里会同时列出 CAN/TCP/USB/SXI/FLX 五种备选），必须整段排除，否则把声明误判为实际配置（实测 EIS A2L 曾误报 5 种传输层，排除后正确为 `XCP_ON_CAN` × 4）
+  - 无显式声明（如 XCPlite 的 autodetect）返回 `explicit: false`，**不得默认当成 CAN**（防把以太网当 CAN）
+- **嵌套 INCLUDE 展开 `parseA2LFile`**：递归展开并内联拼接，返回 `expandedFiles` / `missingIncludes` / `maxDepth`；防循环 include；**注释里的 `/INCLUDE "..."` 不是指令**（新增字符串感知的 `stripComments`，修掉注释中的示例路径被当成缺失文件的 bug）。
+- **素材补齐**：官方 `TEST_Nested_Includes.a2l` 会 `/INCLUDE "submodules/MODULE_INCLUDES.a2l"`，但**子文件未随素材分发**（pyA2L 等开源仓库亦无）。已按该文件注释（"values are not meant to make sense… used for testing nested include mechanism"）**自撰最小可解析内容**补齐两层（`submodules/MODULE_INCLUDES.a2l` → `SUB_MODULE_INCLUDES.a2l`）；另增自撰三层夹具 `nested_include/`（1+2+3 = 6 个 MEASUREMENT）。
+
+#### 测试素材（新增，来源与许可已登记）
+
+- **`TestExample/roadmap_v3x/xcp_xcplite/`（MIT，Vector XCPlite）**：`hello_xcp` / `c_demo` / `no_a2l_demo` / `a2l_test` 四份 A2L。许可经 GitHub API 确认为 MIT，来源、用途与注意事项见该目录 `SOURCE.md`。注意其 `.log` 是 A2L 生成器的 ELF 解析日志，**不是 XCP 测量数据**。
+- **未采用 `christoph2/pyA2L` 的 34 个 A2L**：该仓库为 **GPL-2.0**，且样例多为 VW/Bosch 真实 ECU 文件（含完整标定/地址信息），入库会带来许可传染与再分发风险；仅列为外部参考，不入库、不参与自动化测试。
+
 ### B3：XCP 帧解码
 
 - 新增 `electron/xcp.js`：CTO 命令解码（含 `SET_DAQ_PTR` / `WRITE_DAQ` / `ALLOC_*` / `START_STOP_DAQ_LIST`，未知命令码显式标出 `UNKNOWN_0xNN`）、响应包 RES/ERR/EV/SERV 识别、从 CTO 流重建 DAQ 配置、`resolvePid` 把 PID 解成 (DAQ list, ODT)、`decodeDaq` 按 ODT entry 布局拆出原始值（未知 PID 计入容错而非静默丢弃）。
 - 集成验证（用户提供的 EIS 样例：PCAN `.trc` + 16.6MB A2L）：93k 帧 0 解析错误；CTO `0x7A0` / 响应 `0x7A1` / DAQ `0x7A4`+`0x7A5`；**trace 的 DAQ CAN ID 与 A2L `DAQ_LIST_CAN_ID` 一致**（两个文件交叉验证）。
 - 已知边界：该样例的 ODT entry 地址由主机运行时写入（trace 内无 `WRITE_DAQ`），故当前仅验证到 PID 提取；ODT entry→信号量取值的完整链路待补齐配置后闭环。
 
-### 测试（本轮净增 26 例）
+### 测试
 
 - `trc.test.js` 5 例、`a2l.test.js` 8 例、`xcp.test.js` 7 例、`xcpEisIntegration.test.js` 6 例（真实素材；素材缺失时**显式跳过并提示**，不静默通过）
-- 全量回归 **384/384（32 文件）**，较 358/358 净增 26 例、**0 回退**；`npm test` exit 0
+- **新增 `a2lFixtures.test.js` 25 例**（A2L 验收，PLAN §六 A2L ①②③）：
+  - ①4 个官方素材 + 4 个 XCPlite（MIT）素材全解析，计数与**手工 grep 基线**逐项一致（V161 25/50/16、V171 31/87/19、freeTest 1/4/3；XCPlite 20/49/4、18/9/1、9/3/2、34/0/2）
+  - ①嵌套 INCLUDE：官方 `TEST_Nested_Includes` 三层展开 3 文件 / 3 测量量；自撰三层夹具 6 测量量 / `maxDepth` 2；循环 include 不死循环；注释中的 `/INCLUDE` 不生效；缺失 include 显式记录
+  - ③COMPU_METHOD 换算：`LINEAR`（V161 `CM.LINEAR.MUL_2`：`2*21 = 42`）、`TAB_INTP` 经 `COMPU_TAB_REF` 取表（手工插值 raw=1→101、raw=3→103，越界钳位 98/111）、`RAT_FUNC`、`TAB_NOINTP`、`NO_COMPU_METHOD` 恒等、未支持类型返回 `null` 不伪造数值；`COMPU_TAB` 声明个数与实际对数一致
+  - ⑤XCP 传输层：真实 ECU A2L 为 `XCP_ON_CAN` × 4 且无其它传输层（经 `XCP_EIS_DIR` 指定，缺失时跳过）；XCPlite 为 `explicit: false`（autodetect，不得默认 CAN）
+- 全量回归 **409/409（33 文件）**，较 384/384 净增 25 例、**0 回退**；`npm test` exit 0、`vite build` 通过
 
 ## [2.2.0] - 2026-09-19
 

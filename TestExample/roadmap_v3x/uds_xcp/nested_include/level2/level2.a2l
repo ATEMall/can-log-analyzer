@@ -1,0 +1,10 @@
+/* 第 2 层：自身再 /include 第 3 层 */
+/begin MODULE level2_module "Level 2 module"
+  /begin MEASUREMENT m_l2a "level2 a" UWORD NO_COMPU_METHOD 1 0 0 65535
+    ECU_ADDRESS 0x1100
+  /end MEASUREMENT
+  /begin MEASUREMENT m_l2b "level2 b" ULONG NO_COMPU_METHOD 1 0 0 4294967295
+    ECU_ADDRESS 0x1104
+  /end MEASUREMENT
+/end MODULE
+/include "level3/level3.a2l"

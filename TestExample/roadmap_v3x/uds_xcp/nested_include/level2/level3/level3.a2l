@@ -1,0 +1,12 @@
+/* 第 3 层：叶子节点，不再 include */
+/begin MODULE level3_module "Level 3 module"
+  /begin MEASUREMENT m_l3a "level3 a" UBYTE NO_COMPU_METHOD 1 0 0 255
+    ECU_ADDRESS 0x1200
+  /end MEASUREMENT
+  /begin MEASUREMENT m_l3b "level3 b" SWORD NO_COMPU_METHOD 1 0 -32768 32767
+    ECU_ADDRESS 0x1202
+  /end MEASUREMENT
+  /begin MEASUREMENT m_l3c "level3 c" FLOAT32_IEEE NO_COMPU_METHOD 0 0 -1e12 1e12
+    ECU_ADDRESS 0x1204
+  /end MEASUREMENT
+/end MODULE

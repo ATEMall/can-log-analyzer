@@ -1,0 +1,6 @@
+/* 第 2 层被 include 的模块（自撰，见 MODULE_INCLUDES.a2l 顶部说明） */
+/begin MODULE SUB_MODULE_INCLUDES "Level 2 included module"
+  /begin MEASUREMENT m_inc_c "included measurement c" FLOAT32_IEEE NO_COMPU_METHOD 0 0 -1e12 1e12
+    ECU_ADDRESS 0x2100
+  /end MEASUREMENT
+/end MODULE
